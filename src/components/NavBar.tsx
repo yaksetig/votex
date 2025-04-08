@@ -9,7 +9,7 @@ const NavBar = () => {
   return (
     <nav className="py-4 px-6 flex items-center justify-between border-b border-border">
       <div className="flex items-center gap-2">
-        <h1 className="text-2xl font-bold crypto-gradient-text">Crypto Vote Arena</h1>
+        <h1 className="text-2xl font-bold crypto-gradient-text">Votex</h1>
       </div>
       <div>
         {address ? (
