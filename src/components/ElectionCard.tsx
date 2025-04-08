@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useElections } from "@/contexts/ElectionContext";
@@ -26,6 +26,7 @@ interface ElectionCardProps {
 const ElectionCard: React.FC<ElectionCardProps> = ({ election }) => {
   const { castVote, userHasVoted, getVoteCount, deleteElection } = useElections();
   const { address } = useWallet();
+  const [isDeleting, setIsDeleting] = useState(false);
   const hasVoted = userHasVoted(election.id);
   const { option1, option2 } = getVoteCount(election.id);
   const totalVotes = option1 + option2;
@@ -47,13 +48,31 @@ const ElectionCard: React.FC<ElectionCardProps> = ({ election }) => {
 
   const handleDelete = async () => {
     try {
+      setIsDeleting(true);
       console.log(`Attempting to delete election with ID: ${election.id}`);
       const success = await deleteElection(election.id);
       console.log(`Delete election result: ${success}`);
+      if (!success) {
+        setIsDeleting(false);
+      }
     } catch (error) {
       console.error("Error in handleDelete:", error);
+      setIsDeleting(false);
     }
   };
+
+  if (isDeleting) {
+    return (
+      <Card className="w-full overflow-hidden opacity-50">
+        <CardHeader>
+          <CardTitle className="text-xl">Deleting...</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm">Removing election and all votes...</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="w-full overflow-hidden">

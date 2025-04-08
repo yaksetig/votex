@@ -50,7 +50,9 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
     try {
       setLoading(true);
       const data = await fetchElectionsAndVotes();
+      console.log(`Loaded ${data.length} elections from database`);
       setElections(data);
+      return data;
     } catch (error) {
       console.error("Error fetching elections:", error);
       toast({
@@ -58,6 +60,7 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
         description: "Could not load elections. Please try again.",
         variant: "destructive",
       });
+      return [];
     } finally {
       setLoading(false);
     }
@@ -229,7 +232,25 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
       });
       
       console.log("Refreshing elections after delete");
-      await loadElections();
+      
+      // Force update the local state by filtering out the deleted election
+      setElections(prevElections => 
+        prevElections.filter(e => e.id !== electionId)
+      );
+      
+      // Also refresh from the database to ensure we have the latest data
+      const refreshedData = await loadElections();
+      
+      // Double check the election was removed
+      if (refreshedData.some(e => e.id === electionId)) {
+        console.error("Election still present after deletion and refresh");
+        toast({
+          title: "Sync error",
+          description: "The election appears to be deleted but is still showing. Please refresh the page.",
+          variant: "destructive",
+        });
+      }
+      
       return true;
     } catch (error) {
       console.error("Error deleting election:", error);

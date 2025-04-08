@@ -102,6 +102,20 @@ export const castVoteInDb = async (
 };
 
 export const deleteElectionFromDb = async (electionId: string) => {
+  console.log(`Starting deletion process for election ${electionId}`);
+  
+  // First, check if the election exists
+  const { data: electionCheck, error: checkError } = await supabase
+    .from('elections')
+    .select('id')
+    .eq('id', electionId)
+    .single();
+    
+  if (checkError) {
+    console.error("Error checking election existence:", checkError);
+    throw new Error(`Election with ID ${electionId} does not exist or cannot be accessed`);
+  }
+  
   // Delete votes associated with the election first
   const { error: votesError } = await supabase
     .from('votes')
@@ -113,6 +127,8 @@ export const deleteElectionFromDb = async (electionId: string) => {
     throw votesError;
   }
   
+  console.log(`Successfully deleted votes for election ${electionId}, now deleting election`);
+  
   // Then delete the election itself
   const { error: electionError } = await supabase
     .from('elections')
@@ -122,6 +138,23 @@ export const deleteElectionFromDb = async (electionId: string) => {
   if (electionError) {
     console.error("Error deleting election:", electionError);
     throw electionError;
+  }
+  
+  console.log(`Successfully deleted election ${electionId}`);
+  
+  // Double-check the election was deleted
+  const { data: verifyDelete, error: verifyError } = await supabase
+    .from('elections')
+    .select('id')
+    .eq('id', electionId);
+    
+  if (verifyError) {
+    console.error("Error verifying deletion:", verifyError);
+  } else if (verifyDelete && verifyDelete.length > 0) {
+    console.error("Election still exists after deletion attempt");
+    throw new Error("Failed to delete election - it still exists in the database");
+  } else {
+    console.log("Verified deletion: election no longer exists in database");
   }
   
   return true;
