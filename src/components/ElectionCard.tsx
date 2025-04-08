@@ -12,9 +12,9 @@ interface ElectionCardProps {
 const ElectionCard: React.FC<ElectionCardProps> = ({ election }) => {
   const { castVote, userHasVoted, getVoteCount } = useElections();
   const hasVoted = userHasVoted(election.id);
-  const { yes, no } = getVoteCount(election.id);
-  const totalVotes = yes + no;
-  const yesPercentage = totalVotes > 0 ? Math.round((yes / totalVotes) * 100) : 0;
+  const { option1, option2 } = getVoteCount(election.id);
+  const totalVotes = option1 + option2;
+  const option1Percentage = totalVotes > 0 ? Math.round((option1 / totalVotes) * 100) : 0;
   const isActive = new Date() < election.endDate;
 
   const formatDate = (date: Date) => {
@@ -25,7 +25,7 @@ const ElectionCard: React.FC<ElectionCardProps> = ({ election }) => {
     });
   };
 
-  const handleVote = async (choice: "Yes" | "No") => {
+  const handleVote = async (choice: string) => {
     await castVote(election.id, choice);
   };
 
@@ -49,17 +49,17 @@ const ElectionCard: React.FC<ElectionCardProps> = ({ election }) => {
         {totalVotes > 0 && (
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
-              <span>Yes: {yes} votes</span>
-              <span>No: {no} votes</span>
+              <span>{election.option1}: {option1} votes</span>
+              <span>{election.option2}: {option2} votes</span>
             </div>
-            <Progress value={yesPercentage} className="h-2 bg-crypto-red/30">
+            <Progress value={option1Percentage} className="h-2 bg-crypto-red/30">
               <div 
                 className="h-full bg-crypto-green transition-all" 
-                style={{ width: `${yesPercentage}%` }}
+                style={{ width: `${option1Percentage}%` }}
               />
             </Progress>
             <div className="flex justify-between text-xs text-muted-foreground">
-              <span>{yesPercentage}%</span>
+              <span>{option1Percentage}%</span>
               <span>Total votes: {totalVotes}</span>
             </div>
           </div>
@@ -70,15 +70,15 @@ const ElectionCard: React.FC<ElectionCardProps> = ({ election }) => {
           <>
             <Button 
               className="flex-1 bg-crypto-green hover:bg-crypto-green/90"
-              onClick={() => handleVote("Yes")}
+              onClick={() => handleVote(election.option1)}
             >
-              Vote Yes
+              {election.option1}
             </Button>
             <Button 
               className="flex-1 bg-crypto-red hover:bg-crypto-red/90"
-              onClick={() => handleVote("No")}
+              onClick={() => handleVote(election.option2)}
             >
-              Vote No
+              {election.option2}
             </Button>
           </>
         ) : (

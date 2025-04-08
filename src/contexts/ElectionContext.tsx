@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, ReactNode, useEffect } from "react";
 import { useWallet } from "@/contexts/WalletContext";
 import { useToast } from "@/components/ui/use-toast";
@@ -9,7 +8,7 @@ import { Database } from "@/integrations/supabase/types";
 export interface Vote {
   id?: string;
   voter: string;
-  choice: "Yes" | "No";
+  choice: string;
   signature: string;
   timestamp: number;
 }
@@ -20,6 +19,8 @@ export interface Election {
   description: string;
   creator: string;
   endDate: Date;
+  option1: string;
+  option2: string;
   votes: Vote[];
   createdAt: Date;
 }
@@ -27,10 +28,10 @@ export interface Election {
 interface ElectionContextType {
   elections: Election[];
   loading: boolean;
-  createElection: (title: string, description: string, endDate: Date) => Promise<void>;
-  castVote: (electionId: string, choice: "Yes" | "No") => Promise<boolean>;
+  createElection: (title: string, description: string, endDate: Date, option1: string, option2: string) => Promise<void>;
+  castVote: (electionId: string, choice: string) => Promise<boolean>;
   userHasVoted: (electionId: string) => boolean;
-  getVoteCount: (electionId: string) => { yes: number; no: number };
+  getVoteCount: (electionId: string) => { option1: number; option2: number };
   refreshElections: () => Promise<void>;
 }
 
@@ -40,7 +41,7 @@ const ElectionContext = createContext<ElectionContextType>({
   createElection: async () => {},
   castVote: async () => false,
   userHasVoted: () => false,
-  getVoteCount: () => ({ yes: 0, no: 0 }),
+  getVoteCount: () => ({ option1: 0, option2: 0 }),
   refreshElections: async () => {},
 });
 
@@ -85,7 +86,7 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
         const processedVotes = electionVotes.map(vote => ({
           id: vote.id,
           voter: vote.voter,
-          choice: vote.choice as "Yes" | "No",
+          choice: vote.choice,
           signature: vote.signature,
           timestamp: vote.timestamp,
         }));
@@ -96,6 +97,8 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
           description: election.description,
           creator: election.creator,
           endDate: new Date(election.end_date),
+          option1: election.option1 || 'Yes',
+          option2: election.option2 || 'No',
           votes: processedVotes,
           createdAt: new Date(election.created_at),
         };
@@ -147,7 +150,7 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
     };
   }, []);
 
-  const createElection = async (title: string, description: string, endDate: Date) => {
+  const createElection = async (title: string, description: string, endDate: Date, option1: string, option2: string) => {
     if (!address) {
       toast({
         title: "Wallet not connected",
@@ -166,6 +169,8 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
             description,
             creator: address,
             end_date: endDate.toISOString(),
+            option1,
+            option2,
           }
         ])
         .select();
@@ -191,7 +196,7 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
     }
   };
 
-  const castVote = async (electionId: string, choice: "Yes" | "No"): Promise<boolean> => {
+  const castVote = async (electionId: string, choice: string): Promise<boolean> => {
     if (!address) {
       toast({
         title: "Wallet not connected",
@@ -280,12 +285,12 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
 
   const getVoteCount = (electionId: string) => {
     const election = elections.find((e) => e.id === electionId);
-    if (!election) return { yes: 0, no: 0 };
+    if (!election) return { option1: 0, option2: 0 };
     
-    const yes = election.votes.filter((vote) => vote.choice === "Yes").length;
-    const no = election.votes.filter((vote) => vote.choice === "No").length;
+    const option1Count = election.votes.filter((vote) => vote.choice === election.option1).length;
+    const option2Count = election.votes.filter((vote) => vote.choice === election.option2).length;
     
-    return { yes, no };
+    return { option1: option1Count, option2: option2Count };
   };
 
   const refreshElections = async () => {

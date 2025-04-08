@@ -29,15 +29,19 @@ const CreateElectionDialog = () => {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [option1, setOption1] = useState("Yes");
+  const [option2, setOption2] = useState("No");
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const { createElection } = useElections();
   const { address } = useWallet();
 
+  const OPTION_MAX_LENGTH = 20; // Maximum characters for options
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || !description || !endDate || !address) return;
+    if (!title || !description || !endDate || !address || !option1 || !option2) return;
 
-    createElection(title, description, endDate);
+    createElection(title, description, endDate, option1, option2);
     resetForm();
     setOpen(false);
   };
@@ -45,6 +49,8 @@ const CreateElectionDialog = () => {
   const resetForm = () => {
     setTitle("");
     setDescription("");
+    setOption1("Yes");
+    setOption2("No");
     setEndDate(undefined);
   };
 
@@ -62,7 +68,7 @@ const CreateElectionDialog = () => {
           <DialogHeader>
             <DialogTitle>Create New Election</DialogTitle>
             <DialogDescription>
-              Create a new Yes/No election for the community to vote on.
+              Create a new election with custom voting options.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -85,6 +91,36 @@ const CreateElectionDialog = () => {
                 onChange={(e) => setDescription(e.target.value)}
                 required
               />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="option1">Option 1</Label>
+                <Input
+                  id="option1"
+                  placeholder="First option (e.g., Yes)"
+                  value={option1}
+                  onChange={(e) => setOption1(e.target.value.slice(0, OPTION_MAX_LENGTH))}
+                  required
+                  maxLength={OPTION_MAX_LENGTH}
+                />
+                <p className="text-xs text-muted-foreground text-right">
+                  {option1.length}/{OPTION_MAX_LENGTH}
+                </p>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="option2">Option 2</Label>
+                <Input
+                  id="option2"
+                  placeholder="Second option (e.g., No)"
+                  value={option2}
+                  onChange={(e) => setOption2(e.target.value.slice(0, OPTION_MAX_LENGTH))}
+                  required
+                  maxLength={OPTION_MAX_LENGTH}
+                />
+                <p className="text-xs text-muted-foreground text-right">
+                  {option2.length}/{OPTION_MAX_LENGTH}
+                </p>
+              </div>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="end-date">End Date</Label>
@@ -118,7 +154,7 @@ const CreateElectionDialog = () => {
             <Button 
               type="submit" 
               className="bg-gradient-crypto"
-              disabled={!title || !description || !endDate}
+              disabled={!title || !description || !endDate || !option1 || !option2}
             >
               Create Election
             </Button>

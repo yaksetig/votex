@@ -16,6 +16,8 @@ export type Database = {
           description: string
           end_date: string
           id: string
+          option1: string
+          option2: string
           title: string
         }
         Insert: {
@@ -24,6 +26,8 @@ export type Database = {
           description: string
           end_date: string
           id?: string
+          option1?: string
+          option2?: string
           title: string
         }
         Update: {
@@ -32,6 +36,8 @@ export type Database = {
           description?: string
           end_date?: string
           id?: string
+          option1?: string
+          option2?: string
           title?: string
         }
         Relationships: []
