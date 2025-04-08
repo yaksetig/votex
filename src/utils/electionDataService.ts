@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Election, Vote } from "@/types/election";
 
@@ -126,7 +127,7 @@ export const castVoteInDb = async (
   }
 };
 
-export const deleteElectionFromDb = async (electionId: string) => {
+export const deleteElectionFromDb = async (electionId: string): Promise<boolean> => {
   console.log(`Starting deletion process for election ${electionId}`);
   
   try {
@@ -143,6 +144,7 @@ export const deleteElectionFromDb = async (electionId: string) => {
     }
     
     // First, delete all votes associated with the election
+    console.log(`Deleting votes for election ${electionId}`);
     const { error: votesError } = await supabase
       .from('votes')
       .delete()
@@ -156,9 +158,10 @@ export const deleteElectionFromDb = async (electionId: string) => {
     console.log(`Successfully deleted votes for election ${electionId}, now deleting election`);
     
     // Wait briefly to ensure votes deletion is processed
-    await new Promise(resolve => setTimeout(resolve, 300));
+    await new Promise(resolve => setTimeout(resolve, 500));
     
     // Then delete the election itself
+    console.log(`Deleting election ${electionId}`);
     const { error: electionError } = await supabase
       .from('elections')
       .delete()
@@ -171,25 +174,24 @@ export const deleteElectionFromDb = async (electionId: string) => {
     
     console.log(`Successfully deleted election ${electionId}`);
     
-    // Force a cache reset - no direct access to internal cache methods
-    // Instead, we'll implement a workaround by performing a new query after deletion
+    // Verify the deletion by checking if the election still exists
+    await new Promise(resolve => setTimeout(resolve, 500));
     
-    // Final verification - this might help with debugging but won't block the process
-    try {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      const { data: verifyDelete } = await supabase
-        .from('elections')
-        .select('id')
-        .eq('id', electionId);
-        
-      if (verifyDelete && verifyDelete.length > 0) {
-        console.warn("Election still appears in database after deletion - this may be due to Supabase caching");
-      } else {
-        console.log("Verified deletion: election no longer exists in database");
-      }
-    } catch (verifyError) {
-      console.warn("Error during verification:", verifyError);
-      // Don't throw this error, just log it
+    const { data: verifyData, error: verifyError } = await supabase
+      .from('elections')
+      .select('id')
+      .eq('id', electionId);
+    
+    if (verifyError) {
+      console.error("Error verifying deletion:", verifyError);
+      // Don't throw here, continue with success return
+    }
+    
+    if (verifyData && verifyData.length > 0) {
+      console.warn("Election still appears in database after deletion, this might be a caching issue");
+      return false; // Signal that deletion wasn't fully successful
+    } else {
+      console.log("Verified deletion: election no longer exists in database");
     }
     
     return true;

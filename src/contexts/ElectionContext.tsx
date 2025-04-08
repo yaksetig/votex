@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback } from "react";
 import { useWallet } from "@/contexts/WalletContext";
 import { useToast } from "@/components/ui/use-toast";
@@ -90,7 +89,15 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
         // For deletes, we've already handled this in our UI
         if (payload.eventType === 'DELETE') {
           console.log('Received DELETE event from Supabase for election:', payload.old.id);
-          // No need to reload, we've already updated the UI
+          // Make sure this ID is in our deleted set
+          setDeletedElectionIds(prev => {
+            const newSet = new Set(prev);
+            newSet.add(payload.old.id);
+            return newSet;
+          });
+          
+          // Also update our elections list by filtering out this ID
+          setElections(prev => prev.filter(e => e.id !== payload.old.id));
           return;
         }
         
@@ -255,17 +262,23 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
         return newSet;
       });
       
-      await deleteElectionFromDb(electionId);
+      const deleteSuccess = await deleteElectionFromDb(electionId);
       
-      toast({
-        title: "Election deleted",
-        description: `"${election.title}" has been deleted successfully.`,
-      });
-      
-      // Force reload data after a delay to ensure Supabase has fully processed the deletion
-      setTimeout(() => {
-        loadElections();
-      }, 2000);
+      if (deleteSuccess) {
+        toast({
+          title: "Election deleted",
+          description: `"${election.title}" has been deleted successfully.`,
+        });
+      } else {
+        toast({
+          title: "Partial deletion",
+          description: "The election may still exist in the database. Please try again.",
+          variant: "destructive",
+        });
+        
+        // Despite DB issues, keep it removed from UI
+        return true;
+      }
       
       return true;
     } catch (error) {

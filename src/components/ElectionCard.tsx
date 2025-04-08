@@ -52,15 +52,12 @@ const ElectionCard: React.FC<ElectionCardProps> = ({ election }) => {
       setIsDeleting(true);
       setIsOpen(false); // Close the dialog
       console.log(`Attempting to delete election with ID: ${election.id}`);
-      const success = await deleteElection(election.id);
-      console.log(`Delete election result: ${success}`);
-      if (!success) {
-        setIsDeleting(false);
-      }
-      // No need to update state on success as the component will be unmounted
+      
+      await deleteElection(election.id);
+      // The card will be unmounted if deletion is successful, so no need to reset state
     } catch (error) {
       console.error("Error in handleDelete:", error);
-      setIsDeleting(false);
+      setIsDeleting(false); // Only reset if there's an error
     }
   };
 
