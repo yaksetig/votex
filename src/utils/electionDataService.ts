@@ -162,7 +162,7 @@ export const deleteElectionFromDb = async (electionId: string): Promise<boolean>
     
     console.log(`Successfully deleted votes for election ${electionId}`);
     
-    // Delete the election without using .select()
+    // Delete the election using a simplified approach without select()
     const { error: electionError } = await supabase
       .from('elections')
       .delete()

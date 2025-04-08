@@ -240,6 +240,7 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
 
     try {
       setElections(prevElections => prevElections.filter(e => e.id !== electionId));
+      
       setDeletedElectionIds(prev => {
         const newSet = new Set(prev);
         newSet.add(electionId);
@@ -254,10 +255,11 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
           newSet.delete(electionId);
           return newSet;
         });
+        
         await loadElections();
         
         toast({
-          title: "Error deleting election",
+          title: "Deletion failed",
           description: "Could not delete the election. Please try again.",
           variant: "destructive",
         });
@@ -278,6 +280,7 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
         newSet.delete(electionId);
         return newSet;
       });
+      
       await loadElections();
       
       toast({
