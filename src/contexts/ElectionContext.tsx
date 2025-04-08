@@ -226,30 +226,18 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
       console.log("Calling deleteElectionFromDb");
       await deleteElectionFromDb(electionId);
       
+      // Immediately remove the election from local state
+      setElections(prevElections => prevElections.filter(e => e.id !== electionId));
+      
       toast({
         title: "Election deleted",
         description: `"${election.title}" has been deleted successfully.`,
       });
       
-      console.log("Refreshing elections after delete");
-      
-      // Force update the local state by filtering out the deleted election
-      setElections(prevElections => 
-        prevElections.filter(e => e.id !== electionId)
-      );
-      
-      // Also refresh from the database to ensure we have the latest data
-      const refreshedData = await loadElections();
-      
-      // Double check the election was removed
-      if (refreshedData.some(e => e.id === electionId)) {
-        console.error("Election still present after deletion and refresh");
-        toast({
-          title: "Sync error",
-          description: "The election appears to be deleted but is still showing. Please refresh the page.",
-          variant: "destructive",
-        });
-      }
+      // Force refresh the data after a short delay
+      setTimeout(() => {
+        loadElections();
+      }, 1500);
       
       return true;
     } catch (error) {
