@@ -131,8 +131,25 @@ export const deleteElectionFromDb = async (electionId: string): Promise<boolean>
   console.log(`Attempting to delete election ${electionId}`);
   
   try {
-    // Delete votes first to avoid foreign key constraints
-    console.log(`Deleting votes for election ${electionId}`);
+    // First, check if the election exists
+    const { data: electionExists, error: checkError } = await supabase
+      .from('elections')
+      .select('id')
+      .eq('id', electionId)
+      .single();
+    
+    if (checkError) {
+      if (checkError.code === 'PGRST116') {
+        // Election doesn't exist (no rows returned)
+        console.error(`No election found with ID ${electionId}`);
+        return false;
+      }
+      
+      console.error("Error checking election existence:", checkError);
+      throw checkError;
+    }
+    
+    // Delete votes first
     const { error: votesError } = await supabase
       .from('votes')
       .delete()
@@ -145,26 +162,18 @@ export const deleteElectionFromDb = async (electionId: string): Promise<boolean>
     
     console.log(`Successfully deleted votes for election ${electionId}`);
     
-    // Now delete the election
-    const { error: electionError, data: deletedElections } = await supabase
+    // Delete the election without using .select()
+    const { error: electionError } = await supabase
       .from('elections')
       .delete()
-      .eq('id', electionId)
-      .select();
+      .eq('id', electionId);
     
     if (electionError) {
       console.error("Error deleting election:", electionError);
       throw electionError;
     }
     
-    const electionsDeleted = deletedElections ? deletedElections.length : 0;
-    console.log(`Successfully deleted ${electionsDeleted} elections with ID ${electionId}`);
-    
-    if (electionsDeleted === 0) {
-      console.error(`No election found with ID ${electionId}`);
-      return false;
-    }
-    
+    console.log(`Successfully deleted election with ID ${electionId}`);
     return true;
   } catch (error) {
     console.error("Exception in deleteElectionFromDb:", error);
