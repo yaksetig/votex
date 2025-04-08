@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Election, Vote } from "@/types/election";
 
@@ -172,8 +171,8 @@ export const deleteElectionFromDb = async (electionId: string) => {
     
     console.log(`Successfully deleted election ${electionId}`);
     
-    // Force a cache reset - explicitly trigger a cache invalidation
-    await supabase.rest.headers.remove('X-Stale-After', 'elections');
+    // Force a cache reset - no direct access to internal cache methods
+    // Instead, we'll implement a workaround by performing a new query after deletion
     
     // Final verification - this might help with debugging but won't block the process
     try {
