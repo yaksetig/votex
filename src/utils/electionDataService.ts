@@ -131,7 +131,7 @@ export const deleteElectionFromDb = async (electionId: string): Promise<boolean>
   console.log(`Attempting to delete election ${electionId}`);
   
   try {
-    // First, delete all votes for this election
+    // Delete all votes for this election with a simple query
     const { error: votesError } = await supabase
       .from('votes')
       .delete()
@@ -144,7 +144,7 @@ export const deleteElectionFromDb = async (electionId: string): Promise<boolean>
     
     console.log(`Successfully deleted votes for election ${electionId}`);
     
-    // Then delete the election itself
+    // Delete the election with a simple query - no select, no count, just delete
     const { error: electionError } = await supabase
       .from('elections')
       .delete()
