@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback } from "react";
 import { useWallet } from "@/contexts/WalletContext";
 import { useToast } from "@/components/ui/use-toast";
@@ -242,7 +243,7 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
       // Optimistically remove from UI
       setElections(prevElections => prevElections.filter(e => e.id !== electionId));
       
-      // Track deletion in progress
+      // Track deletion in progress to prevent flickering
       setDeletedElectionIds(prev => {
         const newSet = new Set(prev);
         newSet.add(electionId);
