@@ -131,25 +131,7 @@ export const deleteElectionFromDb = async (electionId: string): Promise<boolean>
   console.log(`Attempting to delete election ${electionId}`);
   
   try {
-    // First, check if the election exists
-    const { data: electionExists, error: checkError } = await supabase
-      .from('elections')
-      .select('id')
-      .eq('id', electionId)
-      .single();
-    
-    if (checkError) {
-      if (checkError.code === 'PGRST116') {
-        // Election doesn't exist (no rows returned)
-        console.error(`No election found with ID ${electionId}`);
-        return false;
-      }
-      
-      console.error("Error checking election existence:", checkError);
-      throw checkError;
-    }
-    
-    // Delete votes first
+    // First, delete all votes for this election
     const { error: votesError } = await supabase
       .from('votes')
       .delete()
@@ -162,19 +144,27 @@ export const deleteElectionFromDb = async (electionId: string): Promise<boolean>
     
     console.log(`Successfully deleted votes for election ${electionId}`);
     
-    // Delete the election using a simplified approach without select()
-    const { error: electionError } = await supabase
+    // Then delete the election itself
+    const { error: electionError, count } = await supabase
       .from('elections')
       .delete()
-      .eq('id', electionId);
+      .eq('id', electionId)
+      .select('count');
     
     if (electionError) {
       console.error("Error deleting election:", electionError);
       throw electionError;
     }
     
-    console.log(`Successfully deleted election with ID ${electionId}`);
-    return true;
+    const deletionSuccessful = count !== null && count > 0;
+    
+    if (deletionSuccessful) {
+      console.log(`Successfully deleted election with ID ${electionId}`);
+      return true;
+    } else {
+      console.error(`No election with ID ${electionId} was deleted`);
+      return false;
+    }
   } catch (error) {
     console.error("Exception in deleteElectionFromDb:", error);
     throw error;

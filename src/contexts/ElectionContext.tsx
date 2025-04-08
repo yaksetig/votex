@@ -239,23 +239,30 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
     }
 
     try {
+      // Optimistically remove from UI
       setElections(prevElections => prevElections.filter(e => e.id !== electionId));
       
+      // Track deletion in progress
       setDeletedElectionIds(prev => {
         const newSet = new Set(prev);
         newSet.add(electionId);
         return newSet;
       });
       
+      // Perform actual database deletion
       const success = await deleteElectionFromDb(electionId);
       
       if (!success) {
+        // Revert UI changes if database deletion failed
+        console.error(`Database deletion failed for election ${electionId}`);
+        
         setDeletedElectionIds(prev => {
           const newSet = new Set(prev);
           newSet.delete(electionId);
           return newSet;
         });
         
+        // Reload elections to restore state
         await loadElections();
         
         toast({
@@ -275,12 +282,14 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
     } catch (error) {
       console.error("Error deleting election:", error);
       
+      // Revert UI changes on error
       setDeletedElectionIds(prev => {
         const newSet = new Set(prev);
         newSet.delete(electionId);
         return newSet;
       });
       
+      // Reload elections to restore state
       await loadElections();
       
       toast({
