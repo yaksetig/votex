@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Election, Vote } from "@/types/election";
 
@@ -143,7 +144,7 @@ export const deleteElectionFromDb = async (electionId: string): Promise<boolean>
     
     console.log(`Successfully deleted votes for election ${electionId}`);
     
-    // Then delete the election itself - WITHOUT using select('count')
+    // Then delete the election itself
     const { error: electionError } = await supabase
       .from('elections')
       .delete()
