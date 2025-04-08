@@ -2,9 +2,11 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect } from "react";
 import { useWallet } from "@/contexts/WalletContext";
 import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 // Define our election types
 export interface Vote {
+  id?: string;
   voter: string;
   choice: "Yes" | "No";
   signature: string;
@@ -23,18 +25,22 @@ export interface Election {
 
 interface ElectionContextType {
   elections: Election[];
-  createElection: (title: string, description: string, endDate: Date) => void;
+  loading: boolean;
+  createElection: (title: string, description: string, endDate: Date) => Promise<void>;
   castVote: (electionId: string, choice: "Yes" | "No") => Promise<boolean>;
   userHasVoted: (electionId: string) => boolean;
   getVoteCount: (electionId: string) => { yes: number; no: number };
+  refreshElections: () => Promise<void>;
 }
 
 const ElectionContext = createContext<ElectionContextType>({
   elections: [],
-  createElection: () => {},
+  loading: false,
+  createElection: async () => {},
   castVote: async () => false,
   userHasVoted: () => false,
   getVoteCount: () => ({ yes: 0, no: 0 }),
+  refreshElections: async () => {},
 });
 
 export const useElections = () => useContext(ElectionContext);
@@ -45,34 +51,102 @@ interface ElectionProviderProps {
 
 export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) => {
   const [elections, setElections] = useState<Election[]>([]);
+  const [loading, setLoading] = useState(true);
   const { address, signMessage } = useWallet();
   const { toast } = useToast();
 
-  // Load elections from localStorage on mount
-  useEffect(() => {
-    const storedElections = localStorage.getItem("crypto-vote-elections");
-    if (storedElections) {
-      try {
-        const parsed = JSON.parse(storedElections);
-        // Convert string dates back to Date objects
-        const electionsWithDates = parsed.map((election: any) => ({
-          ...election,
-          endDate: new Date(election.endDate),
-          createdAt: new Date(election.createdAt),
-        }));
-        setElections(electionsWithDates);
-      } catch (error) {
-        console.error("Error parsing stored elections:", error);
+  // Load elections from Supabase on mount
+  const fetchElectionsAndVotes = async () => {
+    try {
+      setLoading(true);
+      // Fetch elections
+      const { data: electionsData, error: electionsError } = await supabase
+        .from('elections')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (electionsError) {
+        throw electionsError;
       }
+
+      // Fetch votes for all elections
+      const { data: votesData, error: votesError } = await supabase
+        .from('votes')
+        .select('*');
+
+      if (votesError) {
+        throw votesError;
+      }
+
+      // Process the data
+      const processedElections = electionsData.map((election) => {
+        const electionVotes = votesData.filter(vote => vote.election_id === election.id);
+        const processedVotes = electionVotes.map(vote => ({
+          id: vote.id,
+          voter: vote.voter,
+          choice: vote.choice as "Yes" | "No",
+          signature: vote.signature,
+          timestamp: vote.timestamp,
+        }));
+
+        return {
+          id: election.id,
+          title: election.title,
+          description: election.description,
+          creator: election.creator,
+          endDate: new Date(election.end_date),
+          votes: processedVotes,
+          createdAt: new Date(election.created_at),
+        };
+      });
+
+      setElections(processedElections);
+    } catch (error) {
+      console.error("Error fetching elections:", error);
+      toast({
+        title: "Error fetching elections",
+        description: "Could not load elections. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    fetchElectionsAndVotes();
+    
+    // Set up realtime subscription for elections
+    const electionsChannel = supabase
+      .channel('public:elections')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public',
+        table: 'elections'
+      }, () => {
+        fetchElectionsAndVotes();
+      })
+      .subscribe();
+    
+    // Set up realtime subscription for votes
+    const votesChannel = supabase
+      .channel('public:votes')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public',
+        table: 'votes'
+      }, () => {
+        fetchElectionsAndVotes();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(electionsChannel);
+      supabase.removeChannel(votesChannel);
+    };
   }, []);
 
-  // Save elections to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem("crypto-vote-elections", JSON.stringify(elections));
-  }, [elections]);
-
-  const createElection = (title: string, description: string, endDate: Date) => {
+  const createElection = async (title: string, description: string, endDate: Date) => {
     if (!address) {
       toast({
         title: "Wallet not connected",
@@ -82,21 +156,38 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
       return;
     }
 
-    const newElection: Election = {
-      id: crypto.randomUUID(),
-      title,
-      description,
-      creator: address,
-      endDate,
-      votes: [],
-      createdAt: new Date(),
-    };
+    try {
+      const { data, error } = await supabase
+        .from('elections')
+        .insert([
+          {
+            title,
+            description,
+            creator: address,
+            end_date: endDate.toISOString(),
+          }
+        ])
+        .select();
 
-    setElections((prev) => [...prev, newElection]);
-    toast({
-      title: "Election created",
-      description: `"${title}" has been created successfully.`,
-    });
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "Election created",
+        description: `"${title}" has been created successfully.`,
+      });
+      
+      // Refresh elections
+      await fetchElectionsAndVotes();
+    } catch (error) {
+      console.error("Error creating election:", error);
+      toast({
+        title: "Error creating election",
+        description: "Could not create the election. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const castVote = async (electionId: string, choice: "Yes" | "No"): Promise<boolean> => {
@@ -137,31 +228,46 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
       return false;
     }
 
-    // Sign message with wallet
-    const message = `Vote ${choice} on Election: ${election.id}`;
-    const signature = await signMessage(message);
-    if (!signature) return false;
+    try {
+      // Sign message with wallet
+      const message = `Vote ${choice} on Election: ${election.id}`;
+      const signature = await signMessage(message);
+      if (!signature) return false;
 
-    // Add vote
-    const newVote: Vote = {
-      voter: address,
-      choice,
-      signature,
-      timestamp: Date.now(),
-    };
+      // Add vote to Supabase
+      const { error } = await supabase
+        .from('votes')
+        .insert([
+          {
+            election_id: electionId,
+            voter: address,
+            choice,
+            signature,
+            timestamp: Date.now(),
+          }
+        ]);
 
-    setElections((prev) =>
-      prev.map((e) =>
-        e.id === electionId ? { ...e, votes: [...e.votes, newVote] } : e
-      )
-    );
+      if (error) {
+        throw error;
+      }
 
-    toast({
-      title: "Vote cast",
-      description: `You have successfully voted "${choice}" in "${election.title}".`,
-    });
+      toast({
+        title: "Vote cast",
+        description: `You have successfully voted "${choice}" in "${election.title}".`,
+      });
 
-    return true;
+      // Refresh elections
+      await fetchElectionsAndVotes();
+      return true;
+    } catch (error) {
+      console.error("Error casting vote:", error);
+      toast({
+        title: "Error casting vote",
+        description: "Could not cast your vote. Please try again.",
+        variant: "destructive",
+      });
+      return false;
+    }
   };
 
   const userHasVoted = (electionId: string): boolean => {
@@ -181,14 +287,20 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
     return { yes, no };
   };
 
+  const refreshElections = async () => {
+    await fetchElectionsAndVotes();
+  };
+
   return (
     <ElectionContext.Provider
       value={{
         elections,
+        loading,
         createElection,
         castVote,
         userHasVoted,
         getVoteCount,
+        refreshElections,
       }}
     >
       {children}

@@ -9,7 +9,71 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      elections: {
+        Row: {
+          created_at: string
+          creator: string
+          description: string
+          end_date: string
+          id: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          creator: string
+          description: string
+          end_date: string
+          id?: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          creator?: string
+          description?: string
+          end_date?: string
+          id?: string
+          title?: string
+        }
+        Relationships: []
+      }
+      votes: {
+        Row: {
+          choice: string
+          created_at: string
+          election_id: string
+          id: string
+          signature: string
+          timestamp: number
+          voter: string
+        }
+        Insert: {
+          choice: string
+          created_at?: string
+          election_id: string
+          id?: string
+          signature: string
+          timestamp: number
+          voter: string
+        }
+        Update: {
+          choice?: string
+          created_at?: string
+          election_id?: string
+          id?: string
+          signature?: string
+          timestamp?: number
+          voter?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "votes_election_id_fkey"
+            columns: ["election_id"]
+            isOneToOne: false
+            referencedRelation: "elections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
