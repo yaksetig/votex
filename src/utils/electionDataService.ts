@@ -10,7 +10,13 @@ export const fetchElectionsAndVotes = async (): Promise<Election[]> => {
     .order('created_at', { ascending: false });
 
   if (electionsError) {
+    console.error("Error fetching elections:", electionsError);
     throw electionsError;
+  }
+
+  if (!electionsData || electionsData.length === 0) {
+    console.log("No elections found in database");
+    return [];
   }
 
   // Fetch votes for all elections
@@ -19,12 +25,13 @@ export const fetchElectionsAndVotes = async (): Promise<Election[]> => {
     .select('*');
 
   if (votesError) {
+    console.error("Error fetching votes:", votesError);
     throw votesError;
   }
 
   // Process the data
   return electionsData.map((election) => {
-    const electionVotes = votesData.filter(vote => vote.election_id === election.id);
+    const electionVotes = votesData ? votesData.filter(vote => vote.election_id === election.id) : [];
     const processedVotes = electionVotes.map(vote => ({
       id: vote.id,
       voter: vote.voter,
@@ -55,25 +62,38 @@ export const createElectionInDb = async (
   option1: string, 
   option2: string
 ) => {
-  const { data, error } = await supabase
-    .from('elections')
-    .insert([
-      {
-        title,
-        description,
-        creator,
-        end_date: endDate.toISOString(),
-        option1,
-        option2,
-      }
-    ])
-    .select();
+  console.log("Creating election with data:", { title, description, creator, endDate, option1, option2 });
 
-  if (error) {
+  try {
+    const { data, error } = await supabase
+      .from('elections')
+      .insert([
+        {
+          title,
+          description,
+          creator,
+          end_date: endDate.toISOString(),
+          option1,
+          option2,
+        }
+      ])
+      .select();
+
+    if (error) {
+      console.error("Error in createElectionInDb:", error);
+      throw error;
+    }
+    
+    if (!data || data.length === 0) {
+      throw new Error("No data returned after creating election");
+    }
+    
+    console.log("Successfully created election:", data);
+    return data;
+  } catch (error) {
+    console.error("Exception in createElectionInDb:", error);
     throw error;
   }
-  
-  return data;
 };
 
 export const castVoteInDb = async (
@@ -82,23 +102,29 @@ export const castVoteInDb = async (
   choice: string, 
   signature: string
 ) => {
-  const { error } = await supabase
-    .from('votes')
-    .insert([
-      {
-        election_id: electionId,
-        voter,
-        choice,
-        signature,
-        timestamp: Date.now(),
-      }
-    ]);
+  try {
+    const { error } = await supabase
+      .from('votes')
+      .insert([
+        {
+          election_id: electionId,
+          voter,
+          choice,
+          signature,
+          timestamp: Date.now(),
+        }
+      ]);
 
-  if (error) {
+    if (error) {
+      console.error("Error casting vote:", error);
+      throw error;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error("Exception in castVoteInDb:", error);
     throw error;
   }
-  
-  return true;
 };
 
 export const deleteElectionFromDb = async (electionId: string) => {

@@ -24,6 +24,7 @@ import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { useElections } from "@/contexts/ElectionContext";
 import { useWallet } from "@/contexts/WalletContext";
+import { useToast } from "@/components/ui/use-toast";
 
 const CreateElectionDialog = () => {
   const [open, setOpen] = useState(false);
@@ -32,18 +33,39 @@ const CreateElectionDialog = () => {
   const [option1, setOption1] = useState("Yes");
   const [option2, setOption2] = useState("No");
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { createElection } = useElections();
   const { address } = useWallet();
+  const { toast } = useToast();
 
   const OPTION_MAX_LENGTH = 20; // Maximum characters for options
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || !description || !endDate || !address || !option1 || !option2) return;
+    if (!title || !description || !endDate || !address || !option1 || !option2) {
+      toast({
+        title: "Missing information",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    createElection(title, description, endDate, option1, option2);
-    resetForm();
-    setOpen(false);
+    setIsSubmitting(true);
+    try {
+      await createElection(title, description, endDate, option1, option2);
+      resetForm();
+      setOpen(false);
+    } catch (error) {
+      console.error("Error in createElection:", error);
+      toast({
+        title: "Creation failed",
+        description: "Failed to create election. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const resetForm = () => {
@@ -59,7 +81,10 @@ const CreateElectionDialog = () => {
   tomorrow.setDate(tomorrow.getDate() + 1);
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(newOpen) => {
+      if (!isSubmitting) setOpen(newOpen);
+      if (!newOpen) resetForm();
+    }}>
       <DialogTrigger asChild>
         <Button className="bg-gradient-crypto">Create Election</Button>
       </DialogTrigger>
@@ -80,6 +105,7 @@ const CreateElectionDialog = () => {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 required
+                disabled={isSubmitting}
               />
             </div>
             <div className="grid gap-2">
@@ -90,6 +116,7 @@ const CreateElectionDialog = () => {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 required
+                disabled={isSubmitting}
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -102,6 +129,7 @@ const CreateElectionDialog = () => {
                   onChange={(e) => setOption1(e.target.value.slice(0, OPTION_MAX_LENGTH))}
                   required
                   maxLength={OPTION_MAX_LENGTH}
+                  disabled={isSubmitting}
                 />
                 <p className="text-xs text-muted-foreground text-right">
                   {option1.length}/{OPTION_MAX_LENGTH}
@@ -116,6 +144,7 @@ const CreateElectionDialog = () => {
                   onChange={(e) => setOption2(e.target.value.slice(0, OPTION_MAX_LENGTH))}
                   required
                   maxLength={OPTION_MAX_LENGTH}
+                  disabled={isSubmitting}
                 />
                 <p className="text-xs text-muted-foreground text-right">
                   {option2.length}/{OPTION_MAX_LENGTH}
@@ -133,6 +162,7 @@ const CreateElectionDialog = () => {
                       "w-full justify-start text-left font-normal",
                       !endDate && "text-muted-foreground"
                     )}
+                    disabled={isSubmitting}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {endDate ? format(endDate, "PPP") : "Select end date"}
@@ -154,9 +184,9 @@ const CreateElectionDialog = () => {
             <Button 
               type="submit" 
               className="bg-gradient-crypto"
-              disabled={!title || !description || !endDate || !option1 || !option2}
+              disabled={isSubmitting || !title || !description || !endDate || !option1 || !option2}
             >
-              Create Election
+              {isSubmitting ? "Creating..." : "Create Election"}
             </Button>
           </DialogFooter>
         </form>
