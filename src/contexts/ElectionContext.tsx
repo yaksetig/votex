@@ -1,10 +1,14 @@
-
 import React, { createContext, useState, useContext, ReactNode, useEffect } from "react";
 import { useWallet } from "@/contexts/WalletContext";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Election, VoteCount } from "@/types/election";
-import { fetchElectionsAndVotes, createElectionInDb, castVoteInDb } from "@/utils/electionDataService";
+import { 
+  fetchElectionsAndVotes, 
+  createElectionInDb, 
+  castVoteInDb, 
+  deleteElectionFromDb 
+} from "@/utils/electionDataService";
 import { userHasVoted as checkUserHasVoted, getVoteCount as calculateVoteCount } from "@/utils/voteUtils";
 
 interface ElectionContextType {
@@ -12,6 +16,7 @@ interface ElectionContextType {
   loading: boolean;
   createElection: (title: string, description: string, endDate: Date, option1: string, option2: string) => Promise<void>;
   castVote: (electionId: string, choice: string) => Promise<boolean>;
+  deleteElection: (electionId: string) => Promise<boolean>;
   userHasVoted: (electionId: string) => boolean;
   getVoteCount: (electionId: string) => VoteCount;
   refreshElections: () => Promise<void>;
@@ -22,6 +27,7 @@ const ElectionContext = createContext<ElectionContextType>({
   loading: false,
   createElection: async () => {},
   castVote: async () => false,
+  deleteElection: async () => false,
   userHasVoted: () => false,
   getVoteCount: () => ({ option1: 0, option2: 0 }),
   refreshElections: async () => {},
@@ -39,7 +45,6 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
   const { address, signMessage } = useWallet();
   const { toast } = useToast();
 
-  // Load elections from Supabase on mount
   const loadElections = async () => {
     try {
       setLoading(true);
@@ -60,7 +65,6 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
   useEffect(() => {
     loadElections();
     
-    // Set up realtime subscription for elections
     const electionsChannel = supabase
       .channel('public:elections')
       .on('postgres_changes', { 
@@ -72,7 +76,6 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
       })
       .subscribe();
     
-    // Set up realtime subscription for votes
     const votesChannel = supabase
       .channel('public:votes')
       .on('postgres_changes', { 
@@ -108,7 +111,6 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
         description: `"${title}" has been created successfully.`,
       });
       
-      // Refresh elections
       await loadElections();
     } catch (error) {
       console.error("Error creating election:", error);
@@ -159,12 +161,10 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
     }
 
     try {
-      // Sign message with wallet
       const message = `Vote ${choice} on Election: ${election.id}`;
       const signature = await signMessage(message);
       if (!signature) return false;
 
-      // Add vote to Supabase
       await castVoteInDb(electionId, address, choice, signature);
 
       toast({
@@ -172,7 +172,6 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
         description: `You have successfully voted "${choice}" in "${election.title}".`,
       });
 
-      // Refresh elections
       await loadElections();
       return true;
     } catch (error) {
@@ -180,6 +179,56 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
       toast({
         title: "Error casting vote",
         description: "Could not cast your vote. Please try again.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  const deleteElection = async (electionId: string): Promise<boolean> => {
+    if (!address) {
+      toast({
+        title: "Wallet not connected",
+        description: "Please connect your wallet to delete an election.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    const election = elections.find((e) => e.id === electionId);
+    if (!election) {
+      toast({
+        title: "Election not found",
+        description: "Could not find the specified election.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    if (election.creator !== address) {
+      toast({
+        title: "Permission denied",
+        description: "You can only delete elections you've created.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    try {
+      await deleteElectionFromDb(electionId);
+      
+      toast({
+        title: "Election deleted",
+        description: `"${election.title}" has been deleted successfully.`,
+      });
+      
+      await loadElections();
+      return true;
+    } catch (error) {
+      console.error("Error deleting election:", error);
+      toast({
+        title: "Error deleting election",
+        description: "Could not delete the election. Please try again.",
         variant: "destructive",
       });
       return false;
@@ -208,6 +257,7 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
         loading,
         createElection,
         castVote,
+        deleteElection,
         userHasVoted,
         getVoteCount,
         refreshElections,
@@ -218,5 +268,4 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
   );
 };
 
-// Re-export the types
 export type { Election, VoteCount } from "@/types/election";
