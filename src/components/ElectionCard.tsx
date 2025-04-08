@@ -54,6 +54,7 @@ const ElectionCard: React.FC<ElectionCardProps> = ({ election }) => {
       setIsDeleting(true);
       setIsOpen(false); // Close the dialog
       
+      console.log(`Deleting election: ${election.id}`);
       const success = await deleteElection(election.id);
       
       if (!success) {

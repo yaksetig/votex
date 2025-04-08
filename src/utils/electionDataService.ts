@@ -133,30 +133,38 @@ export const deleteElectionFromDb = async (electionId: string): Promise<boolean>
   try {
     // Delete votes first to avoid foreign key constraints
     console.log(`Deleting votes for election ${electionId}`);
-    const { error: votesError } = await supabase
+    const { error: votesError, count: votesDeleted } = await supabase
       .from('votes')
       .delete()
-      .eq('election_id', electionId);
+      .eq('election_id', electionId)
+      .select('count');
     
     if (votesError) {
       console.error("Error deleting votes:", votesError);
       throw votesError;
     }
     
-    console.log(`Successfully deleted votes for election ${electionId}`);
+    console.log(`Successfully deleted ${votesDeleted || 0} votes for election ${electionId}`);
     
     // Now delete the election
-    const { error: electionError } = await supabase
+    const { error: electionError, count: electionsDeleted } = await supabase
       .from('elections')
       .delete()
-      .eq('id', electionId);
+      .eq('id', electionId)
+      .select('count');
     
     if (electionError) {
       console.error("Error deleting election:", electionError);
       throw electionError;
     }
     
-    console.log(`Successfully deleted election ${electionId}`);
+    console.log(`Successfully deleted ${electionsDeleted || 0} elections with ID ${electionId}`);
+    
+    if (electionsDeleted === 0) {
+      console.error(`No election found with ID ${electionId}`);
+      return false;
+    }
+    
     return true;
   } catch (error) {
     console.error("Exception in deleteElectionFromDb:", error);

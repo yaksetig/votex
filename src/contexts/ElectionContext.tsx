@@ -53,7 +53,6 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
       const data = await fetchElectionsAndVotes();
       console.log(`Loaded ${data.length} elections from database`);
       
-      // Filter out any elections that are in the deleted set
       const filteredData = data.filter(election => !deletedElectionIds.has(election.id));
       if (filteredData.length !== data.length) {
         console.log(`Filtered out ${data.length - filteredData.length} deleted elections`);
@@ -77,7 +76,6 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
   useEffect(() => {
     loadElections();
     
-    // Set up real-time listeners for both elections and votes tables
     const electionsChannel = supabase
       .channel('public:elections')
       .on('postgres_changes', { 
@@ -241,15 +239,22 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
     }
 
     try {
-      // Optimistically remove from UI immediately to improve perceived performance
       setElections(prevElections => prevElections.filter(e => e.id !== electionId));
+      setDeletedElectionIds(prev => {
+        const newSet = new Set(prev);
+        newSet.add(electionId);
+        return newSet;
+      });
       
-      // Actually delete from database
       const success = await deleteElectionFromDb(electionId);
       
       if (!success) {
-        // If deletion failed, restore the election in the UI
-        loadElections();
+        setDeletedElectionIds(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(electionId);
+          return newSet;
+        });
+        await loadElections();
         
         toast({
           title: "Error deleting election",
@@ -258,13 +263,6 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
         });
         return false;
       }
-      
-      // Add to deleted set to prevent it from reappearing due to real-time subscriptions
-      setDeletedElectionIds(prev => {
-        const newSet = new Set(prev);
-        newSet.add(electionId);
-        return newSet;
-      });
       
       toast({
         title: "Election deleted",
@@ -275,8 +273,12 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
     } catch (error) {
       console.error("Error deleting election:", error);
       
-      // Restore the election in the UI
-      loadElections();
+      setDeletedElectionIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(electionId);
+        return newSet;
+      });
+      await loadElections();
       
       toast({
         title: "Error deleting election",
