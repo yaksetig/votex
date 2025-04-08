@@ -3,28 +3,9 @@ import React, { createContext, useState, useContext, ReactNode, useEffect } from
 import { useWallet } from "@/contexts/WalletContext";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Database } from "@/integrations/supabase/types";
-
-// Define our election types
-export interface Vote {
-  id?: string;
-  voter: string;
-  choice: string;
-  signature: string;
-  timestamp: number;
-}
-
-export interface Election {
-  id: string;
-  title: string;
-  description: string;
-  creator: string;
-  endDate: Date;
-  option1: string;
-  option2: string;
-  votes: Vote[];
-  createdAt: Date;
-}
+import { Election, VoteCount } from "@/types/election";
+import { fetchElectionsAndVotes, createElectionInDb, castVoteInDb } from "@/utils/electionDataService";
+import { userHasVoted as checkUserHasVoted, getVoteCount as calculateVoteCount } from "@/utils/voteUtils";
 
 interface ElectionContextType {
   elections: Election[];
@@ -32,7 +13,7 @@ interface ElectionContextType {
   createElection: (title: string, description: string, endDate: Date, option1: string, option2: string) => Promise<void>;
   castVote: (electionId: string, choice: string) => Promise<boolean>;
   userHasVoted: (electionId: string) => boolean;
-  getVoteCount: (electionId: string) => { option1: number; option2: number };
+  getVoteCount: (electionId: string) => VoteCount;
   refreshElections: () => Promise<void>;
 }
 
@@ -59,53 +40,11 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
   const { toast } = useToast();
 
   // Load elections from Supabase on mount
-  const fetchElectionsAndVotes = async () => {
+  const loadElections = async () => {
     try {
       setLoading(true);
-      // Fetch elections
-      const { data: electionsData, error: electionsError } = await supabase
-        .from('elections')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (electionsError) {
-        throw electionsError;
-      }
-
-      // Fetch votes for all elections
-      const { data: votesData, error: votesError } = await supabase
-        .from('votes')
-        .select('*');
-
-      if (votesError) {
-        throw votesError;
-      }
-
-      // Process the data
-      const processedElections = electionsData.map((election) => {
-        const electionVotes = votesData.filter(vote => vote.election_id === election.id);
-        const processedVotes = electionVotes.map(vote => ({
-          id: vote.id,
-          voter: vote.voter,
-          choice: vote.choice,
-          signature: vote.signature,
-          timestamp: vote.timestamp,
-        }));
-
-        return {
-          id: election.id,
-          title: election.title,
-          description: election.description,
-          creator: election.creator,
-          endDate: new Date(election.end_date),
-          option1: election.option1 || 'Yes',  // Use default if not present
-          option2: election.option2 || 'No',   // Use default if not present
-          votes: processedVotes,
-          createdAt: new Date(election.created_at),
-        };
-      });
-
-      setElections(processedElections);
+      const data = await fetchElectionsAndVotes();
+      setElections(data);
     } catch (error) {
       console.error("Error fetching elections:", error);
       toast({
@@ -119,7 +58,7 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
   };
 
   useEffect(() => {
-    fetchElectionsAndVotes();
+    loadElections();
     
     // Set up realtime subscription for elections
     const electionsChannel = supabase
@@ -129,7 +68,7 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
         schema: 'public',
         table: 'elections'
       }, () => {
-        fetchElectionsAndVotes();
+        loadElections();
       })
       .subscribe();
     
@@ -141,7 +80,7 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
         schema: 'public',
         table: 'votes'
       }, () => {
-        fetchElectionsAndVotes();
+        loadElections();
       })
       .subscribe();
 
@@ -162,31 +101,15 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
     }
 
     try {
-      const { data, error } = await supabase
-        .from('elections')
-        .insert([
-          {
-            title,
-            description,
-            creator: address,
-            end_date: endDate.toISOString(),
-            option1,
-            option2,
-          }
-        ])
-        .select();
-
-      if (error) {
-        throw error;
-      }
-
+      await createElectionInDb(title, description, address, endDate, option1, option2);
+      
       toast({
         title: "Election created",
         description: `"${title}" has been created successfully.`,
       });
       
       // Refresh elections
-      await fetchElectionsAndVotes();
+      await loadElections();
     } catch (error) {
       console.error("Error creating election:", error);
       toast({
@@ -242,21 +165,7 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
       if (!signature) return false;
 
       // Add vote to Supabase
-      const { error } = await supabase
-        .from('votes')
-        .insert([
-          {
-            election_id: electionId,
-            voter: address,
-            choice,
-            signature,
-            timestamp: Date.now(),
-          }
-        ]);
-
-      if (error) {
-        throw error;
-      }
+      await castVoteInDb(electionId, address, choice, signature);
 
       toast({
         title: "Vote cast",
@@ -264,7 +173,7 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
       });
 
       // Refresh elections
-      await fetchElectionsAndVotes();
+      await loadElections();
       return true;
     } catch (error) {
       console.error("Error casting vote:", error);
@@ -280,22 +189,16 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
   const userHasVoted = (electionId: string): boolean => {
     if (!address) return false;
     const election = elections.find((e) => e.id === electionId);
-    if (!election) return false;
-    return election.votes.some((vote) => vote.voter === address);
+    return checkUserHasVoted(election, address);
   };
 
-  const getVoteCount = (electionId: string) => {
+  const getVoteCount = (electionId: string): VoteCount => {
     const election = elections.find((e) => e.id === electionId);
-    if (!election) return { option1: 0, option2: 0 };
-    
-    const option1Count = election.votes.filter((vote) => vote.choice === election.option1).length;
-    const option2Count = election.votes.filter((vote) => vote.choice === election.option2).length;
-    
-    return { option1: option1Count, option2: option2Count };
+    return calculateVoteCount(election);
   };
 
   const refreshElections = async () => {
-    await fetchElectionsAndVotes();
+    await loadElections();
   };
 
   return (
@@ -314,3 +217,6 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
     </ElectionContext.Provider>
   );
 };
+
+// Re-export the types
+export type { Election, VoteCount } from "@/types/election";

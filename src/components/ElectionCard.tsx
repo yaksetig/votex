@@ -2,7 +2,8 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { useElections, Election } from "@/contexts/ElectionContext";
+import { useElections } from "@/contexts/ElectionContext";
+import { Election } from "@/types/election";
 import { Progress } from "@/components/ui/progress";
 
 interface ElectionCardProps {
