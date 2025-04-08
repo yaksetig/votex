@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Election, Vote } from "@/types/election";
 
@@ -130,7 +131,7 @@ export const deleteElectionFromDb = async (electionId: string): Promise<boolean>
   console.log(`Attempting to delete election ${electionId}`);
   
   try {
-    // Delete all votes associated with the election first
+    // Delete votes first to avoid foreign key constraints
     console.log(`Deleting votes for election ${electionId}`);
     const { error: votesError } = await supabase
       .from('votes')
@@ -144,7 +145,7 @@ export const deleteElectionFromDb = async (electionId: string): Promise<boolean>
     
     console.log(`Successfully deleted votes for election ${electionId}`);
     
-    // Then delete the election itself
+    // Now delete the election
     const { error: electionError } = await supabase
       .from('elections')
       .delete()

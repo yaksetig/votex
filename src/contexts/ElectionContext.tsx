@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback } from "react";
 import { useWallet } from "@/contexts/WalletContext";
 import { useToast } from "@/components/ui/use-toast";
@@ -53,6 +54,7 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
       const data = await fetchElectionsAndVotes();
       console.log(`Loaded ${data.length} elections from database`);
       
+      // Filter out any elections that are in the deleted set
       const filteredData = data.filter(election => !deletedElectionIds.has(election.id));
       if (filteredData.length !== data.length) {
         console.log(`Filtered out ${data.length - filteredData.length} deleted elections`);
@@ -76,6 +78,7 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
   useEffect(() => {
     loadElections();
     
+    // Set up real-time listeners for both elections and votes tables
     const electionsChannel = supabase
       .channel('public:elections')
       .on('postgres_changes', { 
@@ -219,10 +222,8 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
       return false;
     }
 
-    console.log(`Checking election with ID: ${electionId}`);
     const election = elections.find((e) => e.id === electionId);
     if (!election) {
-      console.log("Election not found");
       toast({
         title: "Election not found",
         description: "Could not find the specified election.",
@@ -231,9 +232,7 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
       return false;
     }
 
-    console.log(`Election creator: ${election.creator}, User address: ${address}`);
     if (election.creator !== address) {
-      console.log("Permission denied - creator mismatch");
       toast({
         title: "Permission denied",
         description: "You can only delete elections you've created.",
@@ -243,14 +242,17 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
     }
 
     try {
+      // Optimistically remove from UI
       setElections(prevElections => prevElections.filter(e => e.id !== electionId));
       
+      // Track as deleted
       setDeletedElectionIds(prev => {
         const newSet = new Set(prev);
         newSet.add(electionId);
         return newSet;
       });
       
+      // Actually delete from database
       await deleteElectionFromDb(electionId);
       
       toast({
@@ -258,11 +260,13 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
         description: `"${election.title}" has been deleted successfully.`,
       });
       
+      // Force a refresh to ensure data consistency
       await loadElections();
       return true;
     } catch (error) {
       console.error("Error deleting election:", error);
       
+      // Rollback UI changes if deletion failed
       await loadElections();
       
       setDeletedElectionIds(prev => {

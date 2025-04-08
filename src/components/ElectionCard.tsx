@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Trash2 } from "lucide-react";
 import { useWallet } from "@/contexts/WalletContext";
+import { useToast } from "@/components/ui/use-toast";
 
 interface ElectionCardProps {
   election: Election;
@@ -26,6 +27,7 @@ interface ElectionCardProps {
 const ElectionCard: React.FC<ElectionCardProps> = ({ election }) => {
   const { castVote, userHasVoted, getVoteCount, deleteElection } = useElections();
   const { address } = useWallet();
+  const { toast } = useToast();
   const [isDeleting, setIsDeleting] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const hasVoted = userHasVoted(election.id);
@@ -51,13 +53,26 @@ const ElectionCard: React.FC<ElectionCardProps> = ({ election }) => {
     try {
       setIsDeleting(true);
       setIsOpen(false); // Close the dialog
-      console.log(`Attempting to delete election with ID: ${election.id}`);
       
-      await deleteElection(election.id);
-      // The card will be unmounted if deletion is successful, so no need to reset state
+      const success = await deleteElection(election.id);
+      
+      if (!success) {
+        setIsDeleting(false);
+        toast({
+          title: "Deletion failed",
+          description: "Could not delete the election. Please try again.",
+          variant: "destructive",
+        });
+      }
+      // If deletion is successful, the card will be unmounted
     } catch (error) {
       console.error("Error in handleDelete:", error);
-      setIsDeleting(false); // Only reset if there's an error
+      setIsDeleting(false);
+      toast({
+        title: "Deletion error",
+        description: "An error occurred while deleting. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
