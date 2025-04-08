@@ -243,8 +243,6 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
     }
 
     try {
-      console.log("Calling deleteElectionFromDb");
-      
       setElections(prevElections => prevElections.filter(e => e.id !== electionId));
       
       setDeletedElectionIds(prev => {
@@ -260,6 +258,7 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
         description: `"${election.title}" has been deleted successfully.`,
       });
       
+      await loadElections();
       return true;
     } catch (error) {
       console.error("Error deleting election:", error);

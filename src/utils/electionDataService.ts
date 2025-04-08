@@ -127,22 +127,10 @@ export const castVoteInDb = async (
 };
 
 export const deleteElectionFromDb = async (electionId: string): Promise<boolean> => {
-  console.log(`Starting deletion process for election ${electionId}`);
+  console.log(`Attempting to delete election ${electionId}`);
   
   try {
-    // First, check if the election exists
-    const { data: electionCheck, error: checkError } = await supabase
-      .from('elections')
-      .select('id')
-      .eq('id', electionId)
-      .single();
-      
-    if (checkError) {
-      console.error("Error checking election existence:", checkError);
-      throw new Error(`Election with ID ${electionId} does not exist or cannot be accessed`);
-    }
-    
-    // First, delete all votes associated with the election
+    // Delete all votes associated with the election first
     console.log(`Deleting votes for election ${electionId}`);
     const { error: votesError } = await supabase
       .from('votes')
@@ -154,13 +142,9 @@ export const deleteElectionFromDb = async (electionId: string): Promise<boolean>
       throw votesError;
     }
     
-    console.log(`Successfully deleted votes for election ${electionId}, now deleting election`);
-    
-    // Wait briefly to ensure votes deletion is processed
-    await new Promise(resolve => setTimeout(resolve, 500));
+    console.log(`Successfully deleted votes for election ${electionId}`);
     
     // Then delete the election itself
-    console.log(`Deleting election ${electionId}`);
     const { error: electionError } = await supabase
       .from('elections')
       .delete()
@@ -172,10 +156,6 @@ export const deleteElectionFromDb = async (electionId: string): Promise<boolean>
     }
     
     console.log(`Successfully deleted election ${electionId}`);
-    
-    // Verification step - we'll consider the deletion successful without additional checks
-    // since Supabase may have caching or propagation delays that cause false negatives
-    
     return true;
   } catch (error) {
     console.error("Exception in deleteElectionFromDb:", error);
