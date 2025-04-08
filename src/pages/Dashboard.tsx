@@ -3,7 +3,6 @@ import React from "react";
 import { useWallet } from "@/contexts/WalletContext";
 import CreateElectionDialog from "@/components/CreateElectionDialog";
 import ElectionsGrid from "@/components/ElectionsGrid";
-import { Button } from "@/components/ui/button";
 
 const Dashboard = () => {
   const { address, connect, isConnecting } = useWallet();

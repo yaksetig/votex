@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Election, Vote } from "@/types/election";
 
@@ -122,39 +123,6 @@ export const castVoteInDb = async (
     return true;
   } catch (error) {
     console.error("Exception in castVoteInDb:", error);
-    throw error;
-  }
-};
-
-export const deleteElectionFromDb = async (electionId: string): Promise<boolean> => {
-  console.log(`Attempting to delete election ${electionId}`);
-  
-  // Make sure we're connected and authenticated
-  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-  if (sessionError) {
-    console.error("Error with authentication session:", sessionError);
-    return false;
-  }
-  
-  try {
-    // Delete votes first - keep it simple
-    await supabase
-      .from('votes')
-      .delete()
-      .eq('election_id', electionId);
-    
-    console.log(`Deleted votes for election ${electionId}`);
-    
-    // Delete the election - keep it simple
-    await supabase
-      .from('elections')
-      .delete()
-      .eq('id', electionId);
-    
-    console.log(`Successfully deleted election with ID ${electionId}`);
-    return true;
-  } catch (error) {
-    console.error("Exception in deleteElectionFromDb:", error);
     throw error;
   }
 };
