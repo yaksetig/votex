@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback } from "react";
 import { useWallet } from "@/contexts/WalletContext";
 import { useToast } from "@/components/ui/use-toast";
@@ -242,38 +241,42 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
     }
 
     try {
-      // Optimistically remove from UI
+      // Optimistically remove from UI immediately to improve perceived performance
       setElections(prevElections => prevElections.filter(e => e.id !== electionId));
       
-      // Track as deleted
+      // Actually delete from database
+      const success = await deleteElectionFromDb(electionId);
+      
+      if (!success) {
+        // If deletion failed, restore the election in the UI
+        loadElections();
+        
+        toast({
+          title: "Error deleting election",
+          description: "Could not delete the election. Please try again.",
+          variant: "destructive",
+        });
+        return false;
+      }
+      
+      // Add to deleted set to prevent it from reappearing due to real-time subscriptions
       setDeletedElectionIds(prev => {
         const newSet = new Set(prev);
         newSet.add(electionId);
         return newSet;
       });
       
-      // Actually delete from database
-      await deleteElectionFromDb(electionId);
-      
       toast({
         title: "Election deleted",
         description: `"${election.title}" has been deleted successfully.`,
       });
       
-      // Force a refresh to ensure data consistency
-      await loadElections();
       return true;
     } catch (error) {
       console.error("Error deleting election:", error);
       
-      // Rollback UI changes if deletion failed
-      await loadElections();
-      
-      setDeletedElectionIds(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(electionId);
-        return newSet;
-      });
+      // Restore the election in the UI
+      loadElections();
       
       toast({
         title: "Error deleting election",

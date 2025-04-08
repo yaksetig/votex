@@ -64,7 +64,7 @@ const ElectionCard: React.FC<ElectionCardProps> = ({ election }) => {
           variant: "destructive",
         });
       }
-      // If deletion is successful, the card will be unmounted
+      // If successful, the card will be unmounted via the elections state update
     } catch (error) {
       console.error("Error in handleDelete:", error);
       setIsDeleting(false);
