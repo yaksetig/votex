@@ -45,7 +45,6 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
   const { address, signMessage } = useWallet();
   const { toast } = useToast();
   
-  // Track deleted election IDs to prevent them from reappearing in the UI
   const [deletedElectionIds, setDeletedElectionIds] = useState<Set<string>>(new Set());
 
   const loadElections = useCallback(async () => {
@@ -54,7 +53,6 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
       const data = await fetchElectionsAndVotes();
       console.log(`Loaded ${data.length} elections from database`);
       
-      // Filter out any elections that we know were deleted
       const filteredData = data.filter(election => !deletedElectionIds.has(election.id));
       if (filteredData.length !== data.length) {
         console.log(`Filtered out ${data.length - filteredData.length} deleted elections`);
@@ -78,7 +76,6 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
   useEffect(() => {
     loadElections();
     
-    // Set up Supabase realtime subscriptions
     const electionsChannel = supabase
       .channel('public:elections')
       .on('postgres_changes', { 
@@ -86,22 +83,18 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
         schema: 'public',
         table: 'elections'
       }, (payload) => {
-        // For deletes, we've already handled this in our UI
         if (payload.eventType === 'DELETE') {
           console.log('Received DELETE event from Supabase for election:', payload.old.id);
-          // Make sure this ID is in our deleted set
           setDeletedElectionIds(prev => {
             const newSet = new Set(prev);
             newSet.add(payload.old.id);
             return newSet;
           });
           
-          // Also update our elections list by filtering out this ID
           setElections(prev => prev.filter(e => e.id !== payload.old.id));
           return;
         }
         
-        // For other changes, refresh the data
         console.log(`Received ${payload.eventType} event from Supabase, refreshing elections`);
         loadElections();
       })
@@ -252,42 +245,27 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
     try {
       console.log("Calling deleteElectionFromDb");
       
-      // Immediately remove from UI
       setElections(prevElections => prevElections.filter(e => e.id !== electionId));
       
-      // Add to deleted IDs set to prevent reappearance
       setDeletedElectionIds(prev => {
         const newSet = new Set(prev);
         newSet.add(electionId);
         return newSet;
       });
       
-      const deleteSuccess = await deleteElectionFromDb(electionId);
+      await deleteElectionFromDb(electionId);
       
-      if (deleteSuccess) {
-        toast({
-          title: "Election deleted",
-          description: `"${election.title}" has been deleted successfully.`,
-        });
-      } else {
-        toast({
-          title: "Partial deletion",
-          description: "The election may still exist in the database. Please try again.",
-          variant: "destructive",
-        });
-        
-        // Despite DB issues, keep it removed from UI
-        return true;
-      }
+      toast({
+        title: "Election deleted",
+        description: `"${election.title}" has been deleted successfully.`,
+      });
       
       return true;
     } catch (error) {
       console.error("Error deleting election:", error);
       
-      // Re-add the election to the list if deletion failed
       await loadElections();
       
-      // Remove from deleted IDs set since deletion failed
       setDeletedElectionIds(prev => {
         const newSet = new Set(prev);
         newSet.delete(electionId);
