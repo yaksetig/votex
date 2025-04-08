@@ -27,6 +27,7 @@ const ElectionCard: React.FC<ElectionCardProps> = ({ election }) => {
   const { castVote, userHasVoted, getVoteCount, deleteElection } = useElections();
   const { address } = useWallet();
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const hasVoted = userHasVoted(election.id);
   const { option1, option2 } = getVoteCount(election.id);
   const totalVotes = option1 + option2;
@@ -49,12 +50,14 @@ const ElectionCard: React.FC<ElectionCardProps> = ({ election }) => {
   const handleDelete = async () => {
     try {
       setIsDeleting(true);
+      setIsOpen(false); // Close the dialog
       console.log(`Attempting to delete election with ID: ${election.id}`);
       const success = await deleteElection(election.id);
       console.log(`Delete election result: ${success}`);
       if (!success) {
         setIsDeleting(false);
       }
+      // No need to update state on success as the component will be unmounted
     } catch (error) {
       console.error("Error in handleDelete:", error);
       setIsDeleting(false);
@@ -85,7 +88,7 @@ const ElectionCard: React.FC<ElectionCardProps> = ({ election }) => {
             </span>
             
             {isCreator && (
-              <AlertDialog>
+              <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
                 <AlertDialogTrigger asChild>
                   <Button 
                     variant="ghost" 
@@ -105,7 +108,10 @@ const ElectionCard: React.FC<ElectionCardProps> = ({ election }) => {
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    <AlertDialogAction 
+                      onClick={handleDelete} 
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
                       Delete
                     </AlertDialogAction>
                   </AlertDialogFooter>

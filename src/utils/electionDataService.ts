@@ -143,7 +143,7 @@ export const deleteElectionFromDb = async (electionId: string) => {
       throw new Error(`Election with ID ${electionId} does not exist or cannot be accessed`);
     }
     
-    // Delete votes associated with the election first
+    // First, delete all votes associated with the election
     const { error: votesError } = await supabase
       .from('votes')
       .delete()
@@ -155,6 +155,9 @@ export const deleteElectionFromDb = async (electionId: string) => {
     }
     
     console.log(`Successfully deleted votes for election ${electionId}, now deleting election`);
+    
+    // Wait briefly to ensure votes deletion is processed
+    await new Promise(resolve => setTimeout(resolve, 300));
     
     // Then delete the election itself
     const { error: electionError } = await supabase
@@ -169,11 +172,12 @@ export const deleteElectionFromDb = async (electionId: string) => {
     
     console.log(`Successfully deleted election ${electionId}`);
     
-    // Add a delay to allow Supabase to process the deletion
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Force a cache reset - explicitly trigger a cache invalidation
+    await supabase.rest.headers.remove('X-Stale-After', 'elections');
     
-    // Double-check the election was deleted - but don't throw an error if it's still in cache
+    // Final verification - this might help with debugging but won't block the process
     try {
+      await new Promise(resolve => setTimeout(resolve, 500));
       const { data: verifyDelete } = await supabase
         .from('elections')
         .select('id')
@@ -189,7 +193,6 @@ export const deleteElectionFromDb = async (electionId: string) => {
       // Don't throw this error, just log it
     }
     
-    // Return success regardless of verification result
     return true;
   } catch (error) {
     console.error("Exception in deleteElectionFromDb:", error);

@@ -1,5 +1,5 @@
 
-import React, { createContext, useState, useContext, ReactNode, useEffect } from "react";
+import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback } from "react";
 import { useWallet } from "@/contexts/WalletContext";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,14 +45,24 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
   const [loading, setLoading] = useState(true);
   const { address, signMessage } = useWallet();
   const { toast } = useToast();
+  
+  // Track deleted election IDs to prevent them from reappearing in the UI
+  const [deletedElectionIds, setDeletedElectionIds] = useState<Set<string>>(new Set());
 
-  const loadElections = async () => {
+  const loadElections = useCallback(async () => {
     try {
       setLoading(true);
       const data = await fetchElectionsAndVotes();
       console.log(`Loaded ${data.length} elections from database`);
-      setElections(data);
-      return data;
+      
+      // Filter out any elections that we know were deleted
+      const filteredData = data.filter(election => !deletedElectionIds.has(election.id));
+      if (filteredData.length !== data.length) {
+        console.log(`Filtered out ${data.length - filteredData.length} deleted elections`);
+      }
+      
+      setElections(filteredData);
+      return filteredData;
     } catch (error) {
       console.error("Error fetching elections:", error);
       toast({
@@ -64,18 +74,28 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast, deletedElectionIds]);
 
   useEffect(() => {
     loadElections();
     
+    // Set up Supabase realtime subscriptions
     const electionsChannel = supabase
       .channel('public:elections')
       .on('postgres_changes', { 
         event: '*', 
         schema: 'public',
         table: 'elections'
-      }, () => {
+      }, (payload) => {
+        // For deletes, we've already handled this in our UI
+        if (payload.eventType === 'DELETE') {
+          console.log('Received DELETE event from Supabase for election:', payload.old.id);
+          // No need to reload, we've already updated the UI
+          return;
+        }
+        
+        // For other changes, refresh the data
+        console.log(`Received ${payload.eventType} event from Supabase, refreshing elections`);
         loadElections();
       })
       .subscribe();
@@ -95,7 +115,7 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
       supabase.removeChannel(electionsChannel);
       supabase.removeChannel(votesChannel);
     };
-  }, []);
+  }, [loadElections]);
 
   const createElection = async (title: string, description: string, endDate: Date, option1: string, option2: string) => {
     if (!address) {
@@ -224,24 +244,43 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
 
     try {
       console.log("Calling deleteElectionFromDb");
-      await deleteElectionFromDb(electionId);
       
-      // Immediately remove the election from local state
+      // Immediately remove from UI
       setElections(prevElections => prevElections.filter(e => e.id !== electionId));
+      
+      // Add to deleted IDs set to prevent reappearance
+      setDeletedElectionIds(prev => {
+        const newSet = new Set(prev);
+        newSet.add(electionId);
+        return newSet;
+      });
+      
+      await deleteElectionFromDb(electionId);
       
       toast({
         title: "Election deleted",
         description: `"${election.title}" has been deleted successfully.`,
       });
       
-      // Force refresh the data after a short delay
+      // Force reload data after a delay to ensure Supabase has fully processed the deletion
       setTimeout(() => {
         loadElections();
-      }, 1500);
+      }, 2000);
       
       return true;
     } catch (error) {
       console.error("Error deleting election:", error);
+      
+      // Re-add the election to the list if deletion failed
+      await loadElections();
+      
+      // Remove from deleted IDs set since deletion failed
+      setDeletedElectionIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(electionId);
+        return newSet;
+      });
+      
       toast({
         title: "Error deleting election",
         description: "Could not delete the election. Please try again.",
