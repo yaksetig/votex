@@ -46,7 +46,13 @@ const ElectionCard: React.FC<ElectionCardProps> = ({ election }) => {
   };
 
   const handleDelete = async () => {
-    await deleteElection(election.id);
+    try {
+      console.log(`Attempting to delete election with ID: ${election.id}`);
+      const success = await deleteElection(election.id);
+      console.log(`Delete election result: ${success}`);
+    } catch (error) {
+      console.error("Error in handleDelete:", error);
+    }
   };
 
   return (

@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useContext, ReactNode, useEffect } from "react";
 import { useWallet } from "@/contexts/WalletContext";
 import { useToast } from "@/components/ui/use-toast";
@@ -195,8 +196,10 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
       return false;
     }
 
+    console.log(`Checking election with ID: ${electionId}`);
     const election = elections.find((e) => e.id === electionId);
     if (!election) {
+      console.log("Election not found");
       toast({
         title: "Election not found",
         description: "Could not find the specified election.",
@@ -205,7 +208,9 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
       return false;
     }
 
+    console.log(`Election creator: ${election.creator}, User address: ${address}`);
     if (election.creator !== address) {
+      console.log("Permission denied - creator mismatch");
       toast({
         title: "Permission denied",
         description: "You can only delete elections you've created.",
@@ -215,6 +220,7 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
     }
 
     try {
+      console.log("Calling deleteElectionFromDb");
       await deleteElectionFromDb(electionId);
       
       toast({
@@ -222,6 +228,7 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
         description: `"${election.title}" has been deleted successfully.`,
       });
       
+      console.log("Refreshing elections after delete");
       await loadElections();
       return true;
     } catch (error) {
