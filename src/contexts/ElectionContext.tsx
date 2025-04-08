@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useContext, ReactNode, useEffect } from "react";
 import { useWallet } from "@/contexts/WalletContext";
 import { useToast } from "@/components/ui/use-toast";
@@ -97,8 +98,8 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
           description: election.description,
           creator: election.creator,
           endDate: new Date(election.end_date),
-          option1: election.option1 || 'Yes',
-          option2: election.option2 || 'No',
+          option1: election.option1 || 'Yes',  // Use default if not present
+          option2: election.option2 || 'No',   // Use default if not present
           votes: processedVotes,
           createdAt: new Date(election.created_at),
         };
