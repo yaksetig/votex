@@ -111,7 +111,7 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
       
       toast({
         title: "Election created",
-        description: `"${title}" has been created successfully.",
+        description: `"${title}" has been created successfully.`,
       });
       
       await loadElections();
