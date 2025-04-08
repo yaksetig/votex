@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Election, Vote } from "@/types/election";
 
@@ -123,6 +122,37 @@ export const castVoteInDb = async (
     return true;
   } catch (error) {
     console.error("Exception in castVoteInDb:", error);
+    throw error;
+  }
+};
+
+export const deleteElectionFromDb = async (electionId: string) => {
+  try {
+    // First delete all votes for this election
+    const { error: votesError } = await supabase
+      .from('votes')
+      .delete()
+      .eq('election_id', electionId);
+
+    if (votesError) {
+      console.error("Error deleting votes:", votesError);
+      throw votesError;
+    }
+
+    // Then delete the election itself
+    const { error } = await supabase
+      .from('elections')
+      .delete()
+      .eq('id', electionId);
+
+    if (error) {
+      console.error("Error deleting election:", error);
+      throw error;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error("Exception in deleteElectionFromDb:", error);
     throw error;
   }
 };
