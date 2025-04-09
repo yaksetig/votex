@@ -12,7 +12,7 @@ interface WalletContextType {
   disconnect: () => void;
   signMessage: (message: string) => Promise<string | null>;
   setIsWorldIDVerified: (value: boolean) => void;
-  setAnonymousKeypair: (keypair: BabyJubjubKeypair) => void;
+  setAnonymousKeypair: (keypair: BabyJubjubKeypair | null) => void;
 }
 
 const WalletContext = createContext<WalletContextType>({
