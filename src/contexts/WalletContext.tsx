@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
 import { ethers } from 'ethers';
 import { useToast } from "@/components/ui/use-toast";
@@ -13,6 +12,7 @@ interface WalletContextType {
   disconnect: () => void;
   signMessage: (message: string) => Promise<string | null>;
   setIsWorldIDVerified: (value: boolean) => void;
+  setAnonymousKeypair: (keypair: BabyJubjubKeypair) => void;
 }
 
 const WalletContext = createContext<WalletContextType>({
@@ -24,6 +24,7 @@ const WalletContext = createContext<WalletContextType>({
   disconnect: () => {},
   signMessage: async () => null,
   setIsWorldIDVerified: () => {},
+  setAnonymousKeypair: () => {},
 });
 
 export const useWallet = () => useContext(WalletContext);
@@ -39,7 +40,6 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   const [anonymousKeypair, setAnonymousKeypair] = useState<BabyJubjubKeypair | null>(null);
   const { toast } = useToast();
   
-  // Load keypair from local storage
   useEffect(() => {
     const storedKeypair = retrieveKeypair();
     if (storedKeypair) {
@@ -112,7 +112,6 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     }
   };
   
-  // Auto-connect wallet if previously connected
   useEffect(() => {
     const checkConnection = async () => {
       if (window.ethereum && localStorage.getItem('wallet-connected') === 'true') {
@@ -122,7 +121,6 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     
     checkConnection();
     
-    // Handle account changes
     const handleAccountsChanged = (accounts: string[]) => {
       if (accounts.length === 0) {
         disconnect();
@@ -151,6 +149,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     disconnect,
     signMessage,
     setIsWorldIDVerified,
+    setAnonymousKeypair,
   };
   
   return (

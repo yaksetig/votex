@@ -76,12 +76,14 @@ const ElectionCard: React.FC<ElectionCardProps> = ({ election }) => {
             <Button 
               className="flex-1 bg-crypto-green hover:bg-crypto-green/90"
               onClick={() => handleVote(election.option1)}
+              disabled={!isWorldIDVerified}
             >
               {election.option1}
             </Button>
             <Button 
               className="flex-1 bg-crypto-red hover:bg-crypto-red/90"
               onClick={() => handleVote(election.option2)}
+              disabled={!isWorldIDVerified}
             >
               {election.option2}
             </Button>

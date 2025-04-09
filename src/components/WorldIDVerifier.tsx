@@ -9,7 +9,7 @@ interface WorldIDVerifierProps {
 }
 
 const WorldIDVerifier: React.FC<WorldIDVerifierProps> = ({ onVerificationSuccess }) => {
-  const { address } = useWallet()
+  const { address, setAnonymousKeypair } = useWallet()
   
   const handleVerificationSuccess = async (result: ISuccessResult) => {
     try {
@@ -19,8 +19,13 @@ const WorldIDVerifier: React.FC<WorldIDVerifierProps> = ({ onVerificationSuccess
       // Store the keypair
       storeKeypair(keypair)
       
+      // Update the wallet context with the keypair
+      setAnonymousKeypair(keypair)
+      
       // Call the success callback
       onVerificationSuccess()
+      
+      console.log('Verification successful with proof:', result)
     } catch (error) {
       console.error('Error during verification:', error)
     }
