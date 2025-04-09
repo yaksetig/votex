@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback } from "react"
 import { useWallet } from "@/contexts/WalletContext"
 import { useToast } from "@/components/ui/use-toast"
@@ -231,17 +230,19 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
     await loadElections()
   }
 
+  const value = {
+    elections,
+    loading,
+    createElection,
+    castVote,
+    userHasVoted,
+    getVoteCount,
+    refreshElections,
+  }
+
   return (
     <ElectionContext.Provider
-      value={{
-        elections,
-        loading,
-        createElection,
-        castVote,
-        userHasVoted,
-        getVoteCount,
-        refreshElections,
-      }}
+      value={value}
     >
       {children}
     </ElectionContext.Provider>

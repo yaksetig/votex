@@ -1,11 +1,8 @@
 
 import { utils } from "circomlibjs";
 import { poseidon } from "circomlibjs";
-import type { Scalar, F1Field } from "ffjavascript";
 
-// We need to import the actual object for usage
-import { Scalar as ScalarImpl, F1Field as F1FieldImpl } from "ffjavascript";
-
+// Import types from ffjavascript
 export interface BabyJubjubKeypair {
   privKey: bigint;
   pubKey: [bigint, bigint];
@@ -18,7 +15,7 @@ const generateRandomPrivateKey = async (): Promise<bigint> => {
   window.crypto.getRandomValues(randomBytes);
   
   // Convert to a BigInt (we'll use the first 31 bytes to ensure it's less than the BabyJubJub field order)
-  const F = new F1FieldImpl(utils.SNARK_FIELD_SIZE);
+  const F = new (await import('ffjavascript')).F1Field(utils.SNARK_FIELD_SIZE);
   const privKey = F.e(utils.leBuff2int(randomBytes.slice(0, 31)));
   
   return BigInt(privKey.toString());
@@ -75,8 +72,11 @@ export const signWithKeypair = async (message: string, keypair: BabyJubjubKeypai
     throw new Error('No keypair provided for signing');
   }
   
+  // Import the Scalar from ffjavascript dynamically
+  const { Scalar } = await import('ffjavascript');
+  
   // Hash the message using Poseidon
-  const msgHash = poseidon.F.e(ScalarImpl.e(utils.stringToBytes(message)));
+  const msgHash = poseidon.F.e(Scalar.e(utils.stringToBytes(message)));
   
   // Sign with private key
   const signature = await utils.signPoseidon(keypair.privKey, msgHash);
@@ -97,11 +97,14 @@ export const verifySignature = async (
     throw new Error('Invalid signature format');
   }
   
+  // Import the Scalar from ffjavascript dynamically
+  const { Scalar } = await import('ffjavascript');
+  
   const R8 = [BigInt(components[0]), BigInt(components[1])];
   const S = BigInt(components[2]);
   
   // Hash the message
-  const msgHash = poseidon.F.e(ScalarImpl.e(utils.stringToBytes(message)));
+  const msgHash = poseidon.F.e(Scalar.e(utils.stringToBytes(message)));
   
   // Verify the signature
   return await utils.verifyPoseidon(msgHash, { R8, S }, pubKey);
