@@ -1,19 +1,18 @@
-
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
 import { ethers } from 'ethers';
-import { useToast } from "@/components/ui/use-toast";
-import { KeyPair, retrieveKeypair } from '@/services/keyPairService';
+import { useToast } from "@/hooks/use-toast";
+import { BabyJubjubKeyPair, retrieveKeypair, initBabyJubjub } from '@/services/babyJubjubService';
 
 interface WalletContextType {
   address: string | null;
   isConnecting: boolean;
   isWorldIDVerified: boolean;
-  anonymousKeypair: KeyPair | null;
+  anonymousKeypair: BabyJubjubKeyPair | null;
   connect: () => Promise<void>;
   disconnect: () => void;
   signMessage: (message: string) => Promise<string | null>;
   setIsWorldIDVerified: (value: boolean) => void;
-  setAnonymousKeypair: (keypair: KeyPair | null) => void;
+  setAnonymousKeypair: (keypair: BabyJubjubKeyPair | null) => void;
 }
 
 const WalletContext = createContext<WalletContextType>({
@@ -38,15 +37,21 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   const [address, setAddress] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isWorldIDVerified, setIsWorldIDVerified] = useState(false);
-  const [anonymousKeypair, setAnonymousKeypair] = useState<KeyPair | null>(null);
+  const [anonymousKeypair, setAnonymousKeypair] = useState<BabyJubjubKeyPair | null>(null);
   const { toast } = useToast();
   
   useEffect(() => {
-    const storedKeypair = retrieveKeypair();
-    if (storedKeypair) {
-      setAnonymousKeypair(storedKeypair);
-      setIsWorldIDVerified(true);
-    }
+    const initializeAndLoad = async () => {
+      await initBabyJubjub();
+      
+      const storedKeypair = await retrieveKeypair();
+      if (storedKeypair) {
+        setAnonymousKeypair(storedKeypair);
+        setIsWorldIDVerified(true);
+      }
+    };
+    
+    initializeAndLoad();
   }, []);
   
   const connect = async () => {
