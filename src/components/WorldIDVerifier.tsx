@@ -11,23 +11,23 @@ interface WorldIDVerifierProps {
 const WorldIDVerifier: React.FC<WorldIDVerifierProps> = ({ onVerificationSuccess }) => {
   const { address, setAnonymousKeypair } = useWallet()
   
-  const handleVerificationSuccess = async (result: ISuccessResult) => {
+  const handleVerificationSuccess = (result: ISuccessResult) => {
     try {
-      // Generate a new Baby Jubjub keypair
-      const keypair = await generateKeypair()
+      // Generate a new keypair
+      const keypair = generateKeypair();
       
       // Store the keypair
-      storeKeypair(keypair)
+      storeKeypair(keypair);
       
       // Update the wallet context with the keypair
-      setAnonymousKeypair(keypair)
+      setAnonymousKeypair(keypair);
       
       // Call the success callback
-      onVerificationSuccess()
+      onVerificationSuccess();
       
-      console.log('Verification successful with proof:', result)
+      console.log('Verification successful with proof:', result);
     } catch (error) {
-      console.error('Error during verification:', error)
+      console.error('Error during verification:', error);
     }
   }
   

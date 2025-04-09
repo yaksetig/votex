@@ -1,18 +1,19 @@
+
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
 import { ethers } from 'ethers';
 import { useToast } from "@/components/ui/use-toast";
-import { BabyJubjubKeypair, retrieveKeypair } from '@/services/keyPairService';
+import { KeyPair, retrieveKeypair } from '@/services/keyPairService';
 
 interface WalletContextType {
   address: string | null;
   isConnecting: boolean;
   isWorldIDVerified: boolean;
-  anonymousKeypair: BabyJubjubKeypair | null;
+  anonymousKeypair: KeyPair | null;
   connect: () => Promise<void>;
   disconnect: () => void;
   signMessage: (message: string) => Promise<string | null>;
   setIsWorldIDVerified: (value: boolean) => void;
-  setAnonymousKeypair: (keypair: BabyJubjubKeypair | null) => void;
+  setAnonymousKeypair: (keypair: KeyPair | null) => void;
 }
 
 const WalletContext = createContext<WalletContextType>({
@@ -37,7 +38,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   const [address, setAddress] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isWorldIDVerified, setIsWorldIDVerified] = useState(false);
-  const [anonymousKeypair, setAnonymousKeypair] = useState<BabyJubjubKeypair | null>(null);
+  const [anonymousKeypair, setAnonymousKeypair] = useState<KeyPair | null>(null);
   const { toast } = useToast();
   
   useEffect(() => {
