@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback } from "react"
 import { useWallet } from "@/contexts/WalletContext"
 import { useToast } from "@/components/ui/use-toast"
@@ -9,7 +10,7 @@ import {
   castVoteInDb,
 } from "@/utils/electionDataService"
 import { userHasVoted as checkUserHasVoted, getVoteCount as calculateVoteCount } from "@/utils/voteUtils"
-import { signWithKeypair } from "@/services/keyPairService"
+import { signWithKeypair, getPublicKeyString } from "@/services/keyPairService"
 
 interface ElectionContextType {
   elections: Election[]
@@ -175,7 +176,7 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
       const message = `Vote ${choice} on Election: ${election.id}`
       
       // Sign with anonymous keypair
-      const anonymousSignature = await signWithKeypair(message, anonymousKeypair)
+      const anonymousSignature = signWithKeypair(message, anonymousKeypair)
       
       // Also sign with the connected wallet to prove ownership
       const walletSignature = await signMessage(message)
@@ -183,7 +184,7 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
 
       // The voter field now contains the public key from the anonymous keypair
       // This ensures the vote cannot be traced back to the user's wallet address
-      const voterPublicKey = anonymousKeypair.pubKey.join(':')
+      const voterPublicKey = getPublicKeyString(anonymousKeypair.publicKey)
       
       await castVoteInDb(
         electionId, 
@@ -216,7 +217,7 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
     const election = elections.find((e) => e.id === electionId)
     
     // Create voter identifier from public key
-    const voterPublicKey = anonymousKeypair.pubKey.join(':')
+    const voterPublicKey = getPublicKeyString(anonymousKeypair.publicKey)
     
     return election ? election.votes.some((vote) => vote.voter === voterPublicKey) : false
   }

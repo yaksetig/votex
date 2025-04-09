@@ -70,9 +70,11 @@
     "the": "^1.0.2",
     "these": "^1.0.0",
     "to": "^0.2.9",
+    "tweetnacl": "^1.0.3",
     "tweetnacl-util": "^0.15.1",
     "vaul": "^0.9.3",
     "viem": "^2.26.2",
+    "vite-plugin-node-polyfills": "^0.23.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
