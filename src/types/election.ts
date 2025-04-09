@@ -2,9 +2,9 @@
 // Define our election types
 export interface Vote {
   id?: string;
-  voter: string;
+  voter: string; // This will now store the Baby Jubjub public key string
   choice: string;
-  signature: string;
+  signature: string; // This will store the Baby Jubjub signature
   timestamp: number;
 }
 
@@ -23,4 +23,10 @@ export interface Election {
 export interface VoteCount {
   option1: number;
   option2: number;
+}
+
+// Baby Jubjub specific types
+export interface BabyJubjubSignature {
+  R8: [string, string]; // [x, y] coordinates
+  S: string; // scalar
 }
