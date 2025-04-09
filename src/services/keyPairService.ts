@@ -15,7 +15,8 @@ const generateRandomPrivateKey = async (): Promise<bigint> => {
   window.crypto.getRandomValues(randomBytes);
   
   // Convert to a BigInt (we'll use the first 31 bytes to ensure it's less than the BabyJubJub field order)
-  const F = new (await import('ffjavascript')).F1Field(utils.SNARK_FIELD_SIZE);
+  const { F1Field } = await import('ffjavascript');
+  const F = new F1Field(utils.SNARK_FIELD_SIZE);
   const privKey = F.e(utils.leBuff2int(randomBytes.slice(0, 31)));
   
   return BigInt(privKey.toString());
