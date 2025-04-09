@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback } from "react"
 import { useWallet } from "@/contexts/WalletContext"
 import { useToast } from "@/components/ui/use-toast"
@@ -10,7 +9,7 @@ import {
   castVoteInDb,
 } from "@/utils/electionDataService"
 import { userHasVoted as checkUserHasVoted, getVoteCount as calculateVoteCount } from "@/utils/voteUtils"
-import { signWithKeypair, getPublicKeyString } from "@/services/keyPairService"
+import { signWithKeypair, getPublicKeyString } from "@/services/babyJubjubService"
 
 interface ElectionContextType {
   elections: Election[]
@@ -176,7 +175,7 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
       const message = `Vote ${choice} on Election: ${election.id}`
       
       // Sign with anonymous keypair
-      const anonymousSignature = signWithKeypair(message, anonymousKeypair)
+      const anonymousSignature = await signWithKeypair(message, anonymousKeypair)
       
       // Also sign with the connected wallet to prove ownership
       const walletSignature = await signMessage(message)
