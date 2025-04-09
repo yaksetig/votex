@@ -6,7 +6,6 @@ import { useElections } from "@/contexts/ElectionContext";
 import { Election } from "@/types/election";
 import { Progress } from "@/components/ui/progress";
 import { useWallet } from "@/contexts/WalletContext";
-import DeleteElectionDialog from "@/components/DeleteElectionDialog";
 
 interface ElectionCardProps {
   election: Election;
@@ -20,7 +19,6 @@ const ElectionCard: React.FC<ElectionCardProps> = ({ election }) => {
   const totalVotes = option1 + option2;
   const option1Percentage = totalVotes > 0 ? Math.round((option1 / totalVotes) * 100) : 0;
   const isActive = new Date() < election.endDate;
-  const isCreator = address === election.creator;
 
   const formatDate = (date: Date) => {
     return new Date(date).toLocaleDateString(undefined, {
@@ -36,13 +34,6 @@ const ElectionCard: React.FC<ElectionCardProps> = ({ election }) => {
 
   return (
     <Card className="w-full overflow-hidden relative">
-      {isCreator && (
-        <DeleteElectionDialog 
-          electionId={election.id} 
-          electionTitle={election.title} 
-        />
-      )}
-      
       <CardHeader>
         <CardTitle className="text-xl flex items-center justify-between">
           <span>{election.title}</span>

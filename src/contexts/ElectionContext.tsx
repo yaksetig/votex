@@ -8,7 +8,6 @@ import {
   fetchElectionsAndVotes, 
   createElectionInDb, 
   castVoteInDb,
-  deleteElectionFromDb
 } from "@/utils/electionDataService";
 import { userHasVoted as checkUserHasVoted, getVoteCount as calculateVoteCount } from "@/utils/voteUtils";
 
@@ -20,7 +19,6 @@ interface ElectionContextType {
   userHasVoted: (electionId: string) => boolean;
   getVoteCount: (electionId: string) => VoteCount;
   refreshElections: () => Promise<void>;
-  deleteElection: (electionId: string) => Promise<boolean>;
 }
 
 const ElectionContext = createContext<ElectionContextType>({
@@ -31,7 +29,6 @@ const ElectionContext = createContext<ElectionContextType>({
   userHasVoted: () => false,
   getVoteCount: () => ({ option1: 0, option2: 0 }),
   refreshElections: async () => {},
-  deleteElection: async () => false,
 });
 
 export const useElections = () => useContext(ElectionContext);
@@ -189,56 +186,6 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
     }
   };
 
-  const deleteElection = async (electionId: string): Promise<boolean> => {
-    if (!address) {
-      toast({
-        title: "Wallet not connected",
-        description: "Please connect your wallet to delete an election.",
-        variant: "destructive",
-      });
-      return false;
-    }
-
-    const election = elections.find((e) => e.id === electionId);
-    if (!election) {
-      toast({
-        title: "Election not found",
-        description: "Could not find the specified election.",
-        variant: "destructive",
-      });
-      return false;
-    }
-
-    if (election.creator !== address) {
-      toast({
-        title: "Unauthorized",
-        description: "Only the creator can delete this election.",
-        variant: "destructive",
-      });
-      return false;
-    }
-
-    try {
-      await deleteElectionFromDb(electionId);
-      
-      toast({
-        title: "Election deleted",
-        description: `"${election.title}" has been deleted successfully.`,
-      });
-      
-      await loadElections();
-      return true;
-    } catch (error) {
-      console.error("Error deleting election:", error);
-      toast({
-        title: "Error deleting election",
-        description: "Could not delete the election. Please try again.",
-        variant: "destructive",
-      });
-      return false;
-    }
-  };
-
   const userHasVoted = (electionId: string): boolean => {
     if (!address) return false;
     const election = elections.find((e) => e.id === electionId);
@@ -264,7 +211,6 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
         userHasVoted,
         getVoteCount,
         refreshElections,
-        deleteElection,
       }}
     >
       {children}
