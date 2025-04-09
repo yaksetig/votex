@@ -12,11 +12,11 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
-    "@radix-ui/react-accordion": "^1.2.0",
-    "@radix-ui/react-alert-dialog": "^1.1.1",
+    "@radix-ui/react-accordion": "^1.2.4",
+    "@radix-ui/react-alert-dialog": "^1.1.7",
     "@radix-ui/react-aspect-ratio": "^1.1.0",
     "@radix-ui/react-avatar": "^1.1.0",
-    "@radix-ui/react-checkbox": "^1.1.1",
+    "@radix-ui/react-checkbox": "^1.1.5",
     "@radix-ui/react-collapsible": "^1.1.0",
     "@radix-ui/react-context-menu": "^2.2.1",
     "@radix-ui/react-dialog": "^1.1.2",
@@ -28,7 +28,7 @@
     "@radix-ui/react-popover": "^1.1.1",
     "@radix-ui/react-progress": "^1.1.0",
     "@radix-ui/react-radio-group": "^1.2.0",
-    "@radix-ui/react-scroll-area": "^1.1.0",
+    "@radix-ui/react-scroll-area": "^1.2.4",
     "@radix-ui/react-select": "^2.1.1",
     "@radix-ui/react-separator": "^1.1.0",
     "@radix-ui/react-slider": "^1.2.0",
@@ -50,7 +50,7 @@
     "command": "^1.1.1",
     "connectkit": "^1.9.0",
     "date-fns": "^3.6.0",
-    "embla-carousel-react": "^8.3.0",
+    "embla-carousel-react": "^8.6.0",
     "ethers": "^5.7.2",
     "ffjavascript": "^0.3.1",
     "input-otp": "^1.2.4",
@@ -94,6 +94,6 @@
     "tailwindcss": "^3.4.11",
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.0.1",
-    "vite": "^5.4.1"
+    "vite": "^5.4.17"
   }
 }
