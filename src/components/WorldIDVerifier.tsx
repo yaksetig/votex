@@ -1,6 +1,6 @@
 
 import React from 'react'
-import { IDKitWidget, CredentialType } from '@worldcoin/idkit'
+import { IDKitWidget, ISuccessResult } from '@worldcoin/idkit'
 import { useWallet } from '@/contexts/WalletContext'
 import { generateKeypair, storeKeypair } from '@/services/keyPairService'
 
@@ -11,7 +11,7 @@ interface WorldIDVerifierProps {
 const WorldIDVerifier: React.FC<WorldIDVerifierProps> = ({ onVerificationSuccess }) => {
   const { address, setAnonymousKeypair } = useWallet()
   
-  const handleVerificationSuccess = (result: any) => {
+  const handleVerificationSuccess = (result: ISuccessResult) => {
     try {
       // Generate a new keypair
       const keypair = generateKeypair();
@@ -37,11 +37,11 @@ const WorldIDVerifier: React.FC<WorldIDVerifierProps> = ({ onVerificationSuccess
       <p className="mb-4">Verify your identity to enable anonymous voting</p>
       
       <IDKitWidget
-        app_id={import.meta.env.VITE_WORLDCOIN_APP_ID}
+        app_id={import.meta.env.VITE_WORLDCOIN_APP_ID as `app_${string}`}
         action="vote_anonymously"
         signal={address || ''}
         onSuccess={handleVerificationSuccess}
-        credential_types={[CredentialType.Orb, CredentialType.Phone]}
+        autoClose
       >
         {({ open }) => (
           <button
