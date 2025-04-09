@@ -3,9 +3,9 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useElections } from "@/contexts/ElectionContext";
+import { useWallet } from "@/contexts/WalletContext";
 import { Election } from "@/types/election";
 import { Progress } from "@/components/ui/progress";
-import { useWallet } from "@/contexts/WalletContext";
 
 interface ElectionCardProps {
   election: Election;
@@ -13,7 +13,7 @@ interface ElectionCardProps {
 
 const ElectionCard: React.FC<ElectionCardProps> = ({ election }) => {
   const { castVote, userHasVoted, getVoteCount } = useElections();
-  const { address } = useWallet();
+  const { address, isWorldIDVerified } = useWallet();
   const hasVoted = userHasVoted(election.id);
   const { option1, option2 } = getVoteCount(election.id);
   const totalVotes = option1 + option2;
