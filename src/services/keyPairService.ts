@@ -1,7 +1,10 @@
 
 import { utils } from "circomlibjs";
 import { poseidon } from "circomlibjs";
-import { Scalar, F1Field } from "ffjavascript";
+import type { Scalar, F1Field } from "ffjavascript";
+
+// We need to import the actual object for usage
+import { Scalar as ScalarImpl, F1Field as F1FieldImpl } from "ffjavascript";
 
 export interface BabyJubjubKeypair {
   privKey: bigint;
@@ -15,7 +18,7 @@ const generateRandomPrivateKey = async (): Promise<bigint> => {
   window.crypto.getRandomValues(randomBytes);
   
   // Convert to a BigInt (we'll use the first 31 bytes to ensure it's less than the BabyJubJub field order)
-  const F = new F1Field(utils.SNARK_FIELD_SIZE);
+  const F = new F1FieldImpl(utils.SNARK_FIELD_SIZE);
   const privKey = F.e(utils.leBuff2int(randomBytes.slice(0, 31)));
   
   return BigInt(privKey.toString());
@@ -73,7 +76,7 @@ export const signWithKeypair = async (message: string, keypair: BabyJubjubKeypai
   }
   
   // Hash the message using Poseidon
-  const msgHash = poseidon.F.e(Scalar.e(utils.stringToBytes(message)));
+  const msgHash = poseidon.F.e(ScalarImpl.e(utils.stringToBytes(message)));
   
   // Sign with private key
   const signature = await utils.signPoseidon(keypair.privKey, msgHash);
@@ -98,7 +101,7 @@ export const verifySignature = async (
   const S = BigInt(components[2]);
   
   // Hash the message
-  const msgHash = poseidon.F.e(Scalar.e(utils.stringToBytes(message)));
+  const msgHash = poseidon.F.e(ScalarImpl.e(utils.stringToBytes(message)));
   
   // Verify the signature
   return await utils.verifyPoseidon(msgHash, { R8, S }, pubKey);
