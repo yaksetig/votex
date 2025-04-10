@@ -11,6 +11,7 @@ import {
 } from "@/utils/electionDataService"
 import { userHasVoted as checkUserHasVoted, getVoteCount as calculateVoteCount } from "@/utils/voteUtils"
 import { signWithKeypair, getPublicKeyString } from "@/services/babyJubjubService"
+import { RealtimeChannel } from "@supabase/supabase-js"
 
 interface ElectionContextType {
   elections: Election[]
@@ -68,8 +69,8 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
     loadElections()
     
     // Setup real-time subscriptions with error handling
-    let electionsChannel;
-    let votesChannel;
+    let electionsChannel: RealtimeChannel | null = null;
+    let votesChannel: RealtimeChannel | null = null;
     
     try {
       electionsChannel = supabase
@@ -82,8 +83,8 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
           loadElections()
         })
         .subscribe((status) => {
-          if (status === 'SUBSCRIPTION_ERROR') {
-            console.warn('Error subscribing to elections channel');
+          if (status !== 'SUBSCRIBED') {
+            console.warn(`Elections channel status: ${status}`);
           }
         })
       
@@ -97,8 +98,8 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
           loadElections()
         })
         .subscribe((status) => {
-          if (status === 'SUBSCRIPTION_ERROR') {
-            console.warn('Error subscribing to votes channel');
+          if (status !== 'SUBSCRIBED') {
+            console.warn(`Votes channel status: ${status}`);
           }
         })
     } catch (error) {
