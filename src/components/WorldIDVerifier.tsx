@@ -50,7 +50,6 @@ const WorldIDVerifier: React.FC<WorldIDVerifierProps> = ({ onVerificationSuccess
         signal={address || ''}
         onSuccess={handleVerificationSuccess}
         verification_level={VerificationLevel.Orb} // Require high security
-        enableTelemetry
         autoClose
       >
         {({ open }) => (

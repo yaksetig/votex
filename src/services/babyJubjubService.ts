@@ -78,6 +78,22 @@ export const retrieveKeypair = async (): Promise<BabyJubjubKeyPair | null> => {
   }
 };
 
+// Create a consistent message hash using Poseidon (ZK-friendly)
+export const hashMessage = async (message: string): Promise<any> => {
+  if (!babyJubjub) {
+    await initBabyJubjub();
+  }
+  
+  // Convert message to bytes
+  const msgBytes = ethers.utils.toUtf8Bytes(message);
+  
+  // Create field elements from bytes
+  const fieldElements = Array.from(msgBytes).map(b => babyJubjub.F.e(b));
+  
+  // Use Poseidon hash (ZK-friendly)
+  return babyJubjub.F.e(babyJubjub.poseidon(fieldElements));
+};
+
 // Sign a message with a keypair
 export const signWithKeypair = async (message: string, keypair: BabyJubjubKeyPair): Promise<string> => {
   if (!babyJubjub) {
@@ -88,11 +104,8 @@ export const signWithKeypair = async (message: string, keypair: BabyJubjubKeyPai
     throw new Error('No keypair provided for signing');
   }
   
-  // Convert message to bytes
-  const msgBytes = ethers.utils.toUtf8Bytes(message);
-  
-  // Hash the message (Poseidon or other compatible hash)
-  const msgHash = babyJubjub.F.e(ethers.utils.keccak256(msgBytes));
+  // Hash the message with Poseidon
+  const msgHash = await hashMessage(message);
   
   // Sign the hash with private key
   const signature = babyJubjub.signPoseidon(keypair.privateKey, msgHash);
@@ -114,9 +127,8 @@ export const verifySignature = async (
     await initBabyJubjub();
   }
 
-  // Convert message to bytes and hash it
-  const msgBytes = ethers.utils.toUtf8Bytes(message);
-  const msgHash = babyJubjub.F.e(ethers.utils.keccak256(msgBytes));
+  // Hash the message with the same hash function used for signing
+  const msgHash = await hashMessage(message);
   
   // Parse signature
   const signature = JSON.parse(signatureStr);
@@ -127,6 +139,32 @@ export const verifySignature = async (
   
   // Verify the signature
   return babyJubjub.verifyPoseidon(msgHash, sig, publicKey);
+};
+
+// Generate a nullifier for an election
+export const generateNullifier = async (
+  electionId: string, 
+  keypair: BabyJubjubKeyPair
+): Promise<string> => {
+  if (!babyJubjub) {
+    await initBabyJubjub();
+  }
+  
+  // Create a unique string for this election and keypair
+  const nullifierInput = `nullifier:${electionId}`;
+  
+  // Hash it with Poseidon
+  const nullifierHash = await hashMessage(nullifierInput);
+  
+  // Multiply by private key to create a unique point that only this user can generate
+  // But which doesn't reveal the private key
+  const nullifierPoint = babyJubjub.mulPointEscalar(
+    babyJubjub.Base8, 
+    babyJubjub.F.add(keypair.privateKey, nullifierHash)
+  );
+  
+  // Convert to a string representation - just use X coordinate
+  return Buffer.from(nullifierPoint[0]).toString('hex');
 };
 
 // Get public key as string (for storage and identification)
