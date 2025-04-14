@@ -83,8 +83,8 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
           loadElections()
         })
         .subscribe((status) => {
-          if (status === 'SUBSCRIPTION_ERROR') {
-            console.warn('Error subscribing to elections channel');
+          if (status === 'SUBSCRIBED' || status === 'TIMED_OUT' || status === 'CHANNEL_ERROR') {
+            console.log('Elections channel status:', status);
           }
         })
       
@@ -98,8 +98,8 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
           loadElections()
         })
         .subscribe((status) => {
-          if (status === 'SUBSCRIPTION_ERROR') {
-            console.warn('Error subscribing to votes channel');
+          if (status === 'SUBSCRIBED' || status === 'TIMED_OUT' || status === 'CHANNEL_ERROR') {
+            console.log('Votes channel status:', status);
           }
         })
     } catch (error) {

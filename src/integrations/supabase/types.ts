@@ -48,6 +48,7 @@ export type Database = {
           created_at: string
           election_id: string
           id: string
+          nullifier: string | null
           signature: string
           timestamp: number
           voter: string
@@ -57,6 +58,7 @@ export type Database = {
           created_at?: string
           election_id: string
           id?: string
+          nullifier?: string | null
           signature: string
           timestamp: number
           voter: string
@@ -66,6 +68,7 @@ export type Database = {
           created_at?: string
           election_id?: string
           id?: string
+          nullifier?: string | null
           signature?: string
           timestamp?: number
           voter?: string

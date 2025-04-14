@@ -37,6 +37,7 @@ export const fetchElectionsAndVotes = async (): Promise<Election[]> => {
       voter: vote.voter,
       choice: vote.choice,
       signature: vote.signature,
+      nullifier: vote.nullifier || '', // Include nullifier and provide default
       timestamp: vote.timestamp,
     }));
 
