@@ -29,7 +29,7 @@ export const wagmiConfig = createConfig(
       [sepolia.id]: http(),
       [customChain.id]: http(customChain.rpcUrls.default.http[0]),
     },
-    walletConnectProjectId: process.env.VITE_WALLETCONNECT_PROJECT_ID || "",
+    walletConnectProjectId: "218aeb7dfbffa618ed45df49cd77d8eb",
     appName: "Votex - Anonymous Voting Platform",
   })
 )
