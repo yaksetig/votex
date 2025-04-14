@@ -17,7 +17,7 @@ interface ElectionContextType {
   loading: boolean
   createElection: (title: string, description: string, endDate: Date, option1: string, option2: string) => Promise<void>
   castVote: (electionId: string, choice: string) => Promise<boolean>
-  userHasVoted: (electionId: string) => boolean
+  userHasVoted: (electionId: string) => Promise<boolean>
   getVoteCount: (electionId: string) => VoteCount
   refreshElections: () => Promise<void>
 }
@@ -27,7 +27,7 @@ const ElectionContext = createContext<ElectionContextType>({
   loading: false,
   createElection: async () => {},
   castVote: async () => false,
-  userHasVoted: () => false,
+  userHasVoted: async () => false,
   getVoteCount: () => ({ option1: 0, option2: 0 }),
   refreshElections: async () => {},
 })
@@ -67,7 +67,6 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
   useEffect(() => {
     loadElections()
     
-    // Setup real-time subscriptions with error handling
     let electionsChannel: RealtimeChannel;
     let votesChannel: RealtimeChannel;
     
@@ -178,7 +177,8 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
       return false
     }
 
-    if (userHasVoted(electionId)) {
+    const hasVoted = await userHasVoted(electionId)
+    if (hasVoted) {
       toast({
         title: "Already voted",
         description: "You have already cast a vote in this election.",
@@ -188,29 +188,23 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
     }
 
     try {
-      // Create message to sign
       const message = `Vote ${choice} on Election: ${election.id}`
       
-      // Sign with anonymous keypair
       const anonymousSignature = await signWithKeypair(message, anonymousKeypair)
       
-      // Also sign with the connected wallet to prove ownership
       const walletSignature = await signMessage(message)
       if (!walletSignature) return false
 
-      // Generate a nullifier to prevent double voting while preserving privacy
       const nullifier = await generateNullifier(electionId, anonymousKeypair);
       
-      // The voter field now contains the public key from the anonymous keypair
-      // This ensures the vote cannot be traced back to the user's wallet address
       const voterPublicKey = getPublicKeyString(anonymousKeypair.publicKey)
       
       await castVoteInDb(
         electionId, 
-        voterPublicKey, // Anonymous public key instead of wallet address
+        voterPublicKey,
         choice, 
-        anonymousSignature, // Anonymous signature
-        nullifier // Add the nullifier field
+        anonymousSignature,
+        nullifier
       )
 
       toast({
@@ -231,15 +225,11 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
     }
   }
 
-  const userHasVoted = (electionId: string): boolean => {
+  const userHasVoted = async (electionId: string): Promise<boolean> => {
     if (!anonymousKeypair) return false
     
     const election = elections.find((e) => e.id === electionId)
-    
-    // Create voter identifier from public key
-    const voterPublicKey = getPublicKeyString(anonymousKeypair.publicKey)
-    
-    return election ? election.votes.some((vote) => vote.voter === voterPublicKey) : false
+    return await checkUserHasVoted(election, anonymousKeypair)
   }
 
   const getVoteCount = (electionId: string): VoteCount => {
@@ -262,9 +252,7 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
   }
 
   return (
-    <ElectionContext.Provider
-      value={value}
-    >
+    <ElectionContext.Provider value={value}>
       {children}
     </ElectionContext.Provider>
   )

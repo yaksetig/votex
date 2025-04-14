@@ -1,9 +1,22 @@
 
 import { Election, VoteCount } from "@/types/election";
+import { BabyJubjubKeyPair, generateNullifier } from "@/services/babyJubjubService";
 
-export const userHasVoted = (election: Election | undefined, address: string | null): boolean => {
-  if (!address || !election) return false;
-  return election.votes.some((vote) => vote.voter === address);
+export const userHasVoted = async (election: Election | undefined, anonymousKeypair: BabyJubjubKeyPair | null): Promise<boolean> => {
+  if (!election || !anonymousKeypair) return false;
+  
+  try {
+    // Generate the nullifier that would have been used when voting
+    const nullifier = await generateNullifier(election.id, anonymousKeypair);
+    
+    // Check if this nullifier exists in the votes for this election
+    const matchingVote = election.votes.some(vote => vote.nullifier === nullifier);
+    
+    return matchingVote;
+  } catch (error) {
+    console.error("Error checking if user has voted:", error);
+    return false;
+  }
 };
 
 export const getVoteCount = (election: Election | undefined): VoteCount => {

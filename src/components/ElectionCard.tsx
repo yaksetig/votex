@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useElections } from "@/contexts/ElectionContext";
@@ -14,11 +14,20 @@ interface ElectionCardProps {
 const ElectionCard: React.FC<ElectionCardProps> = ({ election }) => {
   const { castVote, userHasVoted, getVoteCount } = useElections();
   const { address, isWorldIDVerified } = useWallet();
-  const hasVoted = userHasVoted(election.id);
+  const [hasVoted, setHasVoted] = useState(false);
   const { option1, option2 } = getVoteCount(election.id);
   const totalVotes = option1 + option2;
   const option1Percentage = totalVotes > 0 ? Math.round((option1 / totalVotes) * 100) : 0;
   const isActive = new Date() < election.endDate;
+
+  useEffect(() => {
+    const checkVoteStatus = async () => {
+      const voted = await userHasVoted(election.id);
+      setHasVoted(voted);
+    };
+    
+    checkVoteStatus();
+  }, [election.id, userHasVoted]);
 
   const formatDate = (date: Date) => {
     return new Date(date).toLocaleDateString(undefined, {
@@ -29,7 +38,10 @@ const ElectionCard: React.FC<ElectionCardProps> = ({ election }) => {
   };
 
   const handleVote = async (choice: string) => {
-    await castVote(election.id, choice);
+    const success = await castVote(election.id, choice);
+    if (success) {
+      setHasVoted(true);
+    }
   };
 
   return (
