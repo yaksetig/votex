@@ -100,7 +100,8 @@ export const castVoteInDb = async (
   electionId: string, 
   voter: string, 
   choice: string, 
-  signature: string
+  signature: string,
+  nullifier: string
 ) => {
   try {
     const { error } = await supabase
@@ -111,6 +112,7 @@ export const castVoteInDb = async (
           voter,
           choice,
           signature,
+          nullifier,
           timestamp: Date.now(),
         }
       ]);

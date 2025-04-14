@@ -5,6 +5,7 @@ export interface Vote {
   voter: string; // This will now store the Baby Jubjub public key string
   choice: string;
   signature: string; // This will store the Baby Jubjub signature
+  nullifier: string; // For ZK-proof applications and preventing double voting
   timestamp: number;
 }
 

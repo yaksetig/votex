@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback } from "react"
 import { useWallet } from "@/contexts/WalletContext"
 import { useToast } from "@/hooks/use-toast"
@@ -209,7 +210,8 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
         electionId, 
         voterPublicKey, // Anonymous public key instead of wallet address
         choice, 
-        anonymousSignature // Anonymous signature
+        anonymousSignature, // Anonymous signature
+        nullifier // Add the nullifier field
       )
 
       toast({
