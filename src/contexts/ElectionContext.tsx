@@ -1,8 +1,8 @@
-
 import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback } from "react"
 import { useWallet } from "@/contexts/WalletContext"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/integrations/supabase/client"
+import { RealtimeChannel } from '@supabase/supabase-js';
 import { Election, VoteCount } from "@/types/election"
 import { 
   fetchElectionsAndVotes, 
@@ -10,7 +10,7 @@ import {
   castVoteInDb,
 } from "@/utils/electionDataService"
 import { userHasVoted as checkUserHasVoted, getVoteCount as calculateVoteCount } from "@/utils/voteUtils"
-import { signWithKeypair, getPublicKeyString } from "@/services/babyJubjubService"
+import { signWithKeypair, getPublicKeyString, generateNullifier } from "@/services/babyJubjubService"
 
 interface ElectionContextType {
   elections: Election[]
@@ -68,8 +68,8 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
     loadElections()
     
     // Setup real-time subscriptions with error handling
-    let electionsChannel;
-    let votesChannel;
+    let electionsChannel: RealtimeChannel;
+    let votesChannel: RealtimeChannel;
     
     try {
       electionsChannel = supabase
@@ -198,6 +198,9 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
       const walletSignature = await signMessage(message)
       if (!walletSignature) return false
 
+      // Generate a nullifier to prevent double voting while preserving privacy
+      const nullifier = await generateNullifier(electionId, anonymousKeypair);
+      
       // The voter field now contains the public key from the anonymous keypair
       // This ensures the vote cannot be traced back to the user's wallet address
       const voterPublicKey = getPublicKeyString(anonymousKeypair.publicKey)

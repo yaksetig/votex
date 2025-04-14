@@ -1,16 +1,13 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Supabase environment variables are not defined. Real-time features may not work correctly.');
-}
+// Using direct values instead of environment variables
+const supabaseUrl = 'https://uficgolgcwvgxqlubpso.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVmaWNnb2xnY3d2Z3hxbHVicHNvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQxMzY2NDcsImV4cCI6MjA1OTcxMjY0N30.xFYmgi3ABvnWUqn4T9hb6jgoHJ2KqLvzN5MlhYy68Cw';
 
 export const supabase = createClient(
-  supabaseUrl || '',
-  supabaseAnonKey || '',
+  supabaseUrl,
+  supabaseAnonKey,
   {
     realtime: {
       params: {
