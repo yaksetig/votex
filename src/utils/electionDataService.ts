@@ -105,6 +105,23 @@ export const castVoteInDb = async (
   nullifier: string
 ) => {
   try {
+    // Check if the nullifier already exists to prevent double voting
+    const { data: existingVote, error: checkError } = await supabase
+      .from('votes')
+      .select('*')
+      .eq('nullifier', nullifier)
+      .single();
+
+    if (checkError && checkError.code !== 'PGRST116') {
+      console.error("Error checking for existing vote:", checkError);
+      throw checkError;
+    }
+
+    if (existingVote) {
+      console.error("Vote with this nullifier already exists");
+      throw new Error("Double voting is not allowed");
+    }
+
     const { error } = await supabase
       .from('votes')
       .insert([
