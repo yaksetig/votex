@@ -1,7 +1,6 @@
-
 import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback } from "react"
 import { useWallet } from "@/contexts/WalletContext"
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "@/components/ui/use-toast"
 import { supabase } from "@/integrations/supabase/client"
 import { Election, VoteCount } from "@/types/election"
 import { 
@@ -67,47 +66,31 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
   useEffect(() => {
     loadElections()
     
-    // Setup real-time subscriptions with error handling
-    let electionsChannel;
-    let votesChannel;
+    const electionsChannel = supabase
+      .channel('public:elections')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public',
+        table: 'elections'
+      }, () => {
+        loadElections()
+      })
+      .subscribe()
     
-    try {
-      electionsChannel = supabase
-        .channel('public:elections')
-        .on('postgres_changes', { 
-          event: '*', 
-          schema: 'public',
-          table: 'elections'
-        }, () => {
-          loadElections()
-        })
-        .subscribe((status) => {
-          if (status === 'SUBSCRIPTION_ERROR') {
-            console.warn('Error subscribing to elections channel');
-          }
-        })
-      
-      votesChannel = supabase
-        .channel('public:votes')
-        .on('postgres_changes', { 
-          event: '*', 
-          schema: 'public',
-          table: 'votes'
-        }, () => {
-          loadElections()
-        })
-        .subscribe((status) => {
-          if (status === 'SUBSCRIPTION_ERROR') {
-            console.warn('Error subscribing to votes channel');
-          }
-        })
-    } catch (error) {
-      console.error('Error setting up real-time subscriptions:', error);
-    }
+    const votesChannel = supabase
+      .channel('public:votes')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public',
+        table: 'votes'
+      }, () => {
+        loadElections()
+      })
+      .subscribe()
 
     return () => {
-      if (electionsChannel) supabase.removeChannel(electionsChannel)
-      if (votesChannel) supabase.removeChannel(votesChannel)
+      supabase.removeChannel(electionsChannel)
+      supabase.removeChannel(votesChannel)
     }
   }, [loadElections])
 
