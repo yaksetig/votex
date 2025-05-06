@@ -41,7 +41,7 @@ interface ElectionProviderProps {
 export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) => {
   const [elections, setElections] = useState<Election[]>([])
   const [loading, setLoading] = useState(true)
-  const { address, isWorldIDVerified, anonymousKeypair, signMessage } = useWallet()
+  const { isWorldIDVerified, anonymousKeypair } = useWallet()
   const { toast } = useToast()
 
   const loadElections = useCallback(async () => {
@@ -111,17 +111,19 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
   }, [loadElections])
 
   const createElection = async (title: string, description: string, endDate: Date, option1: string, option2: string) => {
-    if (!address) {
+    if (!isWorldIDVerified) {
       toast({
-        title: "Wallet not connected",
-        description: "Please connect your wallet to create an election.",
+        title: "Verification required",
+        description: "Please verify your identity with World ID to create an election.",
         variant: "destructive",
       })
       return
     }
 
     try {
-      await createElectionInDb(title, description, address, endDate, option1, option2)
+      // We'll use the anonymous identity as the creator
+      const creatorId = anonymousKeypair ? getPublicKeyString(anonymousKeypair.publicKey) : "anonymous"
+      await createElectionInDb(title, description, creatorId, endDate, option1, option2)
       
       toast({
         title: "Election created",
@@ -140,15 +142,6 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
   }
 
   const castVote = async (electionId: string, choice: string): Promise<boolean> => {
-    if (!address) {
-      toast({
-        title: "Wallet not connected",
-        description: "Please connect your wallet to vote.",
-        variant: "destructive",
-      })
-      return false
-    }
-
     if (!isWorldIDVerified || !anonymousKeypair) {
       toast({
         title: "World ID verification required",
@@ -192,9 +185,6 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
       
       const anonymousSignature = await signWithKeypair(message, anonymousKeypair)
       
-      const walletSignature = await signMessage(message)
-      if (!walletSignature) return false
-
       const nullifier = await generateNullifier(electionId, anonymousKeypair);
       
       const voterPublicKey = getPublicKeyString(anonymousKeypair.publicKey)

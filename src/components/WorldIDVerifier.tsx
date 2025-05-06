@@ -9,7 +9,7 @@ interface WorldIDVerifierProps {
 }
 
 const WorldIDVerifier: React.FC<WorldIDVerifierProps> = ({ onVerificationSuccess }) => {
-  const { address, setAnonymousKeypair } = useWallet()
+  const { setAnonymousKeypair } = useWallet()
   
   // Initialize the Baby Jubjub library on component mount
   useEffect(() => {
@@ -47,7 +47,7 @@ const WorldIDVerifier: React.FC<WorldIDVerifierProps> = ({ onVerificationSuccess
       <IDKitWidget
         app_id="app_e2fd2f8c99430ab200a093278e801c57"
         action="vote_anonymously"
-        signal={address || ''}
+        signal="votex_anonymous_user"
         onSuccess={handleVerificationSuccess}
         verification_level={VerificationLevel.Orb} // Require high security
         autoClose
