@@ -183,12 +183,16 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
     try {
       const message = `Vote ${choice} on Election: ${election.id}`
       
+      // Sign with Baby Jubjub keypair
       const anonymousSignature = await signWithKeypair(message, anonymousKeypair)
       
-      const nullifier = await generateNullifier(electionId, anonymousKeypair);
+      // Generate nullifier to prevent double voting
+      const nullifier = await generateNullifier(electionId, anonymousKeypair)
       
+      // Get public key as string for storage
       const voterPublicKey = getPublicKeyString(anonymousKeypair.publicKey)
       
+      // Submit vote to the database
       await castVoteInDb(
         electionId, 
         voterPublicKey,
@@ -202,7 +206,7 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
         description: `You have successfully voted "${choice}" in "${election.title}".`,
       })
 
-      await loadElections()
+      await refreshElections()
       return true
     } catch (error) {
       console.error("Error casting vote:", error)
