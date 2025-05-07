@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, ReactNode } from "react"
 import { ElectionContext } from "@/contexts/ElectionContext"
 import { useWallet } from "@/contexts/WalletContext"
@@ -29,7 +28,6 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
       const data = await fetchElectionsAndVotes()
       console.log(`Loaded ${data.length} elections from database`)
       setElections(data)
-      return data
     } catch (error) {
       console.error("Error fetching elections:", error)
       toast({
@@ -37,14 +35,15 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
         description: "Could not load elections. Please try again.",
         variant: "destructive",
       })
-      return []
     } finally {
       setLoading(false)
     }
   }, [toast])
 
-  // Set up realtime subscriptions
-  useRealtimeSubscriptions(loadElections)
+  // Set up realtime subscriptions - adjusted to use void return type
+  useRealtimeSubscriptions(async () => {
+    await loadElections();
+  });
 
   const createElection = async (title: string, description: string, endDate: Date, option1: string, option2: string) => {
     if (!isWorldIDVerified) {
