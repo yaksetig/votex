@@ -28,7 +28,7 @@ const Dashboard = () => {
     )
   }
 
-  // Verified view
+  // Verified view with anonymous identity
   return (
     <div className="container mx-auto py-8 px-4">
       <div className="flex justify-between items-center mb-8">
