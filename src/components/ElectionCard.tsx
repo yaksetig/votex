@@ -13,8 +13,9 @@ interface ElectionCardProps {
 
 const ElectionCard: React.FC<ElectionCardProps> = ({ election }) => {
   const { castVote, userHasVoted, getVoteCount } = useElections();
-  const { isWorldIDVerified } = useWallet();
+  const { isWorldIDVerified, anonymousKeypair } = useWallet();
   const [hasVoted, setHasVoted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const { option1, option2 } = getVoteCount(election.id);
   const totalVotes = option1 + option2;
   const option1Percentage = totalVotes > 0 ? Math.round((option1 / totalVotes) * 100) : 0;
@@ -26,8 +27,26 @@ const ElectionCard: React.FC<ElectionCardProps> = ({ election }) => {
       setHasVoted(voted);
     };
     
-    checkVoteStatus();
-  }, [election.id, userHasVoted]);
+    if (isWorldIDVerified && anonymousKeypair) {
+      checkVoteStatus();
+    }
+  }, [election.id, userHasVoted, isWorldIDVerified, anonymousKeypair]);
+
+  const handleVote = async (choice: string) => {
+    if (!isWorldIDVerified || !anonymousKeypair) {
+      return;
+    }
+    
+    setIsLoading(true);
+    try {
+      const success = await castVote(election.id, choice);
+      if (success) {
+        setHasVoted(true);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const formatDate = (date: Date) => {
     return new Date(date).toLocaleDateString(undefined, {
@@ -35,13 +54,6 @@ const ElectionCard: React.FC<ElectionCardProps> = ({ election }) => {
       month: "short",
       day: "numeric",
     });
-  };
-
-  const handleVote = async (choice: string) => {
-    const success = await castVote(election.id, choice);
-    if (success) {
-      setHasVoted(true);
-    }
   };
 
   return (
@@ -88,16 +100,16 @@ const ElectionCard: React.FC<ElectionCardProps> = ({ election }) => {
             <Button 
               className="flex-1 bg-crypto-green hover:bg-crypto-green/90"
               onClick={() => handleVote(election.option1)}
-              disabled={!isWorldIDVerified}
+              disabled={!isWorldIDVerified || !anonymousKeypair || isLoading}
             >
-              {election.option1}
+              {isLoading ? "Voting..." : election.option1}
             </Button>
             <Button 
               className="flex-1 bg-crypto-red hover:bg-crypto-red/90"
               onClick={() => handleVote(election.option2)}
-              disabled={!isWorldIDVerified}
+              disabled={!isWorldIDVerified || !anonymousKeypair || isLoading}
             >
-              {election.option2}
+              {isLoading ? "Voting..." : election.option2}
             </Button>
           </>
         ) : (
