@@ -19,6 +19,7 @@ let babyJubjub: any = null;
 export const initBabyJubjub = async (): Promise<void> => {
   if (!babyJubjub) {
     babyJubjub = await buildBabyjub();
+    console.log("Baby Jubjub initialized successfully");
   }
 };
 
