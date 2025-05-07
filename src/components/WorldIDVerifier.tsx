@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react'
+import React from 'react'
 import { IDKitWidget, ISuccessResult, VerificationLevel } from '@worldcoin/idkit'
 import { useWallet } from '@/contexts/WalletContext'
 import { generateKeypair, storeKeypair } from '@/services/babyJubjubService'
@@ -9,26 +9,19 @@ interface WorldIDVerifierProps {
 }
 
 const WorldIDVerifier: React.FC<WorldIDVerifierProps> = ({ onVerificationSuccess }) => {
-  const { setAnonymousKeypair } = useWallet()
-  
-  // Initialize the Baby Jubjub library on component mount
-  useEffect(() => {
-    const initializeLibrary = async () => {
-      // This will be handled by the generateKeypair function
-    }
-    initializeLibrary()
-  }, [])
+  const { setAnonymousKeypair, setIsWorldIDVerified } = useWallet()
   
   const handleVerificationSuccess = async (result: ISuccessResult) => {
     try {
-      // Generate a new Baby Jubjub keypair
+      // Generate a new Baby Jubjub keypair for anonymous identity
       const keypair = await generateKeypair();
       
-      // Store the keypair
+      // Store the keypair securely
       storeKeypair(keypair);
       
       // Update the wallet context with the keypair
       setAnonymousKeypair(keypair);
+      setIsWorldIDVerified(true);
       
       // Call the success callback
       onVerificationSuccess();
