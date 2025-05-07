@@ -39,8 +39,7 @@ const WorldIDVerifier: React.FC<WorldIDVerifierProps> = ({ onVerificationSuccess
       
       <IDKitWidget
         app_id="app_e2fd2f8c99430ab200a093278e801c57"
-        action="vote_anonymously"
-        signal="votex_anonymous_user"
+        action="registration"
         onSuccess={handleVerificationSuccess}
         verification_level={VerificationLevel.Orb} // Require high security
         autoClose
