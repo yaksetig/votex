@@ -13,7 +13,7 @@ interface ElectionCardProps {
 
 const ElectionCard: React.FC<ElectionCardProps> = ({ election }) => {
   const { castVote, userHasVoted, getVoteCount } = useElections();
-  const { address, isWorldIDVerified } = useWallet();
+  const { isWorldIDVerified } = useWallet();
   const [hasVoted, setHasVoted] = useState(false);
   const { option1, option2 } = getVoteCount(election.id);
   const totalVotes = option1 + option2;
