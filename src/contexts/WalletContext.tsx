@@ -30,16 +30,25 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   
   useEffect(() => {
     const initializeAndLoad = async () => {
-      await initBabyJubjub();
-      
-      const storedKeypair = await retrieveKeypair();
-      if (storedKeypair) {
-        setAnonymousKeypair(storedKeypair);
-        setIsWorldIDVerified(true);
+      try {
+        await initBabyJubjub();
         
+        const storedKeypair = await retrieveKeypair();
+        if (storedKeypair) {
+          setAnonymousKeypair(storedKeypair);
+          setIsWorldIDVerified(true);
+          
+          toast({
+            title: "Authentication loaded",
+            description: "Your anonymous identity has been restored.",
+          });
+        }
+      } catch (error) {
+        console.error("Error initializing Baby Jubjub or loading keypair:", error);
         toast({
-          title: "Authentication loaded",
-          description: "Your anonymous identity has been restored.",
+          title: "Error loading identity",
+          description: "Could not load your anonymous identity.",
+          variant: "destructive",
         });
       }
     };
