@@ -8,7 +8,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom"
 import { WagmiProvider } from 'wagmi'
 import { ConnectKitProvider } from 'connectkit'
 import { WalletProvider } from "@/contexts/WalletContext"
-import { ElectionProvider } from "@/contexts/ElectionContext"
+import { ElectionProvider } from "@/providers/ElectionProvider"
 import { wagmiConfig } from "@/utils/wagmiConfig"
 import NavBar from "@/components/NavBar"
 import Dashboard from "@/pages/Dashboard"

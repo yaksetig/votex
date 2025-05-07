@@ -1,9 +1,10 @@
-import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback } from "react"
+
+import React, { useState, useCallback, ReactNode } from "react"
+import { ElectionContext } from "@/contexts/ElectionContext"
 import { useWallet } from "@/contexts/WalletContext"
 import { useToast } from "@/hooks/use-toast"
-import { supabase } from "@/integrations/supabase/client"
-import { RealtimeChannel } from '@supabase/supabase-js';
-import { Election, VoteCount } from "@/types/election"
+import { Election } from "@/types/election"
+import { useRealtimeSubscriptions } from "@/hooks/useRealtimeSubscriptions"
 import { 
   fetchElectionsAndVotes, 
   createElectionInDb, 
@@ -11,28 +12,6 @@ import {
 } from "@/utils/electionDataService"
 import { userHasVoted as checkUserHasVoted, getVoteCount as calculateVoteCount } from "@/utils/voteUtils"
 import { signWithKeypair, getPublicKeyString, generateNullifier } from "@/services/babyJubjubService"
-
-interface ElectionContextType {
-  elections: Election[]
-  loading: boolean
-  createElection: (title: string, description: string, endDate: Date, option1: string, option2: string) => Promise<void>
-  castVote: (electionId: string, choice: string) => Promise<boolean>
-  userHasVoted: (electionId: string) => Promise<boolean>
-  getVoteCount: (electionId: string) => VoteCount
-  refreshElections: () => Promise<void>
-}
-
-const ElectionContext = createContext<ElectionContextType>({
-  elections: [],
-  loading: false,
-  createElection: async () => {},
-  castVote: async () => false,
-  userHasVoted: async () => false,
-  getVoteCount: () => ({ option1: 0, option2: 0 }),
-  refreshElections: async () => {},
-})
-
-export const useElections = () => useContext(ElectionContext)
 
 interface ElectionProviderProps {
   children: ReactNode
@@ -64,51 +43,8 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
     }
   }, [toast])
 
-  useEffect(() => {
-    loadElections()
-    
-    let electionsChannel: RealtimeChannel;
-    let votesChannel: RealtimeChannel;
-    
-    try {
-      electionsChannel = supabase
-        .channel('public:elections')
-        .on('postgres_changes', { 
-          event: '*', 
-          schema: 'public',
-          table: 'elections'
-        }, () => {
-          loadElections()
-        })
-        .subscribe((status) => {
-          if (status === 'SUBSCRIBED' || status === 'TIMED_OUT' || status === 'CHANNEL_ERROR') {
-            console.log('Elections channel status:', status);
-          }
-        })
-      
-      votesChannel = supabase
-        .channel('public:votes')
-        .on('postgres_changes', { 
-          event: '*', 
-          schema: 'public',
-          table: 'votes'
-        }, () => {
-          loadElections()
-        })
-        .subscribe((status) => {
-          if (status === 'SUBSCRIBED' || status === 'TIMED_OUT' || status === 'CHANNEL_ERROR') {
-            console.log('Votes channel status:', status);
-          }
-        })
-    } catch (error) {
-      console.error('Error setting up real-time subscriptions:', error);
-    }
-
-    return () => {
-      if (electionsChannel) supabase.removeChannel(electionsChannel)
-      if (votesChannel) supabase.removeChannel(votesChannel)
-    }
-  }, [loadElections])
+  // Set up realtime subscriptions
+  useRealtimeSubscriptions(loadElections)
 
   const createElection = async (title: string, description: string, endDate: Date, option1: string, option2: string) => {
     if (!isWorldIDVerified) {
@@ -226,7 +162,7 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
     return await checkUserHasVoted(election, anonymousKeypair)
   }
 
-  const getVoteCount = (electionId: string): VoteCount => {
+  const getVoteCount = (electionId: string) => {
     const election = elections.find((e) => e.id === electionId)
     return calculateVoteCount(election)
   }
@@ -251,5 +187,3 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
     </ElectionContext.Provider>
   )
 }
-
-export type { Election, VoteCount } from "@/types/election"
