@@ -1,14 +1,17 @@
+
 import React, { useState, useEffect } from "react"
 import { useWallet } from "@/contexts/WalletContext"
 import { useToast } from "@/hooks/use-toast"
 import CreateElectionDialog from "@/components/CreateElectionDialog"
 import ElectionsGrid from "@/components/ElectionsGrid"
 import WorldIDVerifier from "@/components/WorldIDVerifier"
+import DebuggingTools from "@/components/DebuggingTools"
 
 const Dashboard = () => {
   const { isWorldIDVerified, anonymousKeypair } = useWallet()
   const { toast } = useToast()
   const [isVerificationComplete, setIsVerificationComplete] = useState(false)
+  const [showDebugTools, setShowDebugTools] = useState(false)
   
   // Check verification status on component mount
   useEffect(() => {
@@ -16,6 +19,17 @@ const Dashboard = () => {
     if (isWorldIDVerified && anonymousKeypair) {
       console.log('User already verified with keypair:', anonymousKeypair)
     }
+    
+    // Enable debug tools with special key combination (shift + D)
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.shiftKey && e.key === 'D') {
+        console.log('Debug tools toggled')
+        setShowDebugTools(prev => !prev)
+      }
+    }
+    
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isWorldIDVerified, anonymousKeypair])
 
   const handleVerificationSuccess = () => {
@@ -57,6 +71,8 @@ const Dashboard = () => {
             This ensures one-person-one-vote while keeping your votes private.
           </p>
           <WorldIDVerifier onVerificationSuccess={handleVerificationSuccess} />
+          
+          {showDebugTools && <DebuggingTools />}
         </div>
       </div>
     )
@@ -77,6 +93,8 @@ const Dashboard = () => {
           <p className="text-sm text-muted-foreground">
             Loading elections...
           </p>
+          
+          {showDebugTools && <DebuggingTools />}
         </div>
       </div>
     )
@@ -95,6 +113,8 @@ const Dashboard = () => {
         </div>
       </div>
       <ElectionsGrid />
+      
+      {showDebugTools && <DebuggingTools />}
     </div>
   )
 }
