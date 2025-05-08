@@ -4,9 +4,9 @@ import { useWallet } from "@/contexts/WalletContext"
 import { useToast } from "@/hooks/use-toast"
 import CreateElectionDialog from "@/components/CreateElectionDialog"
 import ElectionsGrid from "@/components/ElectionsGrid"
-import WorldIDVerifier from "@/components/SimplifiedWorldIDVerifier" // Update to use the simplified verifier
-import DebuggingTools from "@/components/DebuggingTools"
+import WorldIDVerifier from "@/components/WorldIDVerifier"
 import BabyJubjubTester from "@/components/BabyJubjubTester"
+import DebuggingTools from "@/components/DebuggingTools"
 
 const Dashboard = () => {
   const { isWorldIDVerified, anonymousKeypair } = useWallet()
