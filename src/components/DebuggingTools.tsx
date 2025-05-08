@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { useWallet } from '@/contexts/WalletContext';
-import { generateKeypair, storeKeypair, getPublicKeyString } from '@/services/babyJubjubService';
+import { generateKeypair, storeKeypair, getPublicKeyString } from '@/services/SimplifiedBabyJubjubService';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';

@@ -2,7 +2,7 @@
 import React, { useState } from 'react'
 import { IDKitWidget, ISuccessResult, VerificationLevel } from '@worldcoin/idkit'
 import { useWallet } from '@/contexts/WalletContext'
-import { createKeypairFromWorldIDProof, storeKeypair, generateKeypair } from '@/services/SimplifiedBabyJubjubService'
+import { createKeypairFromWorldIDProof, generateKeypair, storeKeypair } from '@/services/SimplifiedBabyJubjubService'
 import { useToast } from '@/hooks/use-toast'
 
 interface WorldIDVerifierProps {

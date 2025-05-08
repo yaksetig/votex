@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, ReactNode } from "react"
 import { ElectionContext } from "@/contexts/ElectionContext"
 import { useWallet } from "@/contexts/WalletContext"
@@ -10,7 +11,7 @@ import {
   castVoteInDb,
 } from "@/utils/electionDataService"
 import { userHasVoted as checkUserHasVoted, getVoteCount as calculateVoteCount } from "@/utils/voteUtils"
-import { signWithKeypair, getPublicKeyString, generateNullifier } from "@/services/babyJubjubService"
+import { signMessage, getPublicKeyString, generateNullifier } from "@/services/SimplifiedBabyJubjubService"
 
 interface ElectionProviderProps {
   children: ReactNode
@@ -119,7 +120,7 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
       const message = `Vote ${choice} on Election: ${election.id}`
       
       // Sign with Baby Jubjub keypair
-      const anonymousSignature = await signWithKeypair(message, anonymousKeypair)
+      const anonymousSignature = await signMessage(message, anonymousKeypair)
       
       // Generate nullifier to prevent double voting
       const nullifier = await generateNullifier(electionId, anonymousKeypair)

@@ -7,7 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { BrowserRouter, Routes, Route } from "react-router-dom"
 import { WagmiProvider } from 'wagmi'
 import { ConnectKitProvider } from 'connectkit'
-import { WalletProvider } from "@/contexts/WalletContext"
+import { WalletProvider } from "@/contexts/WalletContext" // Keep using the original context name
 import { ElectionProvider } from "@/providers/ElectionProvider"
 import { wagmiConfig } from "@/utils/wagmiConfig"
 import NavBar from "@/components/NavBar"
