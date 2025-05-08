@@ -1,5 +1,5 @@
 
-import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
+import React, { createContext, useState, useEffect, useContext, ReactNode, useCallback } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { BabyJubjubKeyPair, retrieveKeypair, initBabyJubjub } from '@/services/babyJubjubService';
 
@@ -8,6 +8,7 @@ interface WalletContextType {
   anonymousKeypair: BabyJubjubKeyPair | null;
   setIsWorldIDVerified: (value: boolean) => void;
   setAnonymousKeypair: (keypair: BabyJubjubKeyPair | null) => void;
+  setVerifiedWithKeypair: (keypair: BabyJubjubKeyPair) => void;
 }
 
 const WalletContext = createContext<WalletContextType>({
@@ -15,6 +16,7 @@ const WalletContext = createContext<WalletContextType>({
   anonymousKeypair: null,
   setIsWorldIDVerified: () => {},
   setAnonymousKeypair: () => {},
+  setVerifiedWithKeypair: () => {},
 });
 
 export const useWallet = () => useContext(WalletContext);
@@ -27,6 +29,16 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   const [isWorldIDVerified, setIsWorldIDVerified] = useState(false);
   const [anonymousKeypair, setAnonymousKeypair] = useState<BabyJubjubKeyPair | null>(null);
   const { toast } = useToast();
+  
+  const setVerifiedWithKeypair = useCallback((keypair: BabyJubjubKeyPair) => {
+    setAnonymousKeypair(keypair);
+    setIsWorldIDVerified(true);
+    
+    toast({
+      title: "Verification successful",
+      description: "Your anonymous identity has been created.",
+    });
+  }, [toast]);
   
   useEffect(() => {
     const initializeAndLoad = async () => {
@@ -61,6 +73,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     anonymousKeypair,
     setIsWorldIDVerified,
     setAnonymousKeypair,
+    setVerifiedWithKeypair
   };
   
   return (

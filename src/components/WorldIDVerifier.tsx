@@ -9,7 +9,7 @@ interface WorldIDVerifierProps {
 }
 
 const WorldIDVerifier: React.FC<WorldIDVerifierProps> = ({ onVerificationSuccess }) => {
-  const { setAnonymousKeypair, setIsWorldIDVerified } = useWallet()
+  const { setVerifiedWithKeypair } = useWallet()
   
   const handleVerificationSuccess = async (result: ISuccessResult) => {
     try {
@@ -20,8 +20,7 @@ const WorldIDVerifier: React.FC<WorldIDVerifierProps> = ({ onVerificationSuccess
       storeKeypair(keypair);
       
       // Update the wallet context with the keypair
-      setAnonymousKeypair(keypair);
-      setIsWorldIDVerified(true);
+      setVerifiedWithKeypair(keypair);
       
       // Call the success callback
       onVerificationSuccess();
