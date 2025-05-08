@@ -1,137 +1,89 @@
 
-import React, { useState } from 'react'
-import { IDKitWidget, ISuccessResult, VerificationLevel } from '@worldcoin/idkit'
-import { useWallet } from '@/contexts/WalletContext'
-import { createKeypairFromWorldIDProof, generateKeypair, storeKeypair } from '@/services/SimplifiedBabyJubjubService'
-import { useToast } from '@/hooks/use-toast'
+import React, { useState } from 'react';
+import { IDKitWidget } from '@worldcoin/idkit';
+import { useWallet } from '@/contexts/WalletContext';
+import { useToast } from '@/hooks/use-toast';
+import { generateKeypair, storeKeypair } from '@/services/ffjavascriptBabyJubjubService';
 
-interface WorldIDVerifierProps {
-  onVerificationSuccess: () => void
+interface VerifierProps {
+  onVerificationSuccess: () => void;
 }
 
-const WorldIDVerifier: React.FC<WorldIDVerifierProps> = ({ onVerificationSuccess }) => {
-  const { setAnonymousKeypair, setIsWorldIDVerified } = useWallet()
-  const { toast } = useToast()
-  const [isVerifying, setIsVerifying] = useState(false)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+interface ISuccessResult {
+  merkle_root: string;
+  nullifier_hash: string;
+  proof: string;
+}
+
+const WorldIDVerifier: React.FC<VerifierProps> = ({ onVerificationSuccess }) => {
+  const { setAnonymousKeypair, setIsWorldIDVerified } = useWallet();
+  const { toast } = useToast();
+  const [isVerifying, setIsVerifying] = useState(false);
   
   const handleVerificationSuccess = async (result: ISuccessResult) => {
     try {
-      setIsVerifying(true)
-      setErrorMessage(null)
-      console.log('Starting verification success handler')
+      setIsVerifying(true);
       
-      // Make sure World ID verification was successful
-      if (!result || !result.merkle_root || !result.nullifier_hash) {
-        throw new Error("Invalid World ID verification result");
-      }
+      // Generate a new Baby Jubjub keypair
+      const keypair = await generateKeypair();
       
-      console.log('World ID verification successful, generating keypair...')
+      // Store the keypair in localStorage
+      storeKeypair(keypair);
       
-      // Generate a new Baby Jubjub keypair based on the World ID proof
-      // This ensures the keypair is deterministically tied to this specific user's World ID
-      const keypair = await createKeypairFromWorldIDProof(result)
-      console.log('Keypair generated successfully')
-      
-      // Store the keypair securely
-      console.log('Storing keypair...')
-      storeKeypair(keypair)
-      
-      // Update the wallet context with the keypair
-      console.log('Updating context...')
-      setAnonymousKeypair(keypair)
-      setIsWorldIDVerified(true)
+      // Update the wallet context
+      setAnonymousKeypair(keypair);
+      setIsWorldIDVerified(true);
       
       // Show success toast
       toast({
         title: "Verification successful",
-        description: "Your anonymous identity has been created.",
-      })
+        description: "Your anonymous identity has been created successfully.",
+      });
       
       // Call the success callback
-      console.log('Calling success callback...')
-      onVerificationSuccess()
-      
-      console.log('Verification success handler completed')
+      onVerificationSuccess();
     } catch (error) {
-      console.error('Error during verification:', error)
-      
-      // Set a user-friendly error message
-      setErrorMessage(
-        error instanceof Error 
-          ? error.message 
-          : "Unknown error occurred during verification"
-      )
-      
+      console.error("Error during verification:", error);
       toast({
         title: "Verification failed",
         description: "Could not create your anonymous identity. Please try again.",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsVerifying(false)
+      setIsVerifying(false);
     }
-  }
+  };
   
-  // Test verification for development environments
+  // For testing/demo purposes only
   const handleTestVerification = async () => {
     try {
-      setIsVerifying(true)
-      setErrorMessage(null)
-      console.log('Starting test verification')
+      setIsVerifying(true);
       
-      // Generate a regular keypair for testing
-      const keypair = await generateKeypair();
-      console.log('Test keypair generated successfully')
+      // Generate a fake verification result
+      const mockResult = {
+        merkle_root: "0x1234567890abcdef",
+        nullifier_hash: "0xabcdef1234567890",
+        proof: "0x12345"
+      } as ISuccessResult;
       
-      // Store the test keypair 
-      console.log('Storing test keypair...')
-      storeKeypair(keypair)
-      
-      // Update the wallet context with the test keypair
-      console.log('Updating context with test keypair...')
-      setAnonymousKeypair(keypair)
-      setIsWorldIDVerified(true)
-      
-      // Show success toast
-      toast({
-        title: "Test verification successful",
-        description: "Your test identity has been created.",
-      })
-      
-      // Call the success callback
-      console.log('Calling success callback...')
-      onVerificationSuccess()
+      // Process the mock result
+      await handleVerificationSuccess(mockResult);
     } catch (error) {
-      console.error('Error during test verification:', error)
-      
-      setErrorMessage(
-        error instanceof Error 
-          ? error.message 
-          : "Unknown error occurred during test verification"
-      )
-      
+      console.error("Error during test verification:", error);
       toast({
         title: "Test verification failed",
-        description: "Could not create test identity. Please try again.",
+        description: "The test verification process failed. Please try again.",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsVerifying(false)
+      setIsVerifying(false);
     }
-  }
+  };
   
   return (
     <div className="my-4">
       <h2 className="text-xl font-bold mb-2">Verify with World ID</h2>
       <p className="mb-4">Verify your identity to enable anonymous voting</p>
-      
-      {errorMessage && (
-        <div className="mb-4 p-3 bg-destructive/20 border border-destructive/50 rounded-md text-sm">
-          <p className="font-medium">Error occurred:</p>
-          <p>{errorMessage}</p>
-        </div>
-      )}
       
       {isVerifying ? (
         <div className="bg-gradient-crypto px-4 py-2 rounded-lg opacity-70 cursor-not-allowed flex items-center justify-center space-x-2">
@@ -147,7 +99,6 @@ const WorldIDVerifier: React.FC<WorldIDVerifierProps> = ({ onVerificationSuccess
             app_id="app_e2fd2f8c99430ab200a093278e801c57"
             action="registration"
             onSuccess={handleVerificationSuccess}
-            verification_level={VerificationLevel.Orb}
             autoClose
           >
             {({ open }) => (
@@ -160,17 +111,17 @@ const WorldIDVerifier: React.FC<WorldIDVerifierProps> = ({ onVerificationSuccess
             )}
           </IDKitWidget>
           
-          {/* Test button - for development environments only */}
+          {/* Test button - remove in production */}
           <button
             onClick={handleTestVerification}
-            className="ml-2 px-4 py-2 border border-dashed border-muted-foreground/50 rounded-lg text-muted-foreground text-sm hover:bg-card hover:text-foreground transition-colors"
+            className="ml-2 px-4 py-2 border border-dashed border-muted-foreground/50 rounded-lg text-muted-foreground text-sm hover:bg-muted hover:text-foreground transition-colors"
           >
             Test Verification
           </button>
         </>
       )}
     </div>
-  )
-}
+  );
+};
 
-export default WorldIDVerifier
+export default WorldIDVerifier;

@@ -1,189 +1,191 @@
 
-import React, { useState, useCallback, ReactNode } from "react"
-import { ElectionContext } from "@/contexts/ElectionContext"
-import { useWallet } from "@/contexts/WalletContext"
-import { useToast } from "@/hooks/use-toast"
-import { Election } from "@/types/election"
-import { useRealtimeSubscriptions } from "@/hooks/useRealtimeSubscriptions"
-import { 
-  fetchElectionsAndVotes, 
-  createElectionInDb, 
-  castVoteInDb,
-} from "@/utils/electionDataService"
-import { userHasVoted as checkUserHasVoted, getVoteCount as calculateVoteCount } from "@/utils/voteUtils"
-import { signMessage, getPublicKeyString, generateNullifier } from "@/services/SimplifiedBabyJubjubService"
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { ElectionContextType, ElectionProviderProps } from "@/contexts/ElectionContextTypes";
+import { Election } from "@/types/election";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useWallet } from "@/contexts/WalletContext";
+import { generateNullifier } from "@/services/ffjavascriptBabyJubjubService";
+import { useRealtimeSubscriptions } from "@/hooks/useRealtimeSubscriptions";
 
-interface ElectionProviderProps {
-  children: ReactNode
+// Create the context
+export const ElectionContext = createContext<ElectionContextType | undefined>(undefined);
+
+// Custom hook to use the election context
+export function useElection() {
+  const context = useContext(ElectionContext);
+  if (context === undefined) {
+    throw new Error("useElection must be used within an ElectionProvider");
+  }
+  return context;
 }
 
-export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) => {
-  const [elections, setElections] = useState<Election[]>([])
-  const [loading, setLoading] = useState(true)
-  const { isWorldIDVerified, anonymousKeypair } = useWallet()
-  const { toast } = useToast()
-
-  const loadElections = useCallback(async () => {
+export function ElectionProvider({ children }: ElectionProviderProps) {
+  const [elections, setElections] = useState<Election[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
+  const { anonymousKeypair } = useWallet();
+  
+  // Set up realtime subscriptions
+  useRealtimeSubscriptions();
+  
+  // Function to vote in an election
+  const voteInElection = async (electionId: string, choice: string) => {
     try {
-      setLoading(true)
-      const data = await fetchElectionsAndVotes()
-      console.log(`Loaded ${data.length} elections from database`)
-      setElections(data)
+      if (!anonymousKeypair) {
+        toast({
+          title: "Not authenticated",
+          description: "You need to verify your identity before voting.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Find the election
+      const election = elections.find((e) => e.id === electionId);
+      if (!election) {
+        toast({
+          title: "Election not found",
+          description: "Could not find the election to vote in.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Generate a nullifier specific to this election and user
+      const nullifier = await generateNullifier(electionId, anonymousKeypair);
+      
+      // Check if a vote with this nullifier already exists
+      const { data: existingVotes } = await supabase
+        .from("votes")
+        .select("id")
+        .eq("election_id", electionId)
+        .eq("nullifier", nullifier);
+      
+      if (existingVotes && existingVotes.length > 0) {
+        toast({
+          title: "Already voted",
+          description: "You have already cast a vote in this election.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Add vote to database
+      const { error: insertError } = await supabase.from("votes").insert({
+        election_id: electionId,
+        choice,
+        nullifier,
+      });
+      
+      if (insertError) {
+        console.error("Error submitting vote:", insertError);
+        toast({
+          title: "Voting failed",
+          description: "Could not submit your vote. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      toast({
+        title: "Vote submitted",
+        description: "Your vote has been cast anonymously.",
+      });
     } catch (error) {
-      console.error("Error fetching elections:", error)
+      console.error("Error in voteInElection:", error);
       toast({
-        title: "Error fetching elections",
-        description: "Could not load elections. Please try again.",
+        title: "Voting failed",
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
-      })
-    } finally {
-      setLoading(false)
+      });
     }
-  }, [toast])
-
-  // Set up realtime subscriptions - adjusted to use void return type
-  useRealtimeSubscriptions(async () => {
-    await loadElections();
-  });
-
-  const createElection = async (title: string, description: string, endDate: Date, option1: string, option2: string) => {
-    if (!isWorldIDVerified) {
-      toast({
-        title: "Verification required",
-        description: "Please verify your identity with World ID to create an election.",
-        variant: "destructive",
-      })
-      return
-    }
-
+  };
+  
+  // Function to fetch elections from API
+  const fetchElections = async () => {
     try {
-      // We'll use the anonymous identity as the creator
-      const creatorId = anonymousKeypair ? getPublicKeyString(anonymousKeypair.publicKey) : "anonymous"
-      await createElectionInDb(title, description, creatorId, endDate, option1, option2)
+      setIsLoading(true);
+      setError(null);
+      
+      const { data, error } = await supabase
+        .from("elections")
+        .select(`
+          *,
+          votes (*)
+        `)
+        .order("created_at", { ascending: false });
+      
+      if (error) {
+        throw error;
+      }
+      
+      setElections(data || []);
+    } catch (err) {
+      console.error("Error fetching elections:", err);
+      setError("Failed to load elections. Please try again later.");
+      toast({
+        title: "Error loading elections",
+        description: "Could not load election data. Please try refreshing the page.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Create a new election
+  const createElection = async (title: string, description: string, option1: string, option2: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("elections")
+        .insert({ title, description, option1, option2 })
+        .select()
+        .single();
+      
+      if (error) {
+        throw error;
+      }
       
       toast({
         title: "Election created",
-        description: `"${title}" has been created successfully.`,
-      })
+        description: "Your new election has been created successfully.",
+      });
       
-      await loadElections()
-    } catch (error) {
-      console.error("Error creating election:", error)
+      // Refresh the elections list
+      fetchElections();
+      
+      return data;
+    } catch (err) {
+      console.error("Error creating election:", err);
       toast({
         title: "Error creating election",
         description: "Could not create the election. Please try again.",
         variant: "destructive",
-      })
+      });
+      return null;
     }
-  }
-
-  const castVote = async (electionId: string, choice: string): Promise<boolean> => {
-    if (!isWorldIDVerified || !anonymousKeypair) {
-      toast({
-        title: "World ID verification required",
-        description: "Please verify with World ID to vote anonymously.",
-        variant: "destructive",
-      })
-      return false
-    }
-
-    const election = elections.find((e) => e.id === electionId)
-    if (!election) {
-      toast({
-        title: "Election not found",
-        description: "Could not find the specified election.",
-        variant: "destructive",
-      })
-      return false
-    }
-
-    if (election.endDate < new Date()) {
-      toast({
-        title: "Election ended",
-        description: "This election has already ended.",
-        variant: "destructive",
-      })
-      return false
-    }
-
-    const hasVoted = await userHasVoted(electionId)
-    if (hasVoted) {
-      toast({
-        title: "Already voted",
-        description: "You have already cast a vote in this election.",
-        variant: "destructive",
-      })
-      return false
-    }
-
-    try {
-      const message = `Vote ${choice} on Election: ${election.id}`
-      
-      // Sign with Baby Jubjub keypair
-      const anonymousSignature = await signMessage(message, anonymousKeypair)
-      
-      // Generate nullifier to prevent double voting
-      const nullifier = await generateNullifier(electionId, anonymousKeypair)
-      
-      // Get public key as string for storage
-      const voterPublicKey = getPublicKeyString(anonymousKeypair.publicKey)
-      
-      // Submit vote to the database
-      await castVoteInDb(
-        electionId, 
-        voterPublicKey,
-        choice, 
-        anonymousSignature,
-        nullifier
-      )
-
-      toast({
-        title: "Vote cast",
-        description: `You have successfully voted "${choice}" in "${election.title}".`,
-      })
-
-      await refreshElections()
-      return true
-    } catch (error) {
-      console.error("Error casting vote:", error)
-      toast({
-        title: "Error casting vote",
-        description: "Could not cast your vote. Please try again.",
-        variant: "destructive",
-      })
-      return false
-    }
-  }
-
-  const userHasVoted = async (electionId: string): Promise<boolean> => {
-    if (!anonymousKeypair) return false
-    
-    const election = elections.find((e) => e.id === electionId)
-    return await checkUserHasVoted(election, anonymousKeypair)
-  }
-
-  const getVoteCount = (electionId: string) => {
-    const election = elections.find((e) => e.id === electionId)
-    return calculateVoteCount(election)
-  }
-
-  const refreshElections = async () => {
-    await loadElections()
-  }
-
-  const value = {
+  };
+  
+  // Fetch elections on component mount
+  useEffect(() => {
+    fetchElections();
+  }, []);
+  
+  // Expose the context value
+  const contextValue: ElectionContextType = {
     elections,
-    loading,
+    isLoading,
+    error,
+    fetchElections,
     createElection,
-    castVote,
-    userHasVoted,
-    getVoteCount,
-    refreshElections,
-  }
-
+    voteInElection,
+  };
+  
   return (
-    <ElectionContext.Provider value={value}>
+    <ElectionContext.Provider value={contextValue}>
       {children}
     </ElectionContext.Provider>
-  )
+  );
 }

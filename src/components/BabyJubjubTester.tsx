@@ -12,10 +12,7 @@ import {
   verifySignature,
   getPublicKeyString,
   BabyJubjubKeyPair
-} from '@/services/SimplifiedBabyJubjubService';
-
-// This is a debugging component to test Baby Jubjub functionality
-// DO NOT include this in production builds!
+} from '@/services/ffjavascriptBabyJubjubService';
 
 const BabyJubjubTester: React.FC = () => {
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
@@ -44,7 +41,6 @@ const BabyJubjubTester: React.FC = () => {
         if (stored) {
           setStoredKeypair(stored);
           addLog('Retrieved stored keypair');
-          addLog(`Public key: ${getPublicKeyString(stored.publicKey)}`);
         } else {
           addLog('No stored keypair found');
         }
@@ -67,7 +63,6 @@ const BabyJubjubTester: React.FC = () => {
       setKeypair(newKeypair);
       
       addLog('Keypair generated successfully');
-      addLog(`Public key: ${getPublicKeyString(newKeypair.publicKey)}`);
       setStatus('success');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
@@ -152,7 +147,7 @@ const BabyJubjubTester: React.FC = () => {
   return (
     <Card className="w-full max-w-3xl mx-auto my-8">
       <CardHeader>
-        <CardTitle>Baby Jubjub Tester</CardTitle>
+        <CardTitle>Baby Jubjub Tester (ffjavascript)</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {error && (
@@ -227,18 +222,23 @@ const BabyJubjubTester: React.FC = () => {
               <div>
                 <strong>Generated Keypair:</strong>{' '}
                 {keypair ? (
-                  <span className="font-mono text-xs break-all">
-                    {getPublicKeyString(keypair.publicKey)}
-                  </span>
+                  <div className="font-mono text-xs break-all">
+                    <div className="mb-1">
+                      <span className="text-muted-foreground">Private:</span> {keypair.privateKey.substring(0, 10)}...
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Public:</span> {getPublicKeyString(keypair.publicKey).substring(0, 20)}...
+                    </div>
+                  </div>
                 ) : 'None'}
               </div>
               
               <div>
                 <strong>Stored Keypair:</strong>{' '}
                 {storedKeypair ? (
-                  <span className="font-mono text-xs break-all">
-                    {getPublicKeyString(storedKeypair.publicKey)}
-                  </span>
+                  <div className="font-mono text-xs break-all">
+                    <span className="text-muted-foreground">Public:</span> {getPublicKeyString(storedKeypair.publicKey).substring(0, 20)}...
+                  </div>
                 ) : 'None'}
               </div>
               

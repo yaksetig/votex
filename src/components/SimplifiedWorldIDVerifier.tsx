@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react'
-import { IDKitWidget, CredentialType } from '@worldcoin/idkit'
+import { IDKitWidget } from '@worldcoin/idkit'
 import { useWallet } from '@/contexts/WalletContext'
 import { 
   generateKeypair, 
@@ -140,7 +140,6 @@ const WorldIDVerifier: React.FC<WorldIDVerifierProps> = ({ onVerificationSuccess
             app_id="app_e2fd2f8c99430ab200a093278e801c57"
             action="registration"
             onSuccess={handleVerificationSuccess}
-            credential_types={[CredentialType.Orb]}
             autoClose
           >
             {({ open }) => (
