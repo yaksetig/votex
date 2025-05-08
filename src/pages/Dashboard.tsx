@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect } from "react"
 import { useWallet } from "@/contexts/WalletContext"
 import { useToast } from "@/hooks/use-toast"
 import CreateElectionDialog from "@/components/CreateElectionDialog"
 import ElectionsGrid from "@/components/ElectionsGrid"
-import WorldIDVerifier from "@/components/WorldIDVerifier" // Keep using the original verifier
+import WorldIDVerifier from "@/components/SimplifiedWorldIDVerifier" // Updated import path
 import DebuggingTools from "@/components/DebuggingTools"
 import BabyJubjubTester from "@/components/BabyJubjubTester"
 

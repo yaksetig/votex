@@ -1,6 +1,5 @@
-
 import { Election, VoteCount } from "@/types/election";
-import { BabyJubjubKeyPair, generateNullifier } from "@/services/SimplifiedBabyJubjubService";
+import { BabyJubjubKeyPair, generateNullifier } from "@/services/ffjavascriptBabyJubjubService";
 
 export const userHasVoted = async (election: Election | undefined, anonymousKeypair: BabyJubjubKeyPair | null): Promise<boolean> => {
   if (!election || !anonymousKeypair) return false;
