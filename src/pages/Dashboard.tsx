@@ -1,19 +1,36 @@
 
-import React from "react"
+import React, { useState } from "react"
 import { useWallet } from "@/contexts/WalletContext"
 import CreateElectionDialog from "@/components/CreateElectionDialog"
 import ElectionsGrid from "@/components/ElectionsGrid"
 import WorldIDVerifier from "@/components/WorldIDVerifier"
+import { Loader2 } from "lucide-react"
 
 const Dashboard = () => {
-  const { isWorldIDVerified, setIsWorldIDVerified } = useWallet()
+  const { isWorldIDVerified, anonymousKeypair } = useWallet()
+  const [isLoading, setIsLoading] = useState(false)
 
   const handleVerificationSuccess = () => {
-    setIsWorldIDVerified(true)
+    setIsLoading(true)
+    
+    // Add a small delay to ensure the state update has propagated
+    setTimeout(() => {
+      setIsLoading(false)
+    }, 1000)
   }
 
-  // If not verified with World ID
-  if (!isWorldIDVerified) {
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="container mx-auto py-8 px-4 flex flex-col items-center justify-center gap-4">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-lg">Generating your anonymous identity...</p>
+      </div>
+    )
+  }
+
+  // If not verified with World ID or missing keypair
+  if (!isWorldIDVerified || !anonymousKeypair) {
     return (
       <div className="container mx-auto py-8 px-4">
         <div className="max-w-md mx-auto bg-card p-6 rounded-lg border border-border">
