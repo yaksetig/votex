@@ -58,10 +58,16 @@ const Dashboard = () => {
           
           {showDebugTools && (
             <>
-              <DebuggingTools />
-              <BabyJubjubTester />
+              <div className="mt-6 pt-4 border-t border-border">
+                <h3 className="text-lg font-bold mb-2">Debug Tools</h3>
+                <DebuggingTools />
+                <BabyJubjubTester />
+              </div>
             </>
           )}
+          <div className="mt-6 text-center text-xs text-muted-foreground">
+            Press Shift+D to toggle debug tools
+          </div>
         </div>
       </div>
     )
@@ -85,8 +91,11 @@ const Dashboard = () => {
           
           {showDebugTools && (
             <>
-              <DebuggingTools />
-              <BabyJubjubTester />
+              <div className="mt-6 pt-4 border-t border-border">
+                <h3 className="text-lg font-bold mb-2">Debug Tools</h3>
+                <DebuggingTools />
+                <BabyJubjubTester />
+              </div>
             </>
           )}
         </div>
@@ -110,10 +119,17 @@ const Dashboard = () => {
       
       {showDebugTools && (
         <>
-          <DebuggingTools />
-          <BabyJubjubTester />
+          <div className="mt-8 pt-6 border-t border-border">
+            <h3 className="text-xl font-bold mb-4">Debug Tools</h3>
+            <DebuggingTools />
+            <BabyJubjubTester />
+          </div>
         </>
       )}
+      
+      <div className="mt-6 text-center text-xs text-muted-foreground">
+        Press Shift+D to toggle debug tools
+      </div>
     </div>
   )
 }

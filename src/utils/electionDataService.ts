@@ -1,6 +1,6 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Election, Vote } from "@/types/election";
+import { BabyJubjubKeyPair, signMessage, getPublicKeyString, generateNullifier } from "@/services/ffjavascriptBabyJubjubService";
 
 export const fetchElectionsAndVotes = async (): Promise<Election[]> => {
   // Fetch elections
@@ -55,6 +55,11 @@ export const fetchElectionsAndVotes = async (): Promise<Election[]> => {
   });
 };
 
+// Rename to match the function name used in ElectionProvider
+export const getElections = async (): Promise<Election[]> => {
+  return fetchElectionsAndVotes();
+};
+
 export const createElectionInDb = async (
   title: string, 
   description: string, 
@@ -93,6 +98,50 @@ export const createElectionInDb = async (
     return data;
   } catch (error) {
     console.error("Exception in createElectionInDb:", error);
+    throw error;
+  }
+};
+
+// Add this function to match what's imported in ElectionProvider
+export const createElection = async (
+  title: string, 
+  description: string,
+  endDateISO: string, 
+  option1: string,
+  option2: string,
+  anonymousKeypair: BabyJubjubKeyPair
+): Promise<Election> => {
+  try {
+    // Convert the creator to a public key string
+    const creator = getPublicKeyString(anonymousKeypair.publicKey);
+    
+    // Parse the ISO date string
+    const endDate = new Date(endDateISO);
+    
+    // Create the election in the database
+    const data = await createElectionInDb(
+      title,
+      description,
+      creator,
+      endDate,
+      option1,
+      option2
+    );
+    
+    // Format and return the new election
+    return {
+      id: data[0].id,
+      title,
+      description,
+      creator,
+      endDate,
+      option1,
+      option2,
+      votes: [],
+      createdAt: new Date(),
+    };
+  } catch (error) {
+    console.error("Error in createElection:", error);
     throw error;
   }
 };
@@ -144,5 +193,32 @@ export const castVoteInDb = async (
   } catch (error) {
     console.error("Exception in castVoteInDb:", error);
     throw error;
+  }
+};
+
+// Add this function to match what's imported in ElectionProvider
+export const castVote = async (
+  electionId: string,
+  optionIndex: number,
+  proof: string
+): Promise<boolean> => {
+  try {
+    // Parse the proof object (in a real implementation this would contain ZK proof data)
+    const proofData = JSON.parse(proof);
+    const { publicKey, signature, nullifier, choice } = proofData;
+    
+    // Submit the vote to the database
+    await castVoteInDb(
+      electionId,
+      publicKey,
+      choice,
+      signature,
+      nullifier
+    );
+    
+    return true;
+  } catch (error) {
+    console.error("Error casting vote:", error);
+    return false;
   }
 };

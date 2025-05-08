@@ -9,7 +9,7 @@ import {
   createElection as createElectionService,
   castVote
 } from "@/utils/electionDataService";
-import { generateProof } from "@/utils/voteUtils";
+import { generateProof, userHasVoted, getVoteCount } from "@/utils/voteUtils";
 import { useRealtimeSubscriptions } from "@/hooks/useRealtimeSubscriptions";
 
 // Fixed: Added the proper type definition
@@ -53,7 +53,7 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
     async (
       title: string, 
       description: string, 
-      endDate: Date, // Fixed: Added proper parameter type
+      endDate: Date,
       option1: string, 
       option2: string
     ) => {
@@ -73,7 +73,7 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
         const newElection = await createElectionService(
           title, 
           description,
-          endDateISO, // Convert to string for the service
+          endDateISO,
           option1,
           option2,
           anonymousKeypair
@@ -142,11 +142,16 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
               if (e.id === electionId) {
                 // Clone and update the vote counts
                 const updatedElection = { ...e };
-                if (optionIndex === 0) {
-                  updatedElection.votes_option_1 += 1;
-                } else {
-                  updatedElection.votes_option_2 += 1;
-                }
+                const newVote = {
+                  id: `temp-${Date.now()}`,
+                  voter: getPublicKeyString(anonymousKeypair.publicKey),
+                  choice: optionIndex === 0 ? election.option1 : election.option2,
+                  signature: "signature-placeholder",
+                  nullifier: "nullifier-placeholder",
+                  timestamp: Date.now()
+                };
+                
+                updatedElection.votes = [...updatedElection.votes, newVote];
                 return updatedElection;
               }
               return e;
@@ -170,11 +175,29 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
     [anonymousKeypair, elections, toast]
   );
 
+  // Add required functions for ElectionContextType
+  const refreshElections = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await getElections();
+      setElections(data);
+    } catch (error) {
+      console.error("Error refreshing elections:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Create the context value
   const value = {
     elections,
     loading,
     createElection,
     vote,
+    castVote: vote, // Alias for vote function
+    userHasVoted: (election: Election) => userHasVoted(election, anonymousKeypair),
+    getVoteCount,
+    refreshElections
   };
 
   return (
