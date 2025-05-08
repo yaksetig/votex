@@ -1,6 +1,7 @@
 
 import { buildBabyjub } from 'circomlibjs';
 import { ethers } from 'ethers';
+import { ISuccessResult } from '@worldcoin/idkit';
 
 export interface BabyJubjubKeyPair {
   privateKey: Uint8Array;
@@ -33,6 +34,30 @@ export const generateKeypair = async (): Promise<BabyJubjubKeyPair> => {
   const privateKey = ethers.utils.randomBytes(32);
   
   // Derive public key from private key using Baby Jubjub
+  const publicKey = babyJubjub.mulPointEscalar(babyJubjub.Base8, privateKey);
+  
+  return {
+    privateKey,
+    publicKey: [publicKey[0], publicKey[1]]
+  };
+};
+
+export const createKeypairFromWorldIDProof = async (proof: ISuccessResult): Promise<BabyJubjubKeyPair> => {
+  // Initialize Baby Jubjub if not already done
+  if (!babyJubjub) {
+    await initBabyJubjub();
+  }
+  
+  // Create a deterministic seed based on the WorldID proof
+  // This ensures the keypair is linked to the WorldID verification but not traceable back to the user
+  const proofString = JSON.stringify(proof);
+  const proofBytes = ethers.utils.toUtf8Bytes(proofString);
+  const proofHash = ethers.utils.keccak256(proofBytes);
+  
+  // Use the hash as a seed for the private key
+  const privateKey = ethers.utils.arrayify(proofHash);
+  
+  // Derive public key
   const publicKey = babyJubjub.mulPointEscalar(babyJubjub.Base8, privateKey);
   
   return {
