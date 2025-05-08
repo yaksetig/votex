@@ -4,8 +4,9 @@ import { useToast } from "@/hooks/use-toast";
 import { 
   BabyJubjubKeyPair, 
   retrieveKeypair, 
-  initBabyJubjub 
-} from '@/services/SimplifiedBabyJubjubService';
+  initBabyJubjub,
+  getPublicKeyString
+} from '@/services/ffjavascriptBabyJubjubService';
 
 interface WalletContextType {
   isWorldIDVerified: boolean;
@@ -140,3 +141,5 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     </WalletContext.Provider>
   );
 };
+
+export default WalletProvider;

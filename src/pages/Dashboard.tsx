@@ -4,7 +4,7 @@ import { useWallet } from "@/contexts/WalletContext"
 import { useToast } from "@/hooks/use-toast"
 import CreateElectionDialog from "@/components/CreateElectionDialog"
 import ElectionsGrid from "@/components/ElectionsGrid"
-import WorldIDVerifier from "@/components/SimplifiedWorldIDVerifier" // Updated import path
+import WorldIDVerifier from "@/components/SimplifiedWorldIDVerifier" // Update to use the simplified verifier
 import DebuggingTools from "@/components/DebuggingTools"
 import BabyJubjubTester from "@/components/BabyJubjubTester"
 

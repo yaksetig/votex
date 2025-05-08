@@ -1,3 +1,4 @@
+
 import { Election, VoteCount } from "@/types/election";
 import { BabyJubjubKeyPair, generateNullifier } from "@/services/ffjavascriptBabyJubjubService";
 

@@ -87,12 +87,11 @@ const WorldIDVerifier: React.FC<WorldIDVerifierProps> = ({ onVerificationSuccess
       console.log('Starting test verification')
       
       // Generate a fake result that mimics the World ID verification result
-      const mockResult: ISuccessResult = {
+      const mockResult = {
         merkle_root: "0x1234567890abcdef",
         nullifier_hash: "0xabcdef1234567890",
-        proof: "0x12345",
-        credential_type: "orb",
-      };
+        proof: "0x12345"
+      } as ISuccessResult;
       
       // Call the real handler with the mock result
       await handleVerificationSuccess(mockResult);
