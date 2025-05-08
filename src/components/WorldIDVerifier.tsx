@@ -2,7 +2,7 @@
 import React, { useState } from 'react'
 import { IDKitWidget, ISuccessResult, VerificationLevel } from '@worldcoin/idkit'
 import { useWallet } from '@/contexts/WalletContext'
-import { createKeypairFromWorldIDProof, storeKeypair } from '@/services/babyJubjubService'
+import { createKeypairFromWorldIDProof, storeKeypair, generateKeypair } from '@/services/SimplifiedBabyJubjubService'
 import { useToast } from '@/hooks/use-toast'
 
 interface WorldIDVerifierProps {
@@ -73,6 +73,54 @@ const WorldIDVerifier: React.FC<WorldIDVerifierProps> = ({ onVerificationSuccess
     }
   }
   
+  // Test verification for development environments
+  const handleTestVerification = async () => {
+    try {
+      setIsVerifying(true)
+      setErrorMessage(null)
+      console.log('Starting test verification')
+      
+      // Generate a regular keypair for testing
+      const keypair = await generateKeypair();
+      console.log('Test keypair generated successfully')
+      
+      // Store the test keypair 
+      console.log('Storing test keypair...')
+      storeKeypair(keypair)
+      
+      // Update the wallet context with the test keypair
+      console.log('Updating context with test keypair...')
+      setAnonymousKeypair(keypair)
+      setIsWorldIDVerified(true)
+      
+      // Show success toast
+      toast({
+        title: "Test verification successful",
+        description: "Your test identity has been created.",
+      })
+      
+      // Call the success callback
+      console.log('Calling success callback...')
+      onVerificationSuccess()
+    } catch (error) {
+      console.error('Error during test verification:', error)
+      
+      setErrorMessage(
+        error instanceof Error 
+          ? error.message 
+          : "Unknown error occurred during test verification"
+      )
+      
+      toast({
+        title: "Test verification failed",
+        description: "Could not create test identity. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsVerifying(false)
+    }
+  }
+  
   return (
     <div className="my-4">
       <h2 className="text-xl font-bold mb-2">Verify with World ID</h2>
@@ -94,22 +142,32 @@ const WorldIDVerifier: React.FC<WorldIDVerifierProps> = ({ onVerificationSuccess
           <span>Generating your anonymous identity...</span>
         </div>
       ) : (
-        <IDKitWidget
-          app_id="app_e2fd2f8c99430ab200a093278e801c57"
-          action="registration"
-          onSuccess={handleVerificationSuccess}
-          verification_level={VerificationLevel.Orb}
-          autoClose
-        >
-          {({ open }) => (
-            <button
-              onClick={open}
-              className="bg-gradient-crypto px-4 py-2 rounded-lg hover:opacity-90 transition-opacity"
-            >
-              Verify with World ID
-            </button>
-          )}
-        </IDKitWidget>
+        <>
+          <IDKitWidget
+            app_id="app_e2fd2f8c99430ab200a093278e801c57"
+            action="registration"
+            onSuccess={handleVerificationSuccess}
+            verification_level={VerificationLevel.Orb}
+            autoClose
+          >
+            {({ open }) => (
+              <button
+                onClick={open}
+                className="bg-gradient-crypto px-4 py-2 rounded-lg hover:opacity-90 transition-opacity"
+              >
+                Verify with World ID
+              </button>
+            )}
+          </IDKitWidget>
+          
+          {/* Test button - for development environments only */}
+          <button
+            onClick={handleTestVerification}
+            className="ml-2 px-4 py-2 border border-dashed border-muted-foreground/50 rounded-lg text-muted-foreground text-sm hover:bg-card hover:text-foreground transition-colors"
+          >
+            Test Verification
+          </button>
+        </>
       )}
     </div>
   )

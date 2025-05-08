@@ -1,7 +1,11 @@
 
 import React, { createContext, useState, useEffect, useContext, ReactNode, useCallback } from 'react';
 import { useToast } from "@/hooks/use-toast";
-import { BabyJubjubKeyPair, retrieveKeypair, initBabyJubjub } from '@/services/babyJubjubService';
+import { 
+  BabyJubjubKeyPair, 
+  retrieveKeypair, 
+  initBabyJubjub 
+} from '@/services/SimplifiedBabyJubjubService';
 
 interface WalletContextType {
   isWorldIDVerified: boolean;
@@ -43,6 +47,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         const storedKeypair = await retrieveKeypair();
         if (storedKeypair) {
           console.log('Keypair loaded from storage');
+          console.log('Public key:', JSON.stringify(storedKeypair.publicKey));
           setAnonymousKeypair(storedKeypair);
           setIsWorldIDVerified(true);
           
@@ -54,7 +59,13 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
           console.log('No keypair found in storage');
         }
       } catch (error) {
-        console.error("Error initializing Baby Jubjub or loading keypair:", error);
+        let errorMessage = "Unknown error";
+        if (error instanceof Error) {
+          errorMessage = error.message;
+          console.error("Error stack:", error.stack);
+        }
+        console.error("Error initializing Baby Jubjub or loading keypair:", errorMessage);
+        
         toast({
           title: "Error loading identity",
           description: "Could not load your anonymous identity.",
@@ -71,24 +82,32 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   // Function to refresh the keypair from storage
   const refreshKeypair = useCallback(async () => {
     try {
+      console.log('Refreshing keypair from storage...');
       const storedKeypair = await retrieveKeypair();
       if (storedKeypair) {
+        console.log('Keypair refreshed from storage');
+        console.log('Public key:', JSON.stringify(storedKeypair.publicKey));
         setAnonymousKeypair(storedKeypair);
         setIsWorldIDVerified(true);
-        console.log('Keypair refreshed from storage');
       } else {
         // If no keypair is found, reset the state
+        console.log('No keypair found in storage during refresh');
         setAnonymousKeypair(null);
         setIsWorldIDVerified(false);
-        console.log('No keypair found in storage during refresh');
       }
     } catch (error) {
-      console.error("Error refreshing keypair:", error);
+      let errorMessage = "Unknown error";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        console.error("Error stack:", error.stack);
+      }
+      console.error("Error refreshing keypair:", errorMessage);
     }
   }, []);
   
   // Function to reset identity (for logout)
   const resetIdentity = useCallback(() => {
+    console.log('Resetting identity...');
     localStorage.removeItem('anonymous-keypair');
     setAnonymousKeypair(null);
     setIsWorldIDVerified(false);
@@ -96,6 +115,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       title: "Identity reset",
       description: "Your anonymous identity has been cleared.",
     });
+    console.log('Identity reset complete');
   }, [toast]);
   
   const value = {

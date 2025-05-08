@@ -1,6 +1,6 @@
 
 import { Election, VoteCount } from "@/types/election";
-import { BabyJubjubKeyPair, generateNullifier } from "@/services/babyJubjubService";
+import { BabyJubjubKeyPair, generateNullifier } from "@/services/SimplifiedBabyJubjubService";
 
 export const userHasVoted = async (election: Election | undefined, anonymousKeypair: BabyJubjubKeyPair | null): Promise<boolean> => {
   if (!election || !anonymousKeypair) return false;

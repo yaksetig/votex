@@ -8,11 +8,11 @@ import {
   generateKeypair, 
   storeKeypair, 
   retrieveKeypair,
-  signWithKeypair,
+  signMessage,
   verifySignature,
   getPublicKeyString,
   BabyJubjubKeyPair
-} from '@/services/babyJubjubService';
+} from '@/services/SimplifiedBabyJubjubService';
 
 // This is a debugging component to test Baby Jubjub functionality
 // DO NOT include this in production builds!
@@ -44,6 +44,7 @@ const BabyJubjubTester: React.FC = () => {
         if (stored) {
           setStoredKeypair(stored);
           addLog('Retrieved stored keypair');
+          addLog(`Public key: ${getPublicKeyString(stored.publicKey)}`);
         } else {
           addLog('No stored keypair found');
         }
@@ -66,6 +67,7 @@ const BabyJubjubTester: React.FC = () => {
       setKeypair(newKeypair);
       
       addLog('Keypair generated successfully');
+      addLog(`Public key: ${getPublicKeyString(newKeypair.publicKey)}`);
       setStatus('success');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
@@ -111,7 +113,7 @@ const BabyJubjubTester: React.FC = () => {
       setStatus('loading');
       addLog(`Signing message: "${message}"`);
       
-      const sig = await signWithKeypair(message, keypair);
+      const sig = await signMessage(message, keypair);
       setSignature(sig);
       
       addLog('Message signed successfully');
