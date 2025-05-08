@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react'
-import { IDKitWidget, ISuccessResult, VerificationLevel } from '@worldcoin/idkit'
+import { IDKitWidget, CredentialType } from '@worldcoin/idkit'
 import { useWallet } from '@/contexts/WalletContext'
 import { 
   generateKeypair, 
@@ -11,6 +11,12 @@ import { useToast } from '@/hooks/use-toast'
 
 interface WorldIDVerifierProps {
   onVerificationSuccess: () => void
+}
+
+interface ISuccessResult {
+  merkle_root: string;
+  nullifier_hash: string;
+  proof: string;
 }
 
 const WorldIDVerifier: React.FC<WorldIDVerifierProps> = ({ onVerificationSuccess }) => {
@@ -134,7 +140,7 @@ const WorldIDVerifier: React.FC<WorldIDVerifierProps> = ({ onVerificationSuccess
             app_id="app_e2fd2f8c99430ab200a093278e801c57"
             action="registration"
             onSuccess={handleVerificationSuccess}
-            verification_level={VerificationLevel.Orb}
+            credential_types={[CredentialType.Orb]}
             autoClose
           >
             {({ open }) => (
