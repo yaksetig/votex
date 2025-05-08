@@ -19,8 +19,13 @@ let babyJubjub: any = null;
 // Initialize Baby Jubjub library (asynchronous)
 export const initBabyJubjub = async (): Promise<void> => {
   if (!babyJubjub) {
-    babyJubjub = await buildBabyjub();
-    console.log("Baby Jubjub initialized successfully");
+    try {
+      babyJubjub = await buildBabyjub();
+      console.log("Baby Jubjub initialized successfully");
+    } catch (error) {
+      console.error("Failed to initialize Baby Jubjub:", error);
+      throw error;
+    }
   }
 };
 
@@ -30,16 +35,43 @@ export const generateKeypair = async (): Promise<BabyJubjubKeyPair> => {
     await initBabyJubjub();
   }
 
-  // Generate a random private key
-  const privateKey = ethers.utils.randomBytes(32);
-  
-  // Derive public key from private key using Baby Jubjub
-  const publicKey = babyJubjub.mulPointEscalar(babyJubjub.Base8, privateKey);
-  
-  return {
-    privateKey,
-    publicKey: [publicKey[0], publicKey[1]]
-  };
+  try {
+    // Generate a random private key (as a BigInt)
+    // We'll use ethers to generate a random value, then convert to the format needed by Baby Jubjub
+    const randomBytes = ethers.utils.randomBytes(32);
+    
+    // Convert to a buffer that circomlibjs can handle
+    // The key needs to be a field element in the Baby Jubjub curve
+    const Fr = babyJubjub.F.e(randomBytes);
+    const privateKey = babyJubjub.F.toObject(Fr);
+    
+    // Convert back to a properly sized Uint8Array for storage
+    const privateKeyBytes = ethers.utils.arrayify(
+      ethers.BigNumber.from(privateKey).toHexString().padStart(66, '0x0')
+    );
+    
+    // Derive public key from private key using Baby Jubjub
+    const publicKey = babyJubjub.mulPointEscalar(babyJubjub.Base8, Fr);
+    
+    // Convert the public key points to Uint8Array for consistent storage
+    const publicKeyX = ethers.utils.arrayify(
+      ethers.BigNumber.from(babyJubjub.F.toObject(publicKey[0])).toHexString().padStart(66, '0x0')
+    );
+    
+    const publicKeyY = ethers.utils.arrayify(
+      ethers.BigNumber.from(babyJubjub.F.toObject(publicKey[1])).toHexString().padStart(66, '0x0')
+    );
+    
+    console.log('Generated keypair successfully');
+    
+    return {
+      privateKey: privateKeyBytes,
+      publicKey: [publicKeyX, publicKeyY]
+    };
+  } catch (error) {
+    console.error("Error generating Baby Jubjub keypair:", error);
+    throw error;
+  }
 };
 
 export const createKeypairFromWorldIDProof = async (proof: ISuccessResult): Promise<BabyJubjubKeyPair> => {
@@ -68,13 +100,19 @@ export const createKeypairFromWorldIDProof = async (proof: ISuccessResult): Prom
 
 // Store keypair in localStorage
 export const storeKeypair = (keypair: BabyJubjubKeyPair): void => {
-  const serialized: SerializedBabyJubjubKeyPair = {
-    privateKey: Buffer.from(keypair.privateKey).toString('hex'),
-    publicKeyX: Buffer.from(keypair.publicKey[0]).toString('hex'),
-    publicKeyY: Buffer.from(keypair.publicKey[1]).toString('hex')
-  };
-  
-  localStorage.setItem('anonymous-keypair', JSON.stringify(serialized));
+  try {
+    const serialized: SerializedBabyJubjubKeyPair = {
+      privateKey: Buffer.from(keypair.privateKey).toString('hex'),
+      publicKeyX: Buffer.from(keypair.publicKey[0]).toString('hex'),
+      publicKeyY: Buffer.from(keypair.publicKey[1]).toString('hex')
+    };
+    
+    localStorage.setItem('anonymous-keypair', JSON.stringify(serialized));
+    console.log("Keypair stored in localStorage");
+  } catch (error) {
+    console.error("Error storing keypair:", error);
+    throw error;
+  }
 };
 
 // Retrieve keypair from localStorage
@@ -130,17 +168,25 @@ export const signWithKeypair = async (message: string, keypair: BabyJubjubKeyPai
     throw new Error('No keypair provided for signing');
   }
   
-  // Hash the message with Poseidon
-  const msgHash = await hashMessage(message);
-  
-  // Sign the hash with private key
-  const signature = babyJubjub.signPoseidon(keypair.privateKey, msgHash);
-  
-  // Return signature as JSON string
-  return JSON.stringify({
-    R8: [signature.R8[0].toString(), signature.R8[1].toString()],
-    S: signature.S.toString()
-  });
+  try {
+    // Convert private key to the format expected by Baby Jubjub
+    const privateKeyBigInt = ethers.BigNumber.from('0x' + Buffer.from(keypair.privateKey).toString('hex')).toBigInt();
+    
+    // Hash the message with Poseidon
+    const msgHash = await hashMessage(message);
+    
+    // Sign the hash with private key
+    const signature = babyJubjub.signPoseidon(privateKeyBigInt, msgHash);
+    
+    // Return signature as JSON string
+    return JSON.stringify({
+      R8: [signature.R8[0].toString(), signature.R8[1].toString()],
+      S: signature.S.toString()
+    });
+  } catch (error) {
+    console.error("Error signing message:", error);
+    throw error;
+  }
 };
 
 // Verify a signature
@@ -153,18 +199,28 @@ export const verifySignature = async (
     await initBabyJubjub();
   }
 
-  // Hash the message with the same hash function used for signing
-  const msgHash = await hashMessage(message);
-  
-  // Parse signature
-  const signature = JSON.parse(signatureStr);
-  const sig = {
-    R8: [babyJubjub.F.e(signature.R8[0]), babyJubjub.F.e(signature.R8[1])],
-    S: babyJubjub.F.e(signature.S)
-  };
-  
-  // Verify the signature
-  return babyJubjub.verifyPoseidon(msgHash, sig, publicKey);
+  try {
+    // Hash the message with the same hash function used for signing
+    const msgHash = await hashMessage(message);
+    
+    // Parse signature
+    const signature = JSON.parse(signatureStr);
+    const sig = {
+      R8: [babyJubjub.F.e(signature.R8[0]), babyJubjub.F.e(signature.R8[1])],
+      S: babyJubjub.F.e(signature.S)
+    };
+    
+    // Convert public key to the format expected by Baby Jubjub
+    const pubKeyX = babyJubjub.F.e('0x' + Buffer.from(publicKey[0]).toString('hex'));
+    const pubKeyY = babyJubjub.F.e('0x' + Buffer.from(publicKey[1]).toString('hex'));
+    const pubKey = [pubKeyX, pubKeyY];
+    
+    // Verify the signature
+    return babyJubjub.verifyPoseidon(msgHash, sig, pubKey);
+  } catch (error) {
+    console.error("Error verifying signature:", error);
+    return false;
+  }
 };
 
 // Generate a nullifier for an election
@@ -176,21 +232,30 @@ export const generateNullifier = async (
     await initBabyJubjub();
   }
   
-  // Create a unique string for this election and keypair
-  const nullifierInput = `nullifier:${electionId}`;
-  
-  // Hash it with Poseidon
-  const nullifierHash = await hashMessage(nullifierInput);
-  
-  // Multiply by private key to create a unique point that only this user can generate
-  // But which doesn't reveal the private key
-  const nullifierPoint = babyJubjub.mulPointEscalar(
-    babyJubjub.Base8, 
-    babyJubjub.F.add(keypair.privateKey, nullifierHash)
-  );
-  
-  // Convert to a string representation - just use X coordinate
-  return Buffer.from(nullifierPoint[0]).toString('hex');
+  try {
+    // Create a unique string for this election and keypair
+    const nullifierInput = `nullifier:${electionId}`;
+    
+    // Hash it with Poseidon
+    const nullifierHash = await hashMessage(nullifierInput);
+    
+    // Convert private key to the format expected by Baby Jubjub
+    const privateKeyBigInt = ethers.BigNumber.from('0x' + Buffer.from(keypair.privateKey).toString('hex')).toBigInt();
+    const privateKeyFr = babyJubjub.F.e(privateKeyBigInt);
+    
+    // Multiply by private key to create a unique point that only this user can generate
+    // But which doesn't reveal the private key
+    const nullifierPoint = babyJubjub.mulPointEscalar(
+      babyJubjub.Base8, 
+      babyJubjub.F.add(privateKeyFr, nullifierHash)
+    );
+    
+    // Convert to a string representation - just use X coordinate
+    return ethers.BigNumber.from(babyJubjub.F.toObject(nullifierPoint[0])).toHexString();
+  } catch (error) {
+    console.error("Error generating nullifier:", error);
+    throw error;
+  }
 };
 
 // Get public key as string (for storage and identification)
