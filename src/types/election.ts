@@ -2,10 +2,9 @@
 // Define our election types
 export interface Vote {
   id?: string;
-  voter: string; // This will now store the Baby Jubjub public key string
+  voter: string; // This will store a unique voter ID
   choice: string;
-  signature: string; // This will store the Baby Jubjub signature
-  nullifier: string; // For ZK-proof applications and preventing double voting
+  nullifier: string; // Simplified version to prevent double voting
   timestamp: number;
 }
 
@@ -24,10 +23,4 @@ export interface Election {
 export interface VoteCount {
   option1: number;
   option2: number;
-}
-
-// Baby Jubjub specific types
-export interface BabyJubjubSignature {
-  R8: [string, string]; // [x, y] coordinates
-  S: string; // scalar
 }

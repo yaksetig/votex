@@ -1,12 +1,15 @@
-import { Election, VoteCount } from "@/types/election";
-import { BabyJubjubKeyPair, generateNullifier, signMessage, getPublicKeyString } from "@/services/ffjavascriptBabyJubjubService";
 
-export const userHasVoted = async (election: Election | undefined, anonymousKeypair: BabyJubjubKeyPair | null): Promise<boolean> => {
-  if (!election || !anonymousKeypair) return false;
+import { Election, VoteCount } from "@/types/election";
+
+/**
+ * Check if the current user has voted in an election
+ */
+export const userHasVoted = async (election: Election | undefined, userId: string | null): Promise<boolean> => {
+  if (!election || !userId) return false;
   
   try {
-    // Generate the nullifier that would have been used when voting
-    const nullifier = await generateNullifier(election.id, anonymousKeypair);
+    // Generate a simple nullifier based on the election ID and user ID
+    const nullifier = generateSimpleNullifier(election.id, userId);
     
     // Check if this nullifier exists in the votes for this election
     const matchingVote = election.votes.some(vote => vote.nullifier === nullifier);
@@ -18,6 +21,9 @@ export const userHasVoted = async (election: Election | undefined, anonymousKeyp
   }
 };
 
+/**
+ * Count votes for each option in an election
+ */
 export const getVoteCount = (election: Election | undefined): VoteCount => {
   if (!election) return { option1: 0, option2: 0 };
   
@@ -27,28 +33,24 @@ export const getVoteCount = (election: Election | undefined): VoteCount => {
   return { option1: option1Count, option2: option2Count };
 };
 
-// Add the generateProof function to create a proof of vote
+/**
+ * Generate a simple proof for voting
+ */
 export const generateProof = async (
   electionId: string,
   optionIndex: number,
-  keypair: BabyJubjubKeyPair
+  userId: string
 ): Promise<string> => {
   try {
     // Generate a unique nullifier for this user and election
-    const nullifier = await generateNullifier(electionId, keypair);
+    const nullifier = generateSimpleNullifier(electionId, userId);
     
-    // Create a message with the election ID and vote choice
-    const message = `vote:${electionId}:option:${optionIndex}`;
-    
-    // Sign the message with the private key
-    const signature = await signMessage(message, keypair);
-    
-    // Create a proof object
+    // Create a simple proof object
     const proof = {
-      publicKey: getPublicKeyString(keypair.publicKey),
-      signature,
+      userId: userId,
       nullifier,
       choice: optionIndex === 0 ? "option1" : "option2", // Convert index to option name
+      timestamp: Date.now(),
     };
     
     // Return the stringified proof
@@ -57,4 +59,13 @@ export const generateProof = async (
     console.error("Error generating proof:", error);
     throw new Error("Failed to generate vote proof");
   }
+};
+
+/**
+ * Generate a simple nullifier from election ID and user ID
+ */
+export const generateSimpleNullifier = (electionId: string, userId: string): string => {
+  // Simple hash-like function combining electionId and userId
+  const combined = `${electionId}-${userId}`;
+  return btoa(combined); // Base64 encode for brevity
 };

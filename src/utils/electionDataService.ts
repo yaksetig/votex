@@ -1,6 +1,6 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Election, Vote } from "@/types/election";
-import { BabyJubjubKeyPair, signMessage, getPublicKeyString, generateNullifier } from "@/services/ffjavascriptBabyJubjubService";
 
 export const fetchElectionsAndVotes = async (): Promise<Election[]> => {
   // Fetch elections
@@ -36,8 +36,7 @@ export const fetchElectionsAndVotes = async (): Promise<Election[]> => {
       id: vote.id,
       voter: vote.voter,
       choice: vote.choice,
-      signature: vote.signature,
-      nullifier: vote.nullifier || '', // Include nullifier and provide default
+      nullifier: vote.nullifier || '', 
       timestamp: vote.timestamp,
     }));
 
@@ -47,38 +46,38 @@ export const fetchElectionsAndVotes = async (): Promise<Election[]> => {
       description: election.description,
       creator: election.creator,
       endDate: new Date(election.end_date),
-      option1: election.option1 || 'Yes',  // Use default if not present
-      option2: election.option2 || 'No',   // Use default if not present
+      option1: election.option1 || 'Yes',
+      option2: election.option2 || 'No',
       votes: processedVotes,
       createdAt: new Date(election.created_at),
     };
   });
 };
 
-// Rename to match the function name used in ElectionProvider
+// Get all elections
 export const getElections = async (): Promise<Election[]> => {
   return fetchElectionsAndVotes();
 };
 
-export const createElectionInDb = async (
+// Create a new election
+export const createElection = async (
   title: string, 
-  description: string, 
-  creator: string,
-  endDate: Date, 
-  option1: string, 
-  option2: string
-) => {
-  console.log("Creating election with data:", { title, description, creator, endDate, option1, option2 });
-
+  description: string,
+  endDateISO: string, 
+  option1: string,
+  option2: string,
+  userId: string
+): Promise<Election> => {
   try {
+    // Create the election in the database
     const { data, error } = await supabase
       .from('elections')
       .insert([
         {
           title,
           description,
-          creator,
-          end_date: endDate.toISOString(),
+          creator: userId,
+          end_date: endDateISO,
           option1,
           option2,
         }
@@ -86,7 +85,7 @@ export const createElectionInDb = async (
       .select();
 
     if (error) {
-      console.error("Error in createElectionInDb:", error);
+      console.error("Error creating election:", error);
       throw error;
     }
     
@@ -94,47 +93,13 @@ export const createElectionInDb = async (
       throw new Error("No data returned after creating election");
     }
     
-    console.log("Successfully created election:", data);
-    return data;
-  } catch (error) {
-    console.error("Exception in createElectionInDb:", error);
-    throw error;
-  }
-};
-
-// Add this function to match what's imported in ElectionProvider
-export const createElection = async (
-  title: string, 
-  description: string,
-  endDateISO: string, 
-  option1: string,
-  option2: string,
-  anonymousKeypair: BabyJubjubKeyPair
-): Promise<Election> => {
-  try {
-    // Convert the creator to a public key string
-    const creator = getPublicKeyString(anonymousKeypair.publicKey);
-    
-    // Parse the ISO date string
-    const endDate = new Date(endDateISO);
-    
-    // Create the election in the database
-    const data = await createElectionInDb(
-      title,
-      description,
-      creator,
-      endDate,
-      option1,
-      option2
-    );
-    
     // Format and return the new election
     return {
       id: data[0].id,
       title,
       description,
-      creator,
-      endDate,
+      creator: userId,
+      endDate: new Date(endDateISO),
       option1,
       option2,
       votes: [],
@@ -146,14 +111,17 @@ export const createElection = async (
   }
 };
 
-export const castVoteInDb = async (
-  electionId: string, 
-  voter: string, 
-  choice: string, 
-  signature: string,
-  nullifier: string
-) => {
+// Cast a vote for an election
+export const castVote = async (
+  electionId: string,
+  optionIndex: number,
+  proof: string
+): Promise<boolean> => {
   try {
+    // Parse the proof object
+    const proofData = JSON.parse(proof);
+    const { userId, nullifier, choice } = proofData;
+    
     // Check if the nullifier already exists to prevent double voting
     const { data: existingVote, error: checkError } = await supabase
       .from('votes')
@@ -171,14 +139,14 @@ export const castVoteInDb = async (
       throw new Error("Double voting is not allowed");
     }
 
+    // Submit the vote
     const { error } = await supabase
       .from('votes')
       .insert([
         {
           election_id: electionId,
-          voter,
+          voter: userId,
           choice,
-          signature,
           nullifier,
           timestamp: Date.now(),
         }
@@ -188,33 +156,6 @@ export const castVoteInDb = async (
       console.error("Error casting vote:", error);
       throw error;
     }
-    
-    return true;
-  } catch (error) {
-    console.error("Exception in castVoteInDb:", error);
-    throw error;
-  }
-};
-
-// Add this function to match what's imported in ElectionProvider
-export const castVote = async (
-  electionId: string,
-  optionIndex: number,
-  proof: string
-): Promise<boolean> => {
-  try {
-    // Parse the proof object (in a real implementation this would contain ZK proof data)
-    const proofData = JSON.parse(proof);
-    const { publicKey, signature, nullifier, choice } = proofData;
-    
-    // Submit the vote to the database
-    await castVoteInDb(
-      electionId,
-      publicKey,
-      choice,
-      signature,
-      nullifier
-    );
     
     return true;
   } catch (error) {

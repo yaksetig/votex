@@ -10,9 +10,7 @@ import {
   castVote
 } from "@/utils/electionDataService";
 import { generateProof, userHasVoted, getVoteCount } from "@/utils/voteUtils";
-import { useRealtimeSubscriptions } from "@/hooks/useRealtimeSubscriptions";
 
-// Fixed: Added the proper type definition
 interface ElectionProviderProps {
   children: React.ReactNode;
 }
@@ -21,32 +19,25 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
   const [elections, setElections] = useState<Election[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-  const { anonymousKeypair } = useWallet();
+  const { userId } = useWallet();
   
   // Set up realtime subscriptions
-  useRealtimeSubscriptions();
+  const refreshElections = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await getElections();
+      setElections(data);
+    } catch (error) {
+      console.error("Error refreshing elections:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
   
   // Load elections on mount
   useEffect(() => {
-    const fetchElections = async () => {
-      try {
-        setLoading(true);
-        const data = await getElections();
-        setElections(data);
-      } catch (error) {
-        console.error("Error fetching elections:", error);
-        toast({
-          title: "Failed to load elections",
-          description: "Could not load election data. Please try again later.",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchElections();
-  }, [toast]);
+    refreshElections();
+  }, [refreshElections]);
 
   // Create a new election
   const createElection = useCallback(
@@ -56,8 +47,8 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
       endDate: Date,
       option1: string, 
       option2: string
-    ) => {
-      if (!anonymousKeypair) {
+    ): Promise<Election> => {
+      if (!userId) {
         toast({
           title: "Authentication required",
           description: "You need to be verified to create an election.",
@@ -76,7 +67,7 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
           endDateISO,
           option1,
           option2,
-          anonymousKeypair
+          userId
         );
         
         // Update local state
@@ -98,13 +89,13 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
         throw error;
       }
     },
-    [anonymousKeypair, toast]
+    [userId, toast]
   );
 
   // Vote in an election
   const vote = useCallback(
-    async (electionId: string, optionIndex: number) => {
-      if (!anonymousKeypair) {
+    async (electionId: string, optionIndex: number): Promise<boolean> => {
+      if (!userId) {
         toast({
           title: "Authentication required",
           description: "You need to be verified to vote in an election.",
@@ -120,11 +111,11 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
           throw new Error("Election not found");
         }
 
-        // Generate zero-knowledge proof
+        // Generate proof
         const proof = await generateProof(
           electionId,
           optionIndex,
-          anonymousKeypair
+          userId
         );
 
         // Submit the vote
@@ -144,10 +135,9 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
                 const updatedElection = { ...e };
                 const newVote = {
                   id: `temp-${Date.now()}`,
-                  voter: getPublicKeyString(anonymousKeypair.publicKey),
+                  voter: userId,
                   choice: optionIndex === 0 ? election.option1 : election.option2,
-                  signature: "signature-placeholder",
-                  nullifier: "nullifier-placeholder",
+                  nullifier: generateSimpleNullifier(electionId, userId),
                   timestamp: Date.now()
                 };
                 
@@ -172,31 +162,23 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
         throw error;
       }
     },
-    [anonymousKeypair, elections, toast]
+    [userId, elections, toast]
   );
-
-  // Add required functions for ElectionContextType
-  const refreshElections = useCallback(async () => {
-    try {
-      setLoading(true);
-      const data = await getElections();
-      setElections(data);
-    } catch (error) {
-      console.error("Error refreshing elections:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
   // Create the context value
   const value = {
     elections,
     loading,
     createElection,
-    vote,
-    castVote: vote, // Alias for vote function
-    userHasVoted: (election: Election) => userHasVoted(election, anonymousKeypair),
-    getVoteCount,
+    castVote: vote,
+    userHasVoted: (electionId: string) => {
+      const election = elections.find(e => e.id === electionId);
+      return userHasVoted(election, userId);
+    },
+    getVoteCount: (electionId: string) => {
+      const election = elections.find(e => e.id === electionId);
+      return getVoteCount(election);
+    },
     refreshElections
   };
 
@@ -205,6 +187,12 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
       {children}
     </ElectionContext.Provider>
   );
+};
+
+// Helper function for generating nullifiers (duplicated here to avoid import cycles)
+const generateSimpleNullifier = (electionId: string, userId: string): string => {
+  const combined = `${electionId}-${userId}`;
+  return btoa(combined); // Base64 encode for brevity
 };
 
 export default ElectionProvider;

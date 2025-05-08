@@ -13,7 +13,6 @@ import { wagmiConfig } from "@/utils/wagmiConfig"
 import NavBar from "@/components/NavBar"
 import Dashboard from "@/pages/Dashboard"
 import NotFound from "./pages/NotFound"
-import BabyJubjubTester from "@/components/BabyJubjubTester"
 
 const queryClient = new QueryClient()
 
@@ -32,7 +31,6 @@ const App = () => (
                   <main className="flex-1">
                     <Routes>
                       <Route path="/" element={<Dashboard />} />
-                      <Route path="/tester" element={<BabyJubjubTester />} />
                       <Route path="*" element={<NotFound />} />
                     </Routes>
                   </main>

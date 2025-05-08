@@ -5,20 +5,19 @@ import { useToast } from "@/hooks/use-toast"
 import CreateElectionDialog from "@/components/CreateElectionDialog"
 import ElectionsGrid from "@/components/ElectionsGrid"
 import WorldIDVerifier from "@/components/WorldIDVerifier"
-import BabyJubjubTester from "@/components/BabyJubjubTester"
 import DebuggingTools from "@/components/DebuggingTools"
 
 const Dashboard = () => {
-  const { isWorldIDVerified, anonymousKeypair } = useWallet()
+  const { isWorldIDVerified, userId } = useWallet()
   const { toast } = useToast()
   const [isVerificationComplete, setIsVerificationComplete] = useState(false)
   const [showDebugTools, setShowDebugTools] = useState(false)
   
   // Check verification status on component mount
   useEffect(() => {
-    // If already verified with a keypair, show a message
-    if (isWorldIDVerified && anonymousKeypair) {
-      console.log('User already verified with keypair:', anonymousKeypair)
+    // If already verified with a userId, show a message
+    if (isWorldIDVerified && userId) {
+      console.log('User already verified with ID:', userId)
     }
     
     // Enable debug tools with special key combination (shift + D)
@@ -31,7 +30,7 @@ const Dashboard = () => {
     
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isWorldIDVerified, anonymousKeypair])
+  }, [isWorldIDVerified, userId])
 
   const handleVerificationSuccess = () => {
     console.log('Verification success callback in Dashboard')
@@ -44,8 +43,8 @@ const Dashboard = () => {
     })
   }
 
-  // If not verified with World ID or don't have a keypair
-  if (!isWorldIDVerified || !anonymousKeypair) {
+  // If not verified with World ID or don't have a userId
+  if (!isWorldIDVerified || !userId) {
     return (
       <div className="container mx-auto py-8 px-4">
         <div className="max-w-md mx-auto bg-card p-6 rounded-lg border border-border">
@@ -61,7 +60,6 @@ const Dashboard = () => {
               <div className="mt-6 pt-4 border-t border-border">
                 <h3 className="text-lg font-bold mb-2">Debug Tools</h3>
                 <DebuggingTools />
-                <BabyJubjubTester />
               </div>
             </>
           )}
@@ -94,7 +92,6 @@ const Dashboard = () => {
               <div className="mt-6 pt-4 border-t border-border">
                 <h3 className="text-lg font-bold mb-2">Debug Tools</h3>
                 <DebuggingTools />
-                <BabyJubjubTester />
               </div>
             </>
           )}
@@ -122,7 +119,6 @@ const Dashboard = () => {
           <div className="mt-8 pt-6 border-t border-border">
             <h3 className="text-xl font-bold mb-4">Debug Tools</h3>
             <DebuggingTools />
-            <BabyJubjubTester />
           </div>
         </>
       )}

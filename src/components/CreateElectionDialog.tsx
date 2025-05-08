@@ -35,14 +35,14 @@ const CreateElectionDialog = () => {
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { createElection } = useElections();
-  const { isWorldIDVerified, anonymousKeypair } = useWallet();
+  const { isWorldIDVerified, userId } = useWallet();
   const { toast } = useToast();
 
   const OPTION_MAX_LENGTH = 20; // Maximum characters for options
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || !description || !endDate || !anonymousKeypair || !option1 || !option2) {
+    if (!title || !description || !endDate || !userId || !option1 || !option2) {
       toast({
         title: "Missing information",
         description: "Please fill in all required fields.",

@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import { IDKitWidget } from '@worldcoin/idkit';
 import { useWallet } from '@/contexts/WalletContext';
 import { useToast } from '@/hooks/use-toast';
-import { generateKeypair, storeKeypair } from '@/services/ffjavascriptBabyJubjubService';
 
 interface VerifierProps {
   onVerificationSuccess: () => void;
@@ -16,7 +15,7 @@ interface ISuccessResult {
 }
 
 const WorldIDVerifier: React.FC<VerifierProps> = ({ onVerificationSuccess }) => {
-  const { setAnonymousKeypair, setIsWorldIDVerified } = useWallet();
+  const { setIsWorldIDVerified, setUserId } = useWallet();
   const { toast } = useToast();
   const [isVerifying, setIsVerifying] = useState(false);
   
@@ -24,20 +23,20 @@ const WorldIDVerifier: React.FC<VerifierProps> = ({ onVerificationSuccess }) => 
     try {
       setIsVerifying(true);
       
-      // Generate a new Baby Jubjub keypair
-      const keypair = await generateKeypair();
+      // Use nullifier_hash as our user ID
+      const userId = result.nullifier_hash;
       
-      // Store the keypair in localStorage
-      storeKeypair(keypair);
+      // Store the user ID in localStorage
+      localStorage.setItem('worldid-user', userId);
       
       // Update the wallet context
-      setAnonymousKeypair(keypair);
+      setUserId(userId);
       setIsWorldIDVerified(true);
       
       // Show success toast
       toast({
         title: "Verification successful",
-        description: "Your anonymous identity has been created successfully.",
+        description: "Your identity has been created successfully.",
       });
       
       // Call the success callback
@@ -46,7 +45,7 @@ const WorldIDVerifier: React.FC<VerifierProps> = ({ onVerificationSuccess }) => 
       console.error("Error during verification:", error);
       toast({
         title: "Verification failed",
-        description: "Could not create your anonymous identity. Please try again.",
+        description: "Could not create your identity. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -62,7 +61,7 @@ const WorldIDVerifier: React.FC<VerifierProps> = ({ onVerificationSuccess }) => 
       // Generate a fake verification result
       const mockResult = {
         merkle_root: "0x1234567890abcdef",
-        nullifier_hash: "0xabcdef1234567890",
+        nullifier_hash: "test-user-" + Date.now(),
         proof: "0x12345"
       } as ISuccessResult;
       
@@ -91,7 +90,7 @@ const WorldIDVerifier: React.FC<VerifierProps> = ({ onVerificationSuccess }) => 
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <span>Generating your anonymous identity...</span>
+          <span>Generating your identity...</span>
         </div>
       ) : (
         <>
