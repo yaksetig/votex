@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react"
 import { useWallet } from "@/contexts/WalletContext"
 import { useToast } from "@/hooks/use-toast"
