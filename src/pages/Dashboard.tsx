@@ -6,6 +6,7 @@ import CreateElectionDialog from "@/components/CreateElectionDialog"
 import ElectionsGrid from "@/components/ElectionsGrid"
 import WorldIDVerifier from "@/components/WorldIDVerifier"
 import DebuggingTools from "@/components/DebuggingTools"
+import BabyJubjubTester from "@/components/BabyJubjubTester"
 
 const Dashboard = () => {
   const { isWorldIDVerified, anonymousKeypair } = useWallet()
@@ -43,23 +44,6 @@ const Dashboard = () => {
     })
   }
 
-  // Testing - force render of verification screen
-  // For debugging only, remove in production
-  // if (true) {
-  //   return (
-  //     <div className="container mx-auto py-8 px-4">
-  //       <div className="max-w-md mx-auto bg-card p-6 rounded-lg border border-border">
-  //         <h2 className="text-2xl font-bold mb-4">Welcome to Votex (Debug)</h2>
-  //         <p className="mb-6">
-  //           To participate in anonymous voting, you need to verify your identity with World ID.
-  //           This ensures one-person-one-vote while keeping your votes private.
-  //         </p>
-  //         <WorldIDVerifier onVerificationSuccess={handleVerificationSuccess} />
-  //       </div>
-  //     </div>
-  //   )
-  // }
-
   // If not verified with World ID or don't have a keypair
   if (!isWorldIDVerified || !anonymousKeypair) {
     return (
@@ -72,7 +56,12 @@ const Dashboard = () => {
           </p>
           <WorldIDVerifier onVerificationSuccess={handleVerificationSuccess} />
           
-          {showDebugTools && <DebuggingTools />}
+          {showDebugTools && (
+            <>
+              <DebuggingTools />
+              <BabyJubjubTester />
+            </>
+          )}
         </div>
       </div>
     )
@@ -94,7 +83,12 @@ const Dashboard = () => {
             Loading elections...
           </p>
           
-          {showDebugTools && <DebuggingTools />}
+          {showDebugTools && (
+            <>
+              <DebuggingTools />
+              <BabyJubjubTester />
+            </>
+          )}
         </div>
       </div>
     )
@@ -114,7 +108,12 @@ const Dashboard = () => {
       </div>
       <ElectionsGrid />
       
-      {showDebugTools && <DebuggingTools />}
+      {showDebugTools && (
+        <>
+          <DebuggingTools />
+          <BabyJubjubTester />
+        </>
+      )}
     </div>
   )
 }
