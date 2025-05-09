@@ -75,6 +75,7 @@
     "vaul": "^0.9.3",
     "viem": "^2.26.2",
     "vite-plugin-node-polyfills": "^0.23.0",
+    "wagmi": "^1.4.3",
     "zod": "^3.23.8"
   },
   "devDependencies": {

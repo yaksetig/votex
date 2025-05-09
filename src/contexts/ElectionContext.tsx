@@ -2,6 +2,7 @@
 import React, { createContext, useContext } from 'react';
 import { ElectionContextType } from './ElectionContextTypes';
 import { Election } from '@/types/election';
+import { useWallet } from './WalletContext';
 
 // Create the context with a default empty implementation
 export const ElectionContext = createContext<ElectionContextType>({
@@ -19,10 +20,14 @@ export const ElectionContext = createContext<ElectionContextType>({
 // Custom hook for easier context usage
 export const useElections = () => {
   const context = useContext(ElectionContext);
+  const walletContext = useWallet();
   
   if (context === undefined) {
     throw new Error('useElections must be used within an ElectionProvider');
   }
   
-  return context;
+  return {
+    ...context,
+    isAuthenticated: walletContext.isWorldIDVerified && walletContext.userId !== null
+  };
 };
