@@ -6,7 +6,7 @@ import {
   generateKeypair, 
   storeKeypair, 
   getPublicKeyString 
-} from '@/services/ffjavascriptBabyJubjubService'
+} from '@/services/enhancedBabyJubjubService'
 import { useToast } from '@/hooks/use-toast'
 
 interface WorldIDVerifierProps {
@@ -41,7 +41,7 @@ const WorldIDVerifier: React.FC<WorldIDVerifierProps> = ({ onVerificationSuccess
       // Generate a new Baby Jubjub keypair for anonymous identity
       const keypair = await generateKeypair()
       console.log('Keypair generated successfully:')
-      console.log('- PrivateKey:', keypair.privateKey.substring(0, 8) + '...')
+      console.log('- PrivateKey:', keypair.privateKey.substring ? keypair.privateKey.substring(0, 8) + '...' : 'N/A')
       console.log('- PublicKey:', getPublicKeyString(keypair.publicKey).substring(0, 30) + '...')
       
       // Store the keypair securely

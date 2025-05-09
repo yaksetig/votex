@@ -1,20 +1,25 @@
 
 import React, { createContext, useState, useEffect, useContext, ReactNode, useCallback } from 'react';
 import { useToast } from "@/hooks/use-toast";
+import { BabyJubjubKeyPair } from '@/services/enhancedBabyJubjubService';
 
 interface WalletContextType {
   isWorldIDVerified: boolean;
   userId: string | null;
+  anonymousKeypair: BabyJubjubKeyPair | null;
   setIsWorldIDVerified: (value: boolean) => void;
   setUserId: (id: string | null) => void;
+  setAnonymousKeypair: (keypair: BabyJubjubKeyPair | null) => void;
   resetIdentity: () => void;
 }
 
 const WalletContext = createContext<WalletContextType>({
   isWorldIDVerified: false,
   userId: null,
+  anonymousKeypair: null,
   setIsWorldIDVerified: () => {},
   setUserId: () => {},
+  setAnonymousKeypair: () => {},
   resetIdentity: () => {},
 });
 
@@ -27,6 +32,7 @@ interface WalletProviderProps {
 export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   const [isWorldIDVerified, setIsWorldIDVerified] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [anonymousKeypair, setAnonymousKeypair] = useState<BabyJubjubKeyPair | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const { toast } = useToast();
   
@@ -69,7 +75,9 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   const resetIdentity = useCallback(() => {
     console.log('Resetting identity...');
     localStorage.removeItem('worldid-user');
+    localStorage.removeItem('anonymous-keypair');
     setUserId(null);
+    setAnonymousKeypair(null);
     setIsWorldIDVerified(false);
     toast({
       title: "Identity reset",
@@ -81,8 +89,10 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   const value = {
     isWorldIDVerified,
     userId,
+    anonymousKeypair,
     setIsWorldIDVerified,
     setUserId,
+    setAnonymousKeypair,
     resetIdentity
   };
   
