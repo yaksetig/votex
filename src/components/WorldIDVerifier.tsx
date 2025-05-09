@@ -1,21 +1,16 @@
 
 import React, { useState } from 'react';
-import { IDKitWidget } from '@worldcoin/idkit';
+import { IDKitWidget, ISuccessResult } from '@worldcoin/idkit';
 import { useWallet } from '@/contexts/WalletContext';
 import { useToast } from '@/hooks/use-toast';
+import { getPublicKeyString } from '@/services/enhancedBabyJubjubService';
 
 interface VerifierProps {
   onVerificationSuccess: () => void;
 }
 
-interface ISuccessResult {
-  merkle_root: string;
-  nullifier_hash: string;
-  proof: string;
-}
-
 const WorldIDVerifier: React.FC<VerifierProps> = ({ onVerificationSuccess }) => {
-  const { setIsWorldIDVerified, setUserId } = useWallet();
+  const { setIsWorldIDVerified, setUserId, generateAnonymousKeypair } = useWallet();
   const { toast } = useToast();
   const [isVerifying, setIsVerifying] = useState(false);
   
@@ -33,10 +28,21 @@ const WorldIDVerifier: React.FC<VerifierProps> = ({ onVerificationSuccess }) => 
       setUserId(userId);
       setIsWorldIDVerified(true);
       
+      // Generate anonymous keypair for voting
+      console.log("Generating anonymous keypair for voting...");
+      const keypair = await generateAnonymousKeypair();
+      const publicKeyStr = getPublicKeyString(keypair.publicKey);
+      
       // Show success toast
       toast({
         title: "Verification successful",
         description: "Your identity has been created successfully.",
+      });
+      
+      // Show keypair information
+      toast({
+        title: "Anonymous identity created",
+        description: `Your anonymous public key: ${publicKeyStr.substring(0, 20)}...`,
       });
       
       // Call the success callback

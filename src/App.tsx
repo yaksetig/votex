@@ -5,11 +5,11 @@ import { Toaster as Sonner } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { BrowserRouter, Routes, Route } from "react-router-dom"
-import { WagmiProvider } from 'wagmi'
-import { ConnectKitProvider } from 'connectkit'
 import { WalletProvider } from "@/contexts/WalletContext"
 import { ElectionProvider } from "@/providers/ElectionProvider"
 import { wagmiConfig } from "@/utils/wagmiConfig"
+import { WagmiConfig } from 'wagmi'
+import { ConnectKitProvider } from 'connectkit'
 import NavBar from "@/components/NavBar"
 import Dashboard from "@/pages/Dashboard"
 import NotFound from "./pages/NotFound"
@@ -17,7 +17,7 @@ import NotFound from "./pages/NotFound"
 const queryClient = new QueryClient()
 
 const App = () => (
-  <WagmiProvider config={wagmiConfig}>
+  <WagmiConfig config={wagmiConfig}>
     <QueryClientProvider client={queryClient}>
       <ConnectKitProvider>
         <TooltipProvider>
@@ -41,7 +41,7 @@ const App = () => (
         </TooltipProvider>
       </ConnectKitProvider>
     </QueryClientProvider>
-  </WagmiProvider>
+  </WagmiConfig>
 )
 
 export default App
