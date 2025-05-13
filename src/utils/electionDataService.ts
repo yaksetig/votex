@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Election, Vote } from "@/types/election";
 
@@ -121,6 +120,21 @@ export const castVote = async (
     // Parse the proof object
     const proofData = JSON.parse(proof);
     const { userId, nullifier, choice, signature, publicKey, timestamp } = proofData;
+    
+    // Verify we have all the required fields
+    if (!signature || !publicKey) {
+      console.error("Error: Missing signature or publicKey in vote data", proofData);
+      throw new Error("Signature and public key are required for casting a vote");
+    }
+    
+    // For debugging
+    console.log("Casting vote:", {
+      electionId,
+      choice,
+      hasSignature: !!signature,
+      hasPublicKey: !!publicKey,
+      nullifierPreview: nullifier ? nullifier.substring(0, 15) + "..." : "none"
+    });
     
     // Check if the nullifier already exists to prevent double voting
     const { data: existingVote, error: checkError } = await supabase
