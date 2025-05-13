@@ -1,4 +1,4 @@
-
+// src/services/fixedBabyJubjubService.ts
 import { buildBabyjub } from 'circomlibjs';
 import { ethers } from 'ethers';
 
@@ -13,92 +13,109 @@ export interface SerializedBabyJubjubKeyPair {
   publicKeyY: string;
 }
 
-// Global instances
+// Global instance - make sure it's initialized only once
 let babyJub: any = null;
 let ORDER: bigint;
-
-// Helper functions for byte conversion
-function toHex(x: bigint): string {
-  return "0x" + x.toString(16);
-}
-
-function toBytesBE(x: bigint): Uint8Array {
-  const out = new Uint8Array(32);
-  let v = x;
-  for (let i = 31; i >= 0; i--) {
-    out[i] = Number(v & 0xffn);
-    v >>= 8n;
-  }
-  return out;
-}
-
-// SHA-256 helper
-async function sha256(msg: Uint8Array): Promise<Uint8Array> {
-  const h = await crypto.subtle.digest("SHA-256", msg);
-  return new Uint8Array(h);
-}
-
-// Hash → scalar mod order, over big-endian parts
-async function hashToScalarBE(...parts: Uint8Array[]): Promise<bigint> {
-  const all = Uint8Array.from(parts.flatMap(p => [...p]));
-  const d = await sha256(all);
-  const hex = [...d].map(b => b.toString(16).padStart(2,"0")).join("");
-  const digestValue = BigInt("0x" + hex);
-  return digestValue % ORDER;
-}
+let isInitializing = false;
+let initPromise: Promise<void> | null = null;
 
 // Initialize Baby Jubjub library (asynchronous)
 export const initBabyJubjub = async (): Promise<void> => {
-  try {
-    if (babyJub !== null) {
-      console.log("Baby Jubjub already initialized");
-      return;
-    }
-    
-    console.log("Initializing Baby Jubjub (circomlibjs)...");
-    babyJub = await buildBabyjub();
-    ORDER = babyJub.subOrder;
-    console.log("Baby Jubjub initialized successfully with order:", ORDER.toString());
-  } catch (error) {
-    console.error("Failed to initialize Baby Jubjub:", error);
-    throw error;
+  // If already initialized, return immediately
+  if (babyJub !== null) {
+    console.log("Baby Jubjub already initialized");
+    return;
   }
+  
+  // If currently initializing, wait for that process to complete
+  if (isInitializing && initPromise) {
+    console.log("Baby Jubjub initialization in progress, waiting...");
+    return initPromise;
+  }
+  
+  // Start initialization
+  console.log("Initializing Baby Jubjub (circomlibjs)...");
+  isInitializing = true;
+  
+  initPromise = new Promise<void>(async (resolve, reject) => {
+    try {
+      // Build the BabyJubjub instance
+      babyJub = await buildBabyjub();
+      
+      // Explicitly verify that F.e exists before proceeding
+      if (!babyJub.F || typeof babyJub.F.e !== 'function') {
+        throw new Error("BabyJubjub initialization incomplete: F.e is not a function");
+      }
+      
+      ORDER = babyJub.subOrder;
+      console.log("Baby Jubjub initialized successfully with order:", ORDER.toString());
+      isInitializing = false;
+      resolve();
+    } catch (error) {
+      console.error("Failed to initialize Baby Jubjub:", error);
+      isInitializing = false;
+      babyJub = null; // Reset so we can try again
+      reject(error);
+    }
+  });
+  
+  return initPromise;
 };
 
-// Helper function to generate a random scalar
-function randomScalar(): bigint {
-  const buf = crypto.getRandomValues(new Uint8Array(32));
-  const hex = [...buf].map(b => b.toString(16).padStart(2,"0")).join("");
-  return BigInt("0x" + hex) % ORDER;
-}
-
-// Generate a keypair from scratch
+// Generate a keypair from scratch with careful error handling
 export const generateKeypair = async (): Promise<BabyJubjubKeyPair> => {
-  if (!babyJub) {
-    await initBabyJubjub();
+  // Ensure BabyJubjub is initialized
+  await initBabyJubjub();
+  
+  // Double-check that it's properly initialized
+  if (!babyJub || !babyJub.F || typeof babyJub.F.e !== 'function') {
+    console.error("BabyJubjub not properly initialized before generating keypair");
+    throw new Error("BabyJubjub not properly initialized");
   }
 
   try {
-    // Generate random private key
-    const k = randomScalar();
-    console.log("Generated private key scalar:", k.toString());
+    console.log("Generating private key...");
+    
+    // Generate random private key using crypto.getRandomValues
+    const randomBytes = new Uint8Array(32);
+    crypto.getRandomValues(randomBytes);
+    const privateKeyHex = [...randomBytes].map(b => b.toString(16).padStart(2,"0")).join("");
+    const privateKeyBigInt = BigInt("0x" + privateKeyHex) % ORDER;
+    console.log("Private key generated:", privateKeyBigInt.toString().substring(0, 10) + "...");
     
     // Convert to bytes for storage
     const privateKeyBytes = ethers.utils.arrayify(
-      ethers.BigNumber.from(k.toString()).toHexString().padStart(66, '0x0')
+      ethers.BigNumber.from(privateKeyBigInt.toString()).toHexString()
     );
     
-    // Derive public key
-    const A_e = babyJub.mulPointEscalar(babyJub.Base8, k);
+    // Derive public key with careful error handling
+    console.log("Deriving public key...");
+    if (!babyJub.Base8 || !babyJub.mulPointEscalar) {
+      throw new Error("BabyJubjub missing required methods");
+    }
     
-    // Convert points to bytes
+    const A_e = babyJub.mulPointEscalar(babyJub.Base8, privateKeyBigInt);
+    console.log("Public key point generated");
+    
+    // Check if the point is valid
+    if (!A_e || !Array.isArray(A_e) || A_e.length !== 2) {
+      throw new Error("Invalid public key point generated");
+    }
+    
+    // Convert points to bytes with careful error handling
+    if (!babyJub.F.toObject) {
+      throw new Error("BabyJubjub F.toObject method missing");
+    }
+    
     const publicKeyX = ethers.utils.arrayify(
-      ethers.BigNumber.from(babyJub.F.toObject(A_e[0])).toHexString().padStart(66, '0x0')
+      ethers.BigNumber.from(babyJub.F.toObject(A_e[0])).toHexString()
     );
     
     const publicKeyY = ethers.utils.arrayify(
-      ethers.BigNumber.from(babyJub.F.toObject(A_e[1])).toHexString().padStart(66, '0x0')
+      ethers.BigNumber.from(babyJub.F.toObject(A_e[1])).toHexString()
     );
+    
+    console.log("Keypair generated successfully");
     
     return {
       privateKey: privateKeyBytes,
@@ -106,9 +123,18 @@ export const generateKeypair = async (): Promise<BabyJubjubKeyPair> => {
     };
   } catch (error) {
     console.error("Error generating Baby Jubjub keypair:", error);
+    // Log the current state of babyJub for debugging
+    console.error("Current babyJub state:", {
+      isNull: babyJub === null,
+      hasF: babyJub && !!babyJub.F,
+      hasFE: babyJub && babyJub.F && typeof babyJub.F.e === 'function',
+      hasBase8: babyJub && !!babyJub.Base8,
+      hasMulPointEscalar: babyJub && typeof babyJub.mulPointEscalar === 'function'
+    });
     throw error;
   }
 };
+
 
 // Create a keypair from a seed (useful for WorldID integration)
 export const createKeypairFromSeed = async (seed: string): Promise<BabyJubjubKeyPair> => {
