@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { ElectionContext } from "@/contexts/ElectionContext";
-import { Election } from "@/types/election";
+import { Election, VoteCount } from "@/types/election";
 import { useToast } from "@/components/ui/use-toast";
 import { useWallet } from "@/contexts/WalletContext";
 import { 
@@ -9,7 +9,8 @@ import {
   createElection as createElectionService,
   castVote
 } from "@/utils/electionDataService";
-import { generateProof, userHasVoted, getVoteCount, generateSimpleNullifier } from "@/utils/voteUtils";
+import { generateProof, userHasVoted, getVoteCount } from "@/utils/voteUtils";
+import { useRealtimeSubscriptions } from "@/hooks/useRealtimeSubscriptions";
 
 interface ElectionProviderProps {
   children: React.ReactNode;
@@ -21,7 +22,7 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
   const { toast } = useToast();
   const { userId, anonymousKeypair } = useWallet();
   
-  // Set up realtime subscriptions
+  // Refresh elections data
   const refreshElections = useCallback(async () => {
     try {
       setLoading(true);
@@ -33,6 +34,9 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
       setLoading(false);
     }
   }, []);
+  
+  // Set up realtime subscriptions
+  useRealtimeSubscriptions(refreshElections);
   
   // Load elections on mount
   useEffect(() => {
@@ -138,7 +142,7 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
                   id: `temp-${Date.now()}`,
                   voter: userId,
                   choice: optionIndex === 0 ? election.option1 : election.option2,
-                  nullifier: generateSimpleNullifier(electionId, userId),
+                  nullifier: `temp-${Date.now()}`, // This will be replaced by the server-generated nullifier
                   timestamp: Date.now()
                 };
                 
@@ -166,20 +170,32 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
     [userId, anonymousKeypair, elections, toast]
   );
 
+  // Check if user has voted
+  const checkUserHasVoted = useCallback(
+    async (electionId: string): Promise<boolean> => {
+      const election = elections.find(e => e.id === electionId);
+      return userHasVoted(election, userId);
+    },
+    [elections, userId]
+  );
+
+  // Get vote count for an election
+  const getElectionVoteCount = useCallback(
+    (electionId: string): VoteCount => {
+      const election = elections.find(e => e.id === electionId);
+      return getVoteCount(election);
+    },
+    [elections]
+  );
+
   // Create the context value
   const value = {
     elections,
     loading,
     createElection,
     castVote: vote,
-    userHasVoted: (electionId: string) => {
-      const election = elections.find(e => e.id === electionId);
-      return userHasVoted(election, userId);
-    },
-    getVoteCount: (electionId: string) => {
-      const election = elections.find(e => e.id === electionId);
-      return getVoteCount(election);
-    },
+    userHasVoted: checkUserHasVoted,
+    getVoteCount: getElectionVoteCount,
     refreshElections
   };
 
