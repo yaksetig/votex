@@ -84,16 +84,16 @@ const WorldIDVerifier: React.FC<WorldIDVerifierProps> = ({
       )}
 
       <div className={isVerifying ? "opacity-50 pointer-events-none" : ""}>
-        +      <IDKitWidget
-+        app_id="app_e2fd2f8c99430ab200a093278e801c57"
-+        action="registration"
-+        onSuccess={handleVerificationSuccess}
-+        autoClose
-+      >
-+        {({ open }) => (
-+          <button onClick={open}>Verify with World ID</button>
-+        )}
-+      </IDKitWidget>
+      <IDKitWidget
+        app_id="app_e2fd2f8c99430ab200a093278e801c57"
+        action="registration"
+        onSuccess={handleVerificationSuccess}
+        autoClose
+      >
+        {({ open }) => (
+          <button onClick={open}>Verify with World ID</button>
+        )}
+      </IDKitWidget>
       </div>
     </div>
   );
