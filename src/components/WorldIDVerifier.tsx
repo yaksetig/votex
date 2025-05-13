@@ -86,7 +86,7 @@ const WorldIDVerifier: React.FC<WorldIDVerifierProps> = ({
       <div className={isVerifying ? "opacity-50 pointer-events-none" : ""}>
         <IDKitWidget
           app_id="app_e2fd2f8c99430ab200a093278e801c57" // Use your app ID from the Developer Portal
-          action="verify_humanity"
+          action="registration"
           onSuccess={handleVerificationSuccess}
           onError={handleVerificationError}
           credential_types={[CredentialType.Orb, CredentialType.Phone]}
