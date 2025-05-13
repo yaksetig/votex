@@ -8,6 +8,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom"
 import { WalletProvider } from "@/contexts/WalletContext"
 import NavBar from "@/components/NavBar"
 import Index from "@/pages/Index"
+import Dashboard from "@/pages/Dashboard"
 import Success from "@/pages/Success"
 import NotFound from "@/pages/NotFound"
 
@@ -25,6 +26,7 @@ const App = () => (
             <main className="flex-1">
               <Routes>
                 <Route path="/" element={<Index />} />
+                <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/success" element={<Success />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
