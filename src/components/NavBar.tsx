@@ -15,7 +15,12 @@ const NavBar = () => {
           </h1>
         </Link>
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-4">
+        {isWorldIDVerified && (
+          <Link to="/elections" className="text-sm hover:text-primary transition-colors">
+            Elections
+          </Link>
+        )}
         {isWorldIDVerified && (
           <>
             <div className="bg-green-500/20 text-green-500 px-3 py-1 rounded-full text-sm flex items-center">
