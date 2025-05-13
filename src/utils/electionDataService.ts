@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Election, Vote } from "@/types/election";
 
@@ -123,55 +122,33 @@ export const castVote = async (
     const { userId, nullifier, choice, signature, publicKey, timestamp } = voteData;
     
     // Verify we have all the required fields
-    if (!signature) {
-      console.error("Error: Missing signature in vote data", voteData);
-      throw new Error("Signature is required for casting a vote");
+    if (!nullifier || !choice || !signature) {
+      console.error("Error: Missing required fields in vote data", voteData);
+      throw new Error("Required fields are missing for voting");
     }
     
     console.log("🔍 VOTE DATA:", {
       election_id: electionId,
       voter: userId,
       choice,
-      nullifier,
+      nullifier: nullifier.substring(0, 20) + "...",
       signature: signature ? (signature.length > 20 ? signature.substring(0, 20) + "..." : signature) : "MISSING",
-      timestamp: timestamp || Date.now()
+      timestamp
     });
     
-    // Check if the nullifier already exists to prevent double voting
-    try {
-      const { data: existingVote, error: checkError } = await supabase
-        .from('votes')
-        .select('id')
-        .eq('nullifier', nullifier)
-        .maybeSingle();
-  
-      if (checkError) {
-        console.error("Error checking for existing vote:", checkError);
-        // Continue anyway, as it might just be that the vote doesn't exist
-      }
-  
-      if (existingVote) {
-        console.error("Vote with this nullifier already exists, ID:", existingVote.id);
-        throw new Error("Double voting is not allowed");
-      }
-    } catch (error) {
-      console.warn("Error during nullifier check (continuing):", error);
-      // Continue execution, as we'll still try to insert the vote
-    }
-
-    // Prepare the vote object with all required fields from supabase schema
+    // Build the vote object exactly as required by the database schema
     const voteObject = {
       election_id: electionId,
       voter: userId,
-      choice: choice,
-      nullifier: nullifier,
-      signature: signature,
+      choice,
+      nullifier,
+      signature,
       timestamp: timestamp || Date.now()
     };
     
     console.log("📤 SUBMITTING VOTE:", voteObject);
     
-    // Submit the vote with required fields - first try with upsert
+    // Submit the vote
     const { data, error } = await supabase
       .from('votes')
       .insert(voteObject);
@@ -179,23 +156,33 @@ export const castVote = async (
     if (error) {
       console.error("❌ ERROR INSERTING VOTE:", error);
       
-      // Try again with a simple insert
-      const simpleInsert = await supabase.rpc('insert_vote', {
-        p_election_id: electionId,
-        p_voter: userId,
-        p_choice: choice,
-        p_nullifier: nullifier,
-        p_signature: signature,
-        p_timestamp: timestamp || Date.now()
-      });
-      
-      if (simpleInsert.error) {
-        console.error("❌ SECOND INSERT ATTEMPT FAILED:", simpleInsert.error);
-        throw simpleInsert.error;
+      // Try using the RPC function if direct insert fails
+      if (error.code === '23505') { // Duplicate key error
+        console.error("This vote has already been submitted");
+        return false;
       }
       
-      console.log("✅ SECOND INSERT ATTEMPT SUCCEEDED:", simpleInsert);
-      return true;
+      try {
+        const simpleInsert = await supabase.rpc('insert_vote', {
+          p_election_id: electionId,
+          p_voter: userId,
+          p_choice: choice,
+          p_nullifier: nullifier,
+          p_signature: signature,
+          p_timestamp: timestamp || Date.now()
+        });
+        
+        if (simpleInsert.error) {
+          console.error("❌ RPC ATTEMPT FAILED:", simpleInsert.error);
+          throw simpleInsert.error;
+        }
+        
+        console.log("✅ RPC INSERT SUCCEEDED:", simpleInsert);
+        return true;
+      } catch (rpcError) {
+        console.error("❌ FAILED TO INSERT VOTE:", rpcError);
+        throw rpcError;
+      }
     }
     
     console.log("✅ VOTE SUBMITTED SUCCESSFULLY:", data);
