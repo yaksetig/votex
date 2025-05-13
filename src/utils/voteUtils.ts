@@ -1,11 +1,11 @@
-
-import { Election, VoteCount } from "@/types/election";
 import { 
   BabyJubjubKeyPair, 
   signWithKeypair, 
   generateNullifier, 
   getPublicKeyString 
-} from '@/services/workingBabyJubjubService';
+} from '@/services/fixedBabyJubjubService';
+
+// The rest of the implementation can remain mostly the same, just ensure proper imports
 
 /**
  * Check if the current user has voted in an election
