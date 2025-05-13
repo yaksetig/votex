@@ -2,11 +2,11 @@
 import React, { useState } from 'react';
 import { IDKitWidget, ISuccessResult } from '@worldcoin/idkit';
 import { useWallet } from '@/contexts/WalletContext';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 import { 
   createKeypairFromWorldIDProof, 
   getPublicKeyString 
-} from '@/services/enhancedBabyJubjubService';
+} from '@/services/workingBabyJubjubService';
 
 interface VerifierProps {
   onVerificationSuccess: () => void;
