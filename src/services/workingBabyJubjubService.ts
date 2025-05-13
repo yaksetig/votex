@@ -1,4 +1,3 @@
-
 import { buildBabyjub } from 'circomlibjs';
 import { ethers } from 'ethers';
 import { ISuccessResult } from '@worldcoin/idkit';
