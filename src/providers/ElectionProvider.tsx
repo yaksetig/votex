@@ -134,12 +134,7 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
           return false;
         }
 
-        console.log("Using keypair for voting:", {
-          hasKeypair: !!anonymousKeypair,
-          publicKeyLength: anonymousKeypair ? anonymousKeypair.publicKey.length : 0
-        });
-
-        // Generate proof with the anonymousKeypair
+        // Generate vote data with the anonymous keypair
         const signedVoteData = await generateProof(
           electionId,
           optionIndex,
@@ -156,7 +151,8 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
             description: "Your vote has been cast successfully.",
           });
           
-          // No need to update local state here as realtime subscription will handle it
+          // Refresh elections to update the UI
+          await refreshElections();
           return true;
         } else {
           throw new Error("Vote failed");
@@ -171,7 +167,7 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
         throw error;
       }
     },
-    [userId, anonymousKeypair, elections, toast]
+    [userId, anonymousKeypair, elections, toast, refreshElections]
   );
 
   // Check if user has voted
