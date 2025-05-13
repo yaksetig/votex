@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { IDKitWidget, ISuccessResult } from '@worldcoin/idkit';
+import { IDKitWidget, ISuccessResult, VerificationLevel } from '@worldcoin/idkit';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from "@/hooks/use-toast";
 import { useWallet } from '@/contexts/WalletContext';
@@ -79,11 +79,11 @@ const WorldIDVerifier: React.FC<WorldIDVerifierProps> = ({
 
       <div className={isVerifying ? "opacity-50 pointer-events-none" : ""}>
         <IDKitWidget
-          app_id={process.env.WORLDID_APP_ID || "app_e2fd2f8c99430ab200a093278e801c57"}
+          app_id={"app_e2fd2f8c99430ab200a093278e801c57"}
           action="register"
           onSuccess={handleVerificationSuccess}
-          verification_level="orb"
-          handleVerify={async () => true}
+          verification_level={"orb" as VerificationLevel}
+          handleVerify={async () => { return true; }}
         >
           {({ open }) => (
             <button
