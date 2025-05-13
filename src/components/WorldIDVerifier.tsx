@@ -83,7 +83,7 @@ const WorldIDVerifier: React.FC<WorldIDVerifierProps> = ({
           action="register"
           onSuccess={handleVerificationSuccess}
           verification_level={"orb" as VerificationLevel}
-          handleVerify={async () => { return true; }}
+          handleVerify={() => Promise.resolve()}
         >
           {({ open }) => (
             <button
