@@ -120,7 +120,7 @@ export const castVote = async (
   try {
     // Parse the proof object
     const proofData = JSON.parse(proof);
-    const { userId, nullifier, choice } = proofData;
+    const { userId, nullifier, choice, signature, publicKey, timestamp } = proofData;
     
     // Check if the nullifier already exists to prevent double voting
     const { data: existingVote, error: checkError } = await supabase
@@ -139,7 +139,7 @@ export const castVote = async (
       throw new Error("Double voting is not allowed");
     }
 
-    // Submit the vote
+    // Submit the vote with signature
     const { error } = await supabase
       .from('votes')
       .insert([
@@ -148,7 +148,8 @@ export const castVote = async (
           voter: userId,
           choice,
           nullifier,
-          timestamp: Date.now(),
+          signature, // Store the signature
+          timestamp,
         }
       ]);
 

@@ -1,21 +1,21 @@
 
-import { createConfig, http } from 'wagmi';
-import { mainnet } from 'wagmi/chains';
-import { InjectedConnector } from '@wagmi/connectors';
+import { createConfig } from 'wagmi';
+import { getDefaultConfig } from 'connectkit';
 
-// Create a config compatible with the current version of Wagmi
-export const wagmiConfig = createConfig({
-  chains: [mainnet],
-  connectors: [
-    new InjectedConnector({
-      chains: [mainnet],
-      options: {
-        name: 'Injected',
-        shimDisconnect: true,
-      },
-    }),
-  ],
-  transports: {
-    [mainnet.id]: http(mainnet.rpcUrls.default.http[0]),
-  },
-});
+export const wagmiConfig = createConfig(
+  getDefaultConfig({
+    // Required API Keys
+    alchemyId: 'placeholder', // Required for Alchemy Providers
+    walletConnectProjectId: 'placeholder', // Required for WalletConnect
+    
+    // App Info
+    appName: 'Votex Platform',
+    
+    // Optional configuration
+    appDescription: 'A secure voting platform with anonymous identity',
+    appIcon: 'https://app.votex.io/logo.png',
+    
+    // For debugging
+    debug: true,
+  })
+);
