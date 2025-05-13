@@ -8,7 +8,7 @@ import {
   createElection as createElectionService,
   castVote
 } from "@/utils/electionDataService";
-import { generateProof, userHasVoted, getVoteCount } from "@/utils/voteUtils";
+import { createVoteProof, hasVoted } from "@/services/voteSigningService";
 import { useRealtimeSubscriptions } from "@/hooks/useRealtimeSubscriptions";
 
 interface ElectionProviderProps {
@@ -124,7 +124,7 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
         }
 
         // Check if user has already voted in this election
-        const alreadyVoted = await userHasVoted(election, userId);
+        const alreadyVoted = await hasVoted(election, userId);
         if (alreadyVoted) {
           toast({
             title: "Already voted",
@@ -134,8 +134,8 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
           return false;
         }
 
-        // Generate vote data with the anonymous keypair
-        const signedVoteData = await generateProof(
+        // Generate vote proof with the anonymous keypair
+        const signedVoteData = await createVoteProof(
           electionId,
           optionIndex,
           userId,
@@ -174,7 +174,7 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
   const checkUserHasVoted = useCallback(
     async (electionId: string): Promise<boolean> => {
       const election = elections.find(e => e.id === electionId);
-      return userHasVoted(election, userId);
+      return hasVoted(election, userId);
     },
     [elections, userId]
   );
@@ -183,7 +183,13 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
   const getElectionVoteCount = useCallback(
     (electionId: string): VoteCount => {
       const election = elections.find(e => e.id === electionId);
-      return getVoteCount(election);
+      
+      if (!election) return { option1: 0, option2: 0 };
+      
+      const option1Count = election.votes.filter((vote) => vote.choice === election.option1).length;
+      const option2Count = election.votes.filter((vote) => vote.choice === election.option2).length;
+      
+      return { option1: option1Count, option2: option2Count };
     },
     [elections]
   );
