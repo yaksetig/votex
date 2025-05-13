@@ -140,6 +140,22 @@ export const createKeypairFromSeed = async (seed: string): Promise<BabyJubjubKey
   }
 };
 
+// Create a hash of a message
+async function hashMessage(message: string): Promise<any> {
+  if (!babyJub) {
+    await initBabyJubjub();
+  }
+  
+  // Convert message to bytes
+  const msgBytes = ethers.utils.toUtf8Bytes(message);
+  
+  // Create field elements from bytes
+  const fieldElements = Array.from(msgBytes).map(b => babyJub.F.e(b));
+  
+  // Use Poseidon hash (ZK-friendly)
+  return babyJub.F.e(babyJub.poseidon(fieldElements));
+}
+
 // Sign a message using the Baby Jubjub keypair
 export const signWithKeypair = async (message: string, keypair: BabyJubjubKeyPair): Promise<string> => {
   if (!babyJub) {
@@ -270,7 +286,7 @@ export const parsePublicKey = (publicKeyString: string): [Uint8Array, Uint8Array
   ];
 };
 
-// Verify a signature - exported so components can use it directly
+// Verify a signature
 export const verifySignature = async (
   message: string,
   signatureStr: string,
@@ -283,7 +299,7 @@ export const verifySignature = async (
   try {
     // Parse the signature
     const signature = JSON.parse(signatureStr);
-    const R = [signature.R[0], signature.R[1]].map(s => BigInt(s));
+    const R = [BigInt(signature.R[0]), BigInt(signature.R[1])].map(s => babyJub.F.e(s));
     const s = BigInt(signature.s);
     
     // Message bytes
@@ -294,7 +310,7 @@ export const verifySignature = async (
     const publicKeyY = ethers.BigNumber.from('0x' + Buffer.from(publicKey[1]).toString('hex')).toBigInt();
     
     // Step 1: Calculate t = H(Rx || Ax || msg) mod order
-    const Rx = R[0];
+    const Rx = BigInt(signature.R[0]);
     const Ax = publicKeyX;
     const t = await hashToScalarBE(toBytesBE(Rx), toBytesBE(Ax), msgBytes);
     
@@ -326,6 +342,6 @@ export const verifySignature = async (
 // Helper function to generate a random scalar
 function randomScalar(): bigint {
   const buf = crypto.getRandomValues(new Uint8Array(32));
-  const hex = [...buf].map(b=>b.toString(16).padStart(2,"0")).join("");
+  const hex = [...buf].map(b => b.toString(16).padStart(2,"0")).join("");
   return BigInt("0x" + hex) % ORDER;
 }
