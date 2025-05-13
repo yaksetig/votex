@@ -1,10 +1,34 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useWallet } from '@/contexts/WalletContext';
 import { Link } from 'react-router-dom';
+import GenerateKeypairButton from '@/components/GenerateKeypairButton';
+import KeypairDisplay from '@/components/KeypairDisplay';
+import { KeypairResult, StoredKeypair } from '@/types/keypair';
 
 const Success = () => {
   const { isWorldIDVerified } = useWallet();
+  const [keypair, setKeypair] = useState<StoredKeypair | null>(null);
+
+  // Load keypair from localStorage on component mount
+  useEffect(() => {
+    const storedKeypair = localStorage.getItem('babyJubKeypair');
+    if (storedKeypair) {
+      try {
+        setKeypair(JSON.parse(storedKeypair));
+      } catch (e) {
+        console.error('Failed to parse stored keypair', e);
+      }
+    }
+  }, []);
+
+  const handleKeypairGenerated = (result: KeypairResult) => {
+    setKeypair({
+      k: result.k.toString(),
+      Ax: result.Ax.toString(),
+      Ay: result.Ay.toString(),
+    });
+  };
 
   if (!isWorldIDVerified) {
     return (
@@ -35,7 +59,20 @@ const Success = () => {
           Your humanity has been verified with World ID.
         </p>
         
-        <div className="flex justify-center">
+        {!keypair ? (
+          <div className="mb-6">
+            <p className="text-center text-muted-foreground mb-4">
+              Generate a cryptographic keypair to use with privacy-preserving applications.
+            </p>
+            <GenerateKeypairButton onKeypairGenerated={handleKeypairGenerated} />
+          </div>
+        ) : (
+          <div className="mb-6">
+            <KeypairDisplay keypair={keypair} />
+          </div>
+        )}
+        
+        <div className="flex justify-center mt-6">
           <Link to="/" className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary/80">
             Back to Home
           </Link>
