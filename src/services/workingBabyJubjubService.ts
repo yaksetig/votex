@@ -1,6 +1,9 @@
 import { buildBabyjub } from 'circomlibjs';
 import { ethers } from 'ethers';
-import { ISuccessResult } from '@worldcoin/idkit';
+
+// Global instance of BabyJubjub
+let babyJub: any = null;
+let ORDER: bigint;
 
 export interface BabyJubjubKeyPair {
   privateKey: Uint8Array;
@@ -13,21 +16,16 @@ export interface SerializedBabyJubjubKeyPair {
   publicKeyY: string;
 }
 
-// Global instance of BabyJubjub
-let babyJub: any = null;
-let ORDER: bigint;
-
 // Initialize Baby Jubjub library (asynchronous)
 export const initBabyJubjub = async (): Promise<void> => {
-  if (!babyJub) {
-    try {
-      babyJub = await buildBabyjub();
-      ORDER = babyJub.subOrder;
-      console.log("Baby Jubjub initialized successfully");
-    } catch (error) {
-      console.error("Failed to initialize Baby Jubjub:", error);
-      throw error;
-    }
+  try {
+    console.log("Initializing Baby Jubjub...");
+    babyJub = await buildBabyjub();
+    ORDER = babyJub.subOrder;
+    console.log("Baby Jubjub initialized successfully");
+  } catch (error) {
+    console.error("Failed to initialize Baby Jubjub:", error);
+    throw error;
   }
 };
 
@@ -98,21 +96,20 @@ export const generateKeypair = async (): Promise<BabyJubjubKeyPair> => {
   }
 };
 
-// Create a keypair from a World ID proof (deterministic but unlinkable)
-export const createKeypairFromWorldIDProof = async (proof: ISuccessResult): Promise<BabyJubjubKeyPair> => {
+// Create a keypair from a seed (useful for WorldID integration)
+export const createKeypairFromSeed = async (seed: string): Promise<BabyJubjubKeyPair> => {
   if (!babyJub) {
     await initBabyJubjub();
   }
   
   try {
-    // Generate a deterministic seed from the proof
-    const proofString = JSON.stringify(proof);
-    const proofBytes = ethers.utils.toUtf8Bytes(proofString);
-    const proofHash = ethers.utils.keccak256(proofBytes);
+    // Hash the seed to get a deterministic private key
+    const seedBytes = ethers.utils.toUtf8Bytes(seed);
+    const seedHash = ethers.utils.keccak256(seedBytes);
     
     // Use the hash as private key seed
-    const privateKeyBytes = ethers.utils.arrayify(proofHash);
-    const privateKeyBigInt = ethers.BigNumber.from(proofHash).mod(
+    const privateKeyBytes = ethers.utils.arrayify(seedHash);
+    const privateKeyBigInt = ethers.BigNumber.from(seedHash).mod(
       ethers.BigNumber.from(ORDER.toString())
     ).toBigInt();
     
@@ -133,7 +130,7 @@ export const createKeypairFromWorldIDProof = async (proof: ISuccessResult): Prom
       publicKey: [publicKeyX, publicKeyY]
     };
   } catch (error) {
-    console.error("Error creating keypair from World ID proof:", error);
+    console.error("Error creating keypair from seed:", error);
     throw error;
   }
 };
@@ -174,47 +171,6 @@ export const signWithKeypair = async (message: string, keypair: BabyJubjubKeyPai
   } catch (error) {
     console.error("Error signing message:", error);
     throw error;
-  }
-};
-
-// Verify a signature
-export const verifySignature = async (
-  message: string,
-  signatureStr: string,
-  publicKey: [Uint8Array, Uint8Array]
-): Promise<boolean> => {
-  if (!babyJub) {
-    await initBabyJubjub();
-  }
-
-  try {
-    // Parse signature
-    const signature = JSON.parse(signatureStr);
-    const R = [babyJub.F.e(signature.R[0]), babyJub.F.e(signature.R[1])];
-    const s = babyJub.F.e(signature.s);
-    
-    // Convert public key
-    const pubKeyX = babyJub.F.e('0x' + Buffer.from(publicKey[0]).toString('hex'));
-    const pubKeyY = babyJub.F.e('0x' + Buffer.from(publicKey[1]).toString('hex'));
-    const pubKey = [pubKeyX, pubKeyY];
-    
-    // Message bytes
-    const msgBytes = ethers.utils.toUtf8Bytes(message);
-    
-    // Calculate t = H(Rx || Ax || msg) mod order
-    const Rx = babyJub.F.toObject(R[0]);
-    const Ax = babyJub.F.toObject(pubKeyX);
-    const t = await hashToScalarBE(toBytesBE(Rx), toBytesBE(Ax), msgBytes);
-    
-    // Verify s·B = R + t·A
-    const sB = babyJub.mulPointEscalar(babyJub.Base8, s);
-    const tA = babyJub.mulPointEscalar(pubKey, t);
-    const rhs = babyJub.addPoint(R, tA);
-    
-    return babyJub.F.eq(sB[0], rhs[0]) && babyJub.F.eq(sB[1], rhs[1]);
-  } catch (error) {
-    console.error("Error verifying signature:", error);
-    return false;
   }
 };
 
