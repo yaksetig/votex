@@ -1,10 +1,11 @@
 
-import { createConfig } from 'wagmi';
+import { createConfig, http } from 'wagmi';
 import { mainnet } from 'wagmi/chains';
-import { InjectedConnector } from 'wagmi/connectors/injected';
+import { InjectedConnector } from '@wagmi/connectors';
 
 // Create a config compatible with the current version of Wagmi
 export const wagmiConfig = createConfig({
+  chains: [mainnet],
   connectors: [
     new InjectedConnector({
       chains: [mainnet],
@@ -14,14 +15,7 @@ export const wagmiConfig = createConfig({
       },
     }),
   ],
-  publicClient: ({ chainId }) => {
-    const chain = chainId === mainnet.id ? mainnet : mainnet;
-    return {
-      chain,
-      transport: {
-        type: 'http',
-        url: chain.rpcUrls.default.http[0],
-      },
-    };
+  transports: {
+    [mainnet.id]: http(mainnet.rpcUrls.default.http[0]),
   },
 });

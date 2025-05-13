@@ -1,5 +1,11 @@
 
 import { Election, VoteCount } from "@/types/election";
+import { 
+  BabyJubjubKeyPair, 
+  signWithKeypair, 
+  generateNullifier, 
+  getPublicKeyString 
+} from '@/services/enhancedBabyJubjubService';
 
 /**
  * Check if the current user has voted in an election
@@ -34,35 +40,51 @@ export const getVoteCount = (election: Election | undefined): VoteCount => {
 };
 
 /**
- * Generate a simple proof for voting
+ * Generate a proof with BabyJubjub signature for voting
  */
 export const generateProof = async (
   electionId: string,
   optionIndex: number,
-  userId: string
+  userId: string,
+  keypair: BabyJubjubKeyPair
 ): Promise<string> => {
   try {
-    // Generate a unique nullifier for this user and election
-    const nullifier = generateSimpleNullifier(electionId, userId);
+    // Generate a cryptographic nullifier for this user and election
+    const nullifier = await generateNullifier(electionId, keypair);
     
-    // Create a simple proof object
-    const proof = {
-      userId: userId,
+    // Data to sign - include all relevant voting information
+    const voteData = {
+      electionId,
+      choice: optionIndex === 0 ? "option1" : "option2",
       nullifier,
-      choice: optionIndex === 0 ? "option1" : "option2", // Convert index to option name
       timestamp: Date.now(),
+    };
+    
+    // Sign the vote data with the Baby Jubjub keypair
+    const message = JSON.stringify(voteData);
+    const signature = await signWithKeypair(message, keypair);
+    
+    // Create a proof object with signature
+    const proof = {
+      userId: userId, // Still included for backend compatibility 
+      nullifier,
+      choice: voteData.choice,
+      timestamp: voteData.timestamp,
+      signature,
+      publicKey: getPublicKeyString(keypair.publicKey)
     };
     
     // Return the stringified proof
     return JSON.stringify(proof);
   } catch (error) {
-    console.error("Error generating proof:", error);
+    console.error("Error generating signed proof:", error);
     throw new Error("Failed to generate vote proof");
   }
 };
 
 /**
  * Generate a simple nullifier from election ID and user ID
+ * This is a legacy function kept for compatibility
  */
 export const generateSimpleNullifier = (electionId: string, userId: string): string => {
   // Simple hash-like function combining electionId and userId

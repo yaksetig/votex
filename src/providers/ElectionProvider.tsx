@@ -19,7 +19,7 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
   const [elections, setElections] = useState<Election[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-  const { userId } = useWallet();
+  const { userId, anonymousKeypair } = useWallet();
   
   // Set up realtime subscriptions
   const refreshElections = useCallback(async () => {
@@ -95,10 +95,10 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
   // Vote in an election
   const vote = useCallback(
     async (electionId: string, optionIndex: number): Promise<boolean> => {
-      if (!userId) {
+      if (!userId || !anonymousKeypair) {
         toast({
           title: "Authentication required",
-          description: "You need to be verified to vote in an election.",
+          description: "You need to be verified with an anonymous identity to vote.",
           variant: "destructive",
         });
         throw new Error("Authentication required");
@@ -111,11 +111,12 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
           throw new Error("Election not found");
         }
 
-        // Generate proof
+        // Generate proof with the anonymousKeypair
         const proof = await generateProof(
           electionId,
           optionIndex,
-          userId
+          userId,
+          anonymousKeypair
         );
 
         // Submit the vote
@@ -162,7 +163,7 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
         throw error;
       }
     },
-    [userId, elections, toast]
+    [userId, anonymousKeypair, elections, toast]
   );
 
   // Create the context value
@@ -187,12 +188,6 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
       {children}
     </ElectionContext.Provider>
   );
-};
-
-// Helper function for generating nullifiers (duplicated here to avoid import cycles)
-const generateSimpleNullifier = (electionId: string, userId: string): string => {
-  const combined = `${electionId}-${userId}`;
-  return btoa(combined); // Base64 encode for brevity
 };
 
 export default ElectionProvider;
