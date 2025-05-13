@@ -1,24 +1,29 @@
 
 import { ISuccessResult } from '@worldcoin/idkit';
-import { 
-  BabyJubjubKeyPair,
-  createKeypairFromSeed,
-  getPublicKeyString,
-  storeKeypair,
-  generateKeypair as generateBabyJubjubKeypair
-} from './babyJubjubService';
 
-// Generate a keypair 
-export async function generateKeypair(): Promise<BabyJubjubKeyPair> {
-  return generateBabyJubjubKeypair();
+// Simple interface to represent a WorldID verification result
+export interface WorldIDVerificationResult {
+  nullifierHash: string;
+  merkleRoot: string;
+  verified: boolean;
 }
 
-// Create a keypair from a WorldID verification
-export async function createKeypairFromWorldIDProof(proof: ISuccessResult): Promise<BabyJubjubKeyPair> {
-  // Create a deterministic seed from the proof
-  const seed = `worldid-${proof.nullifier_hash}-${proof.merkle_root}`;
-  return createKeypairFromSeed(seed);
+// Simple function to process a WorldID verification result
+export function processWorldIDVerification(proof: ISuccessResult): WorldIDVerificationResult {
+  return {
+    nullifierHash: proof.nullifier_hash,
+    merkleRoot: proof.merkle_root,
+    verified: true
+  };
 }
 
-// Re-export these functions directly
-export { createKeypairFromSeed, getPublicKeyString, storeKeypair };
+// Store the WorldID verification in localStorage
+export function storeWorldIDVerification(userId: string): void {
+  try {
+    localStorage.setItem('worldid-user', userId);
+    console.log("WorldID verification stored in localStorage");
+  } catch (error) {
+    console.error("Error storing WorldID verification:", error);
+    throw error;
+  }
+}

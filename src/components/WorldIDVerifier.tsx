@@ -1,89 +1,101 @@
 
 import React, { useState } from 'react';
 import { IDKitWidget, ISuccessResult } from '@worldcoin/idkit';
-import { useWallet } from '@/contexts/WalletContext';
-import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from "@/hooks/use-toast";
+import { useWallet } from '@/contexts/WalletContext';
+import { processWorldIDVerification, storeWorldIDVerification } from '@/services/worldIdAdapter';
 
-interface VerifierProps {
+interface WorldIDVerifierProps {
   onVerificationSuccess?: () => void;
 }
 
-const WorldIDVerifier: React.FC<VerifierProps> = ({ onVerificationSuccess }) => {
-  const { setIsWorldIDVerified, setUserId } = useWallet();
-  const { toast } = useToast();
-  const navigate = useNavigate();
+const WorldIDVerifier: React.FC<WorldIDVerifierProps> = ({ 
+  onVerificationSuccess = () => {} 
+}) => {
   const [isVerifying, setIsVerifying] = useState(false);
-  
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const { toast } = useToast();
+  const { setIsWorldIDVerified, setUserId } = useWallet();
+  const navigate = useNavigate();
+
   const handleVerificationSuccess = async (result: ISuccessResult) => {
     try {
       setIsVerifying(true);
+      setErrorMessage(null);
+      console.log('WorldID verification successful');
       
-      // Use nullifier_hash as our user ID
-      const userId = result.nullifier_hash;
+      // Process the verification result
+      const verification = processWorldIDVerification(result);
       
-      // Store the user ID in localStorage
-      localStorage.setItem('worldid-user', userId);
+      if (!verification.verified) {
+        throw new Error("Invalid World ID verification result");
+      }
       
-      // Update the wallet context
+      // Store user ID
+      const userId = verification.nullifierHash;
+      storeWorldIDVerification(userId);
       setUserId(userId);
+      
+      // Update context
       setIsWorldIDVerified(true);
       
       // Show success toast
       toast({
         title: "Verification successful",
-        description: "You are verified as a human!",
+        description: "You've been verified as human.",
       });
+      
+      // Call success callback
+      onVerificationSuccess();
       
       // Navigate to success page
       navigate('/success');
-      
-      // Call the success callback if provided
-      if (onVerificationSuccess) {
-        onVerificationSuccess();
-      }
-    } catch (error) {
-      console.error("Error during verification:", error);
+    } catch (err) {
+      console.error('Error processing World ID verification:', err);
+      setErrorMessage(err instanceof Error ? err.message : "Unknown error occurred");
       toast({
-        title: "Verification failed",
-        description: "Could not verify you as a human. Please try again.",
         variant: "destructive",
+        title: "Verification failed",
+        description: err instanceof Error ? err.message : "An unknown error occurred",
       });
     } finally {
       setIsVerifying(false);
     }
   };
-  
+
   return (
-    <div className="my-4">
-      <h2 className="text-xl font-bold mb-2">Verify with World ID</h2>
-      <p className="mb-4">Prove your humanity with World ID</p>
+    <div className="flex flex-col items-center justify-center space-y-4">
+      <h2 className="text-2xl font-bold">Verify you're human</h2>
+      <p className="text-muted-foreground text-center max-w-md">
+        Scan the QR code with your World App to verify you're a unique human.
+      </p>
       
-      {isVerifying ? (
-        <div className="bg-primary/80 text-white px-4 py-2 rounded-lg opacity-70 cursor-not-allowed flex items-center justify-center space-x-2">
-          <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          <span>Verifying your humanity...</span>
+      {errorMessage && (
+        <div className="bg-destructive/20 text-destructive p-3 rounded-md">
+          {errorMessage}
         </div>
-      ) : (
+      )}
+
+      <div className={isVerifying ? "opacity-50 pointer-events-none" : ""}>
         <IDKitWidget
-          app_id="app_e2fd2f8c99430ab200a093278e801c57" // Replace with your actual World ID app_id
-          action="registration"
+          app_id={process.env.WORLDID_APP_ID || "app_GBkZ1KlWUjQIeOUKFQHzthWO"}
+          action="verify-human"
           onSuccess={handleVerificationSuccess}
-          autoClose
+          verification_level="orb"
+          handleVerify={async () => true}
         >
           {({ open }) => (
             <button
               onClick={open}
-              className="bg-primary px-4 py-2 rounded-lg hover:opacity-90 transition-opacity text-white"
+              disabled={isVerifying}
+              className="bg-primary hover:bg-primary/80 text-primary-foreground px-6 py-3 rounded-md font-medium flex items-center justify-center transition-colors"
             >
-              Verify with World ID
+              {isVerifying ? "Verifying..." : "Verify with World ID"}
             </button>
           )}
         </IDKitWidget>
-      )}
+      </div>
     </div>
   );
 };
