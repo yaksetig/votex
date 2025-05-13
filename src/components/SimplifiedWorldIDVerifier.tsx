@@ -5,8 +5,9 @@ import { useWallet } from '@/contexts/WalletContext'
 import { 
   generateKeypair, 
   storeKeypair, 
-  getPublicKeyString 
-} from '@/services/enhancedBabyJubjubService'
+  getPublicKeyString,
+  createKeypairFromSeed
+} from '@/services/workingBabyJubjubService'
 import { useToast } from '@/hooks/use-toast'
 
 interface WorldIDVerifierProps {
@@ -20,7 +21,7 @@ interface ISuccessResult {
 }
 
 const WorldIDVerifier: React.FC<WorldIDVerifierProps> = ({ onVerificationSuccess }) => {
-  const { setAnonymousKeypair, setIsWorldIDVerified } = useWallet()
+  const { setAnonymousKeypair, setIsWorldIDVerified, setUserId } = useWallet()
   const { toast } = useToast()
   const [isVerifying, setIsVerifying] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -38,11 +39,16 @@ const WorldIDVerifier: React.FC<WorldIDVerifierProps> = ({ onVerificationSuccess
       
       console.log('World ID verification successful, generating keypair...')
       
-      // Generate a new Baby Jubjub keypair for anonymous identity
-      const keypair = await generateKeypair()
-      console.log('Keypair generated successfully:')
-      console.log('- PrivateKey:', Buffer.from(keypair.privateKey).toString('hex').substring(0, 8) + '...')
-      console.log('- PublicKey:', getPublicKeyString(keypair.publicKey).substring(0, 30) + '...')
+      // Store user ID
+      const userId = result.nullifier_hash;
+      localStorage.setItem('worldid-user', userId);
+      setUserId(userId);
+      
+      // Generate a keypair deterministically from the World ID proof
+      // This ensures the same user always gets the same keypair
+      const seed = `worldid-${userId}-${result.merkle_root}`;
+      console.log('Creating keypair from seed:', seed.substring(0, 20) + '...');
+      const keypair = await createKeypairFromSeed(seed);
       
       // Store the keypair securely
       console.log('Storing keypair...')
@@ -95,7 +101,7 @@ const WorldIDVerifier: React.FC<WorldIDVerifierProps> = ({ onVerificationSuccess
       // Generate a fake result that mimics the World ID verification result
       const mockResult = {
         merkle_root: "0x1234567890abcdef",
-        nullifier_hash: "0xabcdef1234567890",
+        nullifier_hash: "test-user-" + Date.now(),
         proof: "0x12345"
       } as ISuccessResult;
       

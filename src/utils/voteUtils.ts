@@ -1,3 +1,4 @@
+
 import { Election, VoteCount } from "@/types/election";
 import { 
   BabyJubjubKeyPair, 
@@ -48,11 +49,19 @@ export const generateProof = async (
   keypair: BabyJubjubKeyPair
 ): Promise<string> => {
   try {
+    console.log("🔑 Generating vote proof with keypair:", {
+      hasPrivateKey: !!keypair.privateKey,
+      privateKeyLength: keypair.privateKey ? keypair.privateKey.length : 0,
+      hasPublicKey: !!keypair.publicKey,
+      publicKeyString: getPublicKeyString(keypair.publicKey).substring(0, 20) + "..."
+    });
+    
     // Get the actual choice string based on the option index
     const choice = optionIndex === 0 ? "option1" : "option2";
     
     // Generate a cryptographic nullifier for this user and election
     const nullifier = await generateNullifier(electionId, keypair);
+    console.log("📋 Generated nullifier:", nullifier.substring(0, 10) + "...");
     
     // Create the vote data object
     const voteData = {
@@ -64,7 +73,19 @@ export const generateProof = async (
     
     // Sign the vote data with the Baby Jubjub keypair
     const message = JSON.stringify(voteData);
+    console.log("📝 Signing message:", message.substring(0, 50) + "...");
+    
+    // Ensure keypair is valid before signing
+    if (!keypair || !keypair.privateKey || keypair.privateKey.length === 0) {
+      throw new Error("Invalid keypair for signing");
+    }
+    
     const signature = await signWithKeypair(message, keypair);
+    console.log("✍️ Generated signature:", signature ? signature.substring(0, 20) + "..." : "FAILED TO GENERATE");
+    
+    if (!signature) {
+      throw new Error("Failed to generate signature");
+    }
     
     // Create a proof object that matches the format expected by the API
     const proof = {
@@ -76,19 +97,20 @@ export const generateProof = async (
       timestamp: voteData.timestamp
     };
     
-    console.log("Generated vote proof:", {
+    console.log("🔍 Generated vote proof:", {
       electionId,
       userId: userId,
       choice,
       nullifier: nullifier.substring(0, 10) + "...",
       hasSignature: !!signature,
+      signatureLength: signature ? signature.length : 0,
       timestamp: voteData.timestamp
     });
     
     // Return the stringified proof
     return JSON.stringify(proof);
   } catch (error) {
-    console.error("Error generating signed proof:", error);
+    console.error("❌ Error generating signed proof:", error);
     throw new Error("Failed to generate vote proof");
   }
 };

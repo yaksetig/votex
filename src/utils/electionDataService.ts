@@ -122,9 +122,19 @@ export const castVote = async (
     const { userId, nullifier, choice, signature, publicKey, timestamp } = voteData;
     
     // Verify we have all the required fields
-    if (!nullifier || !choice || !signature) {
-      console.error("Error: Missing required fields in vote data", voteData);
-      throw new Error("Required fields are missing for voting");
+    if (!nullifier) {
+      console.error("Error: Missing nullifier in vote data", voteData);
+      throw new Error("Nullifier is required for voting");
+    }
+    
+    if (!choice) {
+      console.error("Error: Missing choice in vote data", voteData);
+      throw new Error("Choice is required for voting");
+    }
+    
+    if (!signature) {
+      console.error("Error: Missing signature in vote data", voteData);
+      throw new Error("Signature is required for voting");
     }
     
     console.log("🔍 VOTE DATA:", {
@@ -133,6 +143,7 @@ export const castVote = async (
       choice,
       nullifier: nullifier.substring(0, 20) + "...",
       signature: signature ? (signature.length > 20 ? signature.substring(0, 20) + "..." : signature) : "MISSING",
+      signatureLength: signature ? signature.length : 0,
       timestamp
     });
     
@@ -146,7 +157,11 @@ export const castVote = async (
       timestamp: timestamp || Date.now()
     };
     
-    console.log("📤 SUBMITTING VOTE:", voteObject);
+    console.log("📤 SUBMITTING VOTE:", {
+      ...voteObject,
+      nullifier: voteObject.nullifier.substring(0, 20) + "...",
+      signature: voteObject.signature.substring(0, 20) + "...",
+    });
     
     // Submit the vote
     const { data, error } = await supabase
@@ -162,7 +177,14 @@ export const castVote = async (
         return false;
       }
       
+      // If the error is related to the signature being null, provide a more detailed error
+      if (error.code === '23502' && error.message.includes('signature')) {
+        console.error("❌ SIGNATURE IS NULL OR INVALID:", error);
+        throw new Error("Invalid signature: The signature is missing or invalid");
+      }
+      
       try {
+        console.log("Attempting to use RPC for insertion...");
         const simpleInsert = await supabase.rpc('insert_vote', {
           p_election_id: electionId,
           p_voter: userId,
