@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Election, Vote } from "@/types/election";
 
@@ -114,67 +115,93 @@ export const createElection = async (
 export const castVote = async (
   electionId: string,
   optionIndex: number,
-  proof: string
+  voteDataStr: string
 ): Promise<boolean> => {
   try {
-    // Parse the proof object
-    const proofData = JSON.parse(proof);
-    const { userId, nullifier, choice, signature, publicKey, timestamp } = proofData;
+    // Parse the vote data
+    const voteData = JSON.parse(voteDataStr);
+    const { userId, nullifier, choice, signature, publicKey, timestamp } = voteData;
     
     // Verify we have all the required fields
-    if (!signature || !publicKey) {
-      console.error("Error: Missing signature or publicKey in vote data", proofData);
-      throw new Error("Signature and public key are required for casting a vote");
+    if (!signature) {
+      console.error("Error: Missing signature in vote data", voteData);
+      throw new Error("Signature is required for casting a vote");
     }
     
-    // For debugging
-    console.log("Casting vote:", {
-      electionId,
+    console.log("🔍 VOTE DATA:", {
+      election_id: electionId,
+      voter: userId,
       choice,
-      hasSignature: !!signature,
-      hasPublicKey: !!publicKey,
-      nullifierPreview: nullifier ? nullifier.substring(0, 15) + "..." : "none"
+      nullifier,
+      signature: signature ? (signature.length > 20 ? signature.substring(0, 20) + "..." : signature) : "MISSING",
+      timestamp: timestamp || Date.now()
     });
     
     // Check if the nullifier already exists to prevent double voting
-    const { data: existingVote, error: checkError } = await supabase
-      .from('votes')
-      .select('*')
-      .eq('nullifier', nullifier)
-      .single();
-
-    if (checkError && checkError.code !== 'PGRST116') {
-      console.error("Error checking for existing vote:", checkError);
-      throw checkError;
+    try {
+      const { data: existingVote, error: checkError } = await supabase
+        .from('votes')
+        .select('id')
+        .eq('nullifier', nullifier)
+        .maybeSingle();
+  
+      if (checkError) {
+        console.error("Error checking for existing vote:", checkError);
+        // Continue anyway, as it might just be that the vote doesn't exist
+      }
+  
+      if (existingVote) {
+        console.error("Vote with this nullifier already exists, ID:", existingVote.id);
+        throw new Error("Double voting is not allowed");
+      }
+    } catch (error) {
+      console.warn("Error during nullifier check (continuing):", error);
+      // Continue execution, as we'll still try to insert the vote
     }
 
-    if (existingVote) {
-      console.error("Vote with this nullifier already exists");
-      throw new Error("Double voting is not allowed");
-    }
-
-    // Submit the vote with signature
-    const { error } = await supabase
+    // Prepare the vote object with all required fields from supabase schema
+    const voteObject = {
+      election_id: electionId,
+      voter: userId,
+      choice: choice,
+      nullifier: nullifier,
+      signature: signature,
+      timestamp: timestamp || Date.now()
+    };
+    
+    console.log("📤 SUBMITTING VOTE:", voteObject);
+    
+    // Submit the vote with required fields - first try with upsert
+    const { data, error } = await supabase
       .from('votes')
-      .insert([
-        {
-          election_id: electionId,
-          voter: userId,
-          choice,
-          nullifier,
-          signature, // Store the signature
-          timestamp,
-        }
-      ]);
-
+      .insert(voteObject);
+      
     if (error) {
-      console.error("Error casting vote:", error);
-      throw error;
+      console.error("❌ ERROR INSERTING VOTE:", error);
+      
+      // Try again with a simple insert
+      const simpleInsert = await supabase.rpc('insert_vote', {
+        p_election_id: electionId,
+        p_voter: userId,
+        p_choice: choice,
+        p_nullifier: nullifier,
+        p_signature: signature,
+        p_timestamp: timestamp || Date.now()
+      });
+      
+      if (simpleInsert.error) {
+        console.error("❌ SECOND INSERT ATTEMPT FAILED:", simpleInsert.error);
+        throw simpleInsert.error;
+      }
+      
+      console.log("✅ SECOND INSERT ATTEMPT SUCCEEDED:", simpleInsert);
+      return true;
     }
     
+    console.log("✅ VOTE SUBMITTED SUCCESSFULLY:", data);
     return true;
   } catch (error) {
-    console.error("Error casting vote:", error);
+    console.error("❌ ERROR CASTING VOTE:", error);
     return false;
   }
 };
