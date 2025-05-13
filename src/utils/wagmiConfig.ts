@@ -4,9 +4,8 @@ import { getDefaultConfig } from 'connectkit';
 
 export const wagmiConfig = createConfig(
   getDefaultConfig({
-    // Required API Keys
-    alchemyId: 'placeholder', // Required for Alchemy Providers
-    walletConnectProjectId: 'placeholder', // Required for WalletConnect
+    // Required for WalletConnect
+    walletConnectProjectId: 'placeholder',
     
     // App Info
     appName: 'Votex Platform',
