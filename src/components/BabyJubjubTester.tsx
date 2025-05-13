@@ -8,11 +8,11 @@ import {
   generateKeypair, 
   storeKeypair, 
   retrieveKeypair,
-  signMessage,
+  signWithKeypair as signMessage,
   verifySignature,
   getPublicKeyString,
   BabyJubjubKeyPair
-} from '@/services/ffjavascriptBabyJubjubService';
+} from '@/services/workingBabyJubjubService';
 
 const BabyJubjubTester: React.FC = () => {
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
@@ -147,7 +147,7 @@ const BabyJubjubTester: React.FC = () => {
   return (
     <Card className="w-full max-w-3xl mx-auto my-8">
       <CardHeader>
-        <CardTitle>Baby Jubjub Tester (ffjavascript)</CardTitle>
+        <CardTitle>Baby Jubjub Tester (working implementation)</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {error && (
@@ -224,7 +224,7 @@ const BabyJubjubTester: React.FC = () => {
                 {keypair ? (
                   <div className="font-mono text-xs break-all">
                     <div className="mb-1">
-                      <span className="text-muted-foreground">Private:</span> {keypair.privateKey.substring(0, 10)}...
+                      <span className="text-muted-foreground">Private:</span> {Buffer.from(keypair.privateKey).toString('hex').substring(0, 10)}...
                     </div>
                     <div>
                       <span className="text-muted-foreground">Public:</span> {getPublicKeyString(keypair.publicKey).substring(0, 20)}...
