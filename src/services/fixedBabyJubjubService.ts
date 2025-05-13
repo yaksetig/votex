@@ -8,10 +8,13 @@ let ORDER: bigint;
 /** Lazily initialize and cache the BabyJubJub instance. */
 async function getBabyJub(): Promise<BabyJub> {
   if (babyJub) return babyJub;
-  babyJub = await buildBabyjub();                // ← must await!
-  ORDER = babyJub.subOrder;                      // cache for randomScalar
+  babyJub = await buildBabyjub();            // ← make absolutely sure this is awaited
+  console.log("🐣 babyJub is ready:", babyJub);
+  ORDER = babyJub.subOrder;
   return babyJub;
 }
+
+
 
 /** big-endian 32-byte encoder */
 function toBytesBE(x: bigint): Uint8Array {
