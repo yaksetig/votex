@@ -84,24 +84,16 @@ const WorldIDVerifier: React.FC<WorldIDVerifierProps> = ({
       )}
 
       <div className={isVerifying ? "opacity-50 pointer-events-none" : ""}>
-        <IDKitWidget
-          app_id="app_e2fd2f8c99430ab200a093278e801c57" // Use your app ID from the Developer Portal
-          action="registration"
-          onSuccess={handleVerificationSuccess}
-          onError={handleVerificationError}
-          credential_types={[CredentialType.Orb, CredentialType.Phone]}
-          handleVerify={() => Promise.resolve()}
-        >
-          {({ open }) => (
-            <button
-              onClick={open}
-              disabled={isVerifying}
-              className="bg-primary hover:bg-primary/80 text-primary-foreground px-6 py-3 rounded-md font-medium flex items-center justify-center transition-colors"
-            >
-              {isVerifying ? "Verifying..." : "Verify with World ID"}
-            </button>
-          )}
-        </IDKitWidget>
+        +      <IDKitWidget
++        app_id="app_e2fd2f8c99430ab200a093278e801c57"
++        action="registration"
++        onSuccess={handleVerificationSuccess}
++        autoClose
++      >
++        {({ open }) => (
++          <button onClick={open}>Verify with World ID</button>
++        )}
++      </IDKitWidget>
       </div>
     </div>
   );
