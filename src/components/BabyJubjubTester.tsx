@@ -54,7 +54,7 @@ const BabyJubjubTester: React.FC = () => {
   useEffect(() => {
     const initialize = async () => {
       try {
-        addLog('Initializing Baby Jubjub...');
+        addLog('Initializing Baby Jubjub (circomlibjs implementation)...');
         await initBabyJubjub();
         addLog('Baby Jubjub initialized successfully');
         
@@ -91,6 +91,12 @@ const BabyJubjubTester: React.FC = () => {
       setError(`Generation error: ${errorMessage}`);
       addLog(`Error generating keypair: ${errorMessage}`);
       setStatus('error');
+      
+      // Log additional debug info
+      if (err instanceof Error && err.stack) {
+        console.error("Stack trace:", err.stack);
+        addLog(`Stack trace: ${err.stack.split('\n')[0]}`);
+      }
     }
   };
 
@@ -169,7 +175,7 @@ const BabyJubjubTester: React.FC = () => {
   return (
     <Card className="w-full max-w-3xl mx-auto my-8">
       <CardHeader>
-        <CardTitle>Baby Jubjub Tester (working implementation)</CardTitle>
+        <CardTitle>Baby Jubjub Tester (circomlibjs implementation)</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {error && (

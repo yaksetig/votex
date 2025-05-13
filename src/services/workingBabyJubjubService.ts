@@ -19,7 +19,12 @@ export interface SerializedBabyJubjubKeyPair {
 // Initialize Baby Jubjub library (asynchronous)
 export const initBabyJubjub = async (): Promise<void> => {
   try {
-    console.log("Initializing Baby Jubjub...");
+    if (babyJub !== null) {
+      console.log("Baby Jubjub already initialized");
+      return;
+    }
+    
+    console.log("Initializing Baby Jubjub (circomlibjs)...");
     babyJub = await buildBabyjub();
     ORDER = babyJub.subOrder;
     console.log("Baby Jubjub initialized successfully");
@@ -263,6 +268,59 @@ export const parsePublicKey = (publicKeyString: string): [Uint8Array, Uint8Array
     Buffer.from(x, 'hex'),
     Buffer.from(y, 'hex')
   ];
+};
+
+// Verify a signature - exported so components can use it directly
+export const verifySignature = async (
+  message: string,
+  signatureStr: string,
+  publicKey: [Uint8Array, Uint8Array]
+): Promise<boolean> => {
+  if (!babyJub) {
+    await initBabyJubjub();
+  }
+
+  try {
+    // Parse the signature
+    const signature = JSON.parse(signatureStr);
+    const R = [signature.R[0], signature.R[1]].map(s => BigInt(s));
+    const s = BigInt(signature.s);
+    
+    // Message bytes
+    const msgBytes = ethers.utils.toUtf8Bytes(message);
+    
+    // Convert public key points to BigInt
+    const publicKeyX = ethers.BigNumber.from('0x' + Buffer.from(publicKey[0]).toString('hex')).toBigInt();
+    const publicKeyY = ethers.BigNumber.from('0x' + Buffer.from(publicKey[1]).toString('hex')).toBigInt();
+    
+    // Step 1: Calculate t = H(Rx || Ax || msg) mod order
+    const Rx = R[0];
+    const Ax = publicKeyX;
+    const t = await hashToScalarBE(toBytesBE(Rx), toBytesBE(Ax), msgBytes);
+    
+    // Step 2: Calculate s·B
+    const sB = babyJub.mulPointEscalar(babyJub.Base8, s);
+    
+    // Step 3: Calculate R + t·A
+    const publicKeyPoint = [
+      babyJub.F.e(publicKeyX),
+      babyJub.F.e(publicKeyY)
+    ];
+    const tA = babyJub.mulPointEscalar(publicKeyPoint, t);
+    const R_e = [babyJub.F.e(R[0]), babyJub.F.e(R[1])];
+    const rhs = babyJub.addPoint(R_e, tA);
+    
+    // Step 4: Check if s·B = R + t·A
+    const lhsX = babyJub.F.toObject(sB[0]);
+    const lhsY = babyJub.F.toObject(sB[1]);
+    const rhsX = babyJub.F.toObject(rhs[0]);
+    const rhsY = babyJub.F.toObject(rhs[1]);
+    
+    return lhsX === rhsX && lhsY === rhsY;
+  } catch (error) {
+    console.error("Error verifying signature:", error);
+    return false;
+  }
 };
 
 // Helper function to generate a random scalar

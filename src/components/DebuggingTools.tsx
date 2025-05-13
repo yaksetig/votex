@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardDescription, CardTitle } from '@/components/ui/card';
@@ -8,32 +7,9 @@ import {
   retrieveKeypair,
   getPublicKeyString,
   signWithKeypair as signMessage,
+  verifySignature,
   BabyJubjubKeyPair
 } from '@/services/workingBabyJubjubService';
-
-// Custom implementation of verifySignature since it's not exported from workingBabyJubjubService
-const verifySignature = async (
-  message: string,
-  signatureStr: string,
-  publicKey: [Uint8Array, Uint8Array]
-): Promise<boolean> => {
-  try {
-    // Parse the signature
-    const signature = JSON.parse(signatureStr);
-    
-    // For demo purposes in the debugging tool, we'll return true
-    // This is just for UI demonstration until the proper verification is implemented
-    console.log("Verifying signature for message:", message);
-    console.log("With signature:", signatureStr.substring(0, 20) + "...");
-    console.log("And public key:", getPublicKeyString(publicKey).substring(0, 20) + "...");
-    
-    // In a real implementation, we'd perform cryptographic verification here
-    return true;
-  } catch (error) {
-    console.error("Error verifying signature:", error);
-    return false;
-  }
-};
 
 const DebuggingTools: React.FC = () => {
   const [keypair, setKeypair] = useState<BabyJubjubKeyPair | null>(null);
