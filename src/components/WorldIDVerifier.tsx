@@ -82,21 +82,27 @@ const WorldIDVerifier: React.FC<WorldIDVerifierProps> = ({
           {errorMessage}
         </div>
       )}
-
-      <div className={isVerifying ? "opacity-50 pointer-events-none" : ""}>
-      <IDKitWidget
-        app_id="app_e2fd2f8c99430ab200a093278e801c57"
-        action="registration"
-        onSuccess={handleVerificationSuccess}
-        autoClose
-      >
-        {({ open }) => (
-          <button onClick={open}>Verify with World ID</button>
-        )}
-      </IDKitWidget>
-      </div>
+      
+      {isVerifying ? (
+        <button disabled>Verifying…</button>
+      ) : (
+        <IDKitWidget
+          app_id="app_e2fd2f8c99430ab200a093278e801c57"   // your real app_id
+          action="registration"                           // match your dashboard
+          onSuccess={handleVerificationSuccess}
+          onError={handleVerificationError}
+          autoClose
+        >
+          {({ open }) => (
+            <button onClick={open}>Verify with World ID</button>
+          )}
+        </IDKitWidget>
+      )}
     </div>
   );
 };
+
+
+
 
 export default WorldIDVerifier;
