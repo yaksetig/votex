@@ -13,8 +13,5 @@ export const wagmiConfig = createConfig(
     // Optional configuration
     appDescription: 'A secure voting platform with anonymous identity',
     appIcon: 'https://app.votex.io/logo.png',
-    
-    // For debugging
-    debug: true,
   })
 );
