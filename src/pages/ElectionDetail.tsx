@@ -10,7 +10,10 @@ import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { formatDistanceToNow, isPast } from "date-fns";
-import { ArrowLeft, AlertCircle, CheckCircle, VoteIcon } from "lucide-react";
+import { ArrowLeft, AlertCircle, CheckCircle, VoteIcon, KeyRound } from "lucide-react";
+import { signVote } from "@/services/signatureService";
+import { getStoredKeypair } from "@/services/keypairService";
+import { StoredKeypair } from "@/types/keypair";
 
 const ElectionDetail = () => {
   const { id } = useParams();
@@ -24,10 +27,20 @@ const ElectionDetail = () => {
   const [selectedOption, setSelectedOption] = useState<string>("");
   const [hasVoted, setHasVoted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [keypair, setKeypair] = useState<StoredKeypair | null>(null);
+  const [needsKeypair, setNeedsKeypair] = useState(false);
 
   useEffect(() => {
     fetchElectionData();
     checkIfUserVoted();
+    
+    // Load keypair from localStorage
+    const storedKeypair = getStoredKeypair();
+    if (storedKeypair) {
+      setKeypair(storedKeypair);
+    } else {
+      setNeedsKeypair(true);
+    }
   }, [id]);
 
   const fetchElectionData = async () => {
@@ -99,12 +112,27 @@ const ElectionDetail = () => {
   };
 
   const handleVote = async () => {
-    if (!selectedOption || !userId || !election) return;
+    if (!selectedOption || !userId || !election || !keypair) {
+      if (!keypair) {
+        toast({
+          variant: "destructive",
+          title: "Keypair Required",
+          description: "Please generate a cryptographic keypair from your dashboard first."
+        });
+        navigate("/dashboard");
+      }
+      return;
+    }
     
     try {
       setSubmitting(true);
       
-      const timestamp = Date.now();
+      // Sign the vote
+      const { signature, timestamp } = await signVote(
+        keypair,
+        election.id,
+        selectedOption
+      );
       
       // Submit the vote
       const { error } = await supabase.rpc("insert_vote", {
@@ -112,7 +140,7 @@ const ElectionDetail = () => {
         p_voter: userId,
         p_choice: selectedOption,
         p_nullifier: null, // We would implement nullifier for privacy
-        p_signature: "placeholder", // Would be replaced by actual cryptographic signature
+        p_signature: signature,
         p_timestamp: timestamp
       });
       
@@ -213,6 +241,19 @@ const ElectionDetail = () => {
             <p className="text-muted-foreground whitespace-pre-line">{election.description}</p>
           </div>
           
+          {needsKeypair && !keypair && (
+            <div className="flex flex-col items-center p-4 bg-amber-50 dark:bg-amber-950 rounded-md border border-amber-200 dark:border-amber-800">
+              <KeyRound className="h-8 w-8 text-amber-500 mb-2" />
+              <h3 className="text-lg font-medium">Keypair Required</h3>
+              <p className="text-center text-muted-foreground mb-3">
+                To vote securely, you need to generate a cryptographic keypair first.
+              </p>
+              <Button onClick={() => navigate("/dashboard")}>
+                Go to Dashboard
+              </Button>
+            </div>
+          )}
+          
           {(isExpired || hasVoted) ? (
             <div className="space-y-4">
               <h3 className="text-lg font-medium">Results</h3>
@@ -278,7 +319,7 @@ const ElectionDetail = () => {
           {!isExpired && !hasVoted && (
             <Button 
               className="w-full" 
-              disabled={!selectedOption || submitting}
+              disabled={!selectedOption || submitting || !keypair}
               onClick={handleVote}
             >
               <VoteIcon className="mr-2 h-4 w-4" />
