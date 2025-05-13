@@ -47,11 +47,15 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   const [isInitialized, setIsInitialized] = useState(false);
   const { toast } = useToast();
   
-  // Initialize BabyJubjub library
+  // Initialize BabyJubjub library before anything else
   useEffect(() => {
     const initialize = async () => {
       try {
         await initBabyJubjub();
+        console.log("BabyJubjub initialized successfully");
+        
+        // After initialization, we can continue with loading data
+        loadIdentity();
       } catch (error) {
         console.error("Error initializing BabyJubjub:", error);
         toast({
@@ -59,55 +63,56 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
           description: "Could not initialize cryptographic libraries. Please try again.",
           variant: "destructive",
         });
+        // Still mark as initialized to show the UI
+        setIsInitialized(true);
       }
     };
     
     initialize();
-  }, [toast]);
+  }, []);
   
   // Load identity from storage
-  useEffect(() => {
-    const initializeAndLoad = async () => {
-      try {
-        // Check if we have a stored user ID
-        const storedUserId = localStorage.getItem('worldid-user');
+  const loadIdentity = async () => {
+    try {
+      // Check if we have a stored user ID
+      const storedUserId = localStorage.getItem('worldid-user');
+      
+      if (storedUserId) {
+        console.log('User ID loaded from storage:', storedUserId);
+        setUserId(storedUserId);
+        setIsWorldIDVerified(true);
         
-        if (storedUserId) {
-          console.log('User ID loaded from storage');
-          setUserId(storedUserId);
-          setIsWorldIDVerified(true);
-          
-          // Try to load keypair
-          const storedKeypair = await retrieveKeypair();
-          if (storedKeypair) {
-            console.log('Anonymous keypair loaded from storage');
-            setAnonymousKeypair(storedKeypair);
-            const pubKeyStr = getPublicKeyString(storedKeypair.publicKey);
-            setPublicKeyString(pubKeyStr);
-          }
+        // Try to load keypair
+        const storedKeypair = await retrieveKeypair();
+        if (storedKeypair) {
+          console.log('Anonymous keypair loaded from storage');
+          setAnonymousKeypair(storedKeypair);
+          const pubKeyStr = getPublicKeyString(storedKeypair.publicKey);
+          setPublicKeyString(pubKeyStr);
+          console.log('Public key string:', pubKeyStr.substring(0, 30) + '...');
           
           toast({
             title: "Authentication loaded",
             description: "Your identity has been restored.",
           });
         } else {
-          console.log('No user ID found in storage');
+          console.log('No keypair found in storage');
         }
-      } catch (error) {
-        console.error("Error loading identity:", error);
-        
-        toast({
-          title: "Error loading identity",
-          description: "Could not load your identity.",
-          variant: "destructive",
-        });
-      } finally {
-        setIsInitialized(true);
+      } else {
+        console.log('No user ID found in storage');
       }
-    };
-    
-    initializeAndLoad();
-  }, [toast]);
+    } catch (error) {
+      console.error("Error loading identity:", error);
+      
+      toast({
+        title: "Error loading identity",
+        description: "Could not load your identity.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsInitialized(true);
+    }
+  };
   
   // Generate a new anonymous keypair
   const generateAnonymousKeypair = useCallback(async (): Promise<BabyJubjubKeyPair> => {
@@ -123,7 +128,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       const pubKeyStr = getPublicKeyString(keypair.publicKey);
       setPublicKeyString(pubKeyStr);
       
-      console.log('Anonymous keypair generated successfully:', pubKeyStr);
+      console.log('Anonymous keypair generated successfully');
       
       return keypair;
     } catch (error) {
@@ -136,6 +141,13 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       throw error;
     }
   }, [toast]);
+  
+  // Function to update the anonymous keypair
+  const handleSetAnonymousKeypair = useCallback((keypair: BabyJubjubKeyPair) => {
+    setAnonymousKeypair(keypair);
+    const pubKeyStr = getPublicKeyString(keypair.publicKey);
+    setPublicKeyString(pubKeyStr);
+  }, []);
   
   // Function to reset identity (for logout)
   const resetIdentity = useCallback(() => {
@@ -162,14 +174,14 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     setIsWorldIDVerified,
     setUserId,
     generateAnonymousKeypair,
-    setAnonymousKeypair,
+    setAnonymousKeypair: handleSetAnonymousKeypair,
     resetIdentity
   };
   
   // Show loading state while initializing
   if (!isInitialized) {
     return <div className="flex items-center justify-center min-h-screen">
-      <p className="text-muted-foreground">Initializing...</p>
+      <p className="text-muted-foreground">Initializing cryptographic libraries...</p>
     </div>;
   }
   
