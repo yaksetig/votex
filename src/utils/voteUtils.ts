@@ -48,13 +48,13 @@ export const generateProof = async (
   keypair: BabyJubjubKeyPair
 ): Promise<string> => {
   try {
+    // Get the actual choice string based on the option index
+    const choice = optionIndex === 0 ? "option1" : "option2";
+    
     // Generate a cryptographic nullifier for this user and election
     const nullifier = await generateNullifier(electionId, keypair);
     
-    // Get choice from option index
-    const choice = optionIndex === 0 ? "option1" : "option2";
-    
-    // Data to sign - include all relevant voting information
+    // Create the vote data object
     const voteData = {
       electionId,
       choice,
@@ -66,14 +66,14 @@ export const generateProof = async (
     const message = JSON.stringify(voteData);
     const signature = await signWithKeypair(message, keypair);
     
-    // Create a proof object with signature
+    // Create a proof object that matches the format expected by the API
     const proof = {
       userId, 
       nullifier,
       choice,
-      timestamp: voteData.timestamp,
       signature,
-      publicKey: getPublicKeyString(keypair.publicKey)
+      publicKey: getPublicKeyString(keypair.publicKey),
+      timestamp: voteData.timestamp
     };
     
     console.log("Generated vote proof:", {
