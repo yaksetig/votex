@@ -1,20 +1,18 @@
+
 import React, { useState } from 'react';
 import { IDKitWidget, ISuccessResult } from '@worldcoin/idkit';
 import { useWallet } from '@/contexts/WalletContext';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  createKeypairFromWorldIDProof, 
-  storeKeypair,
-  getPublicKeyString 
-} from '@/services/worldIdAdapter';
+import { useNavigate } from 'react-router-dom';
 
 interface VerifierProps {
-  onVerificationSuccess: () => void;
+  onVerificationSuccess?: () => void;
 }
 
 const WorldIDVerifier: React.FC<VerifierProps> = ({ onVerificationSuccess }) => {
-  const { setIsWorldIDVerified, setUserId, setAnonymousKeypair } = useWallet();
+  const { setIsWorldIDVerified, setUserId } = useWallet();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [isVerifying, setIsVerifying] = useState(false);
   
   const handleVerificationSuccess = async (result: ISuccessResult) => {
@@ -31,29 +29,24 @@ const WorldIDVerifier: React.FC<VerifierProps> = ({ onVerificationSuccess }) => 
       setUserId(userId);
       setIsWorldIDVerified(true);
       
-      // Generate anonymous keypair using WorldID proof
-      console.log("Generating anonymous keypair from WorldID proof");
-      const keypair = await createKeypairFromWorldIDProof(result);
-      
-      // Store the keypair
-      storeKeypair(keypair);
-      
-      // Update the wallet context
-      setAnonymousKeypair(keypair);
-      
       // Show success toast
       toast({
         title: "Verification successful",
-        description: "Your anonymous identity has been created successfully.",
+        description: "You are verified as a human!",
       });
       
-      // Call the success callback
-      onVerificationSuccess();
+      // Navigate to success page
+      navigate('/success');
+      
+      // Call the success callback if provided
+      if (onVerificationSuccess) {
+        onVerificationSuccess();
+      }
     } catch (error) {
       console.error("Error during verification:", error);
       toast({
         title: "Verification failed",
-        description: "Could not create your identity. Please try again.",
+        description: "Could not verify you as a human. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -64,15 +57,15 @@ const WorldIDVerifier: React.FC<VerifierProps> = ({ onVerificationSuccess }) => 
   return (
     <div className="my-4">
       <h2 className="text-xl font-bold mb-2">Verify with World ID</h2>
-      <p className="mb-4">Verify your identity to enable anonymous voting</p>
+      <p className="mb-4">Prove your humanity with World ID</p>
       
       {isVerifying ? (
-        <div className="bg-gradient-crypto px-4 py-2 rounded-lg opacity-70 cursor-not-allowed flex items-center justify-center space-x-2">
+        <div className="bg-primary/80 text-white px-4 py-2 rounded-lg opacity-70 cursor-not-allowed flex items-center justify-center space-x-2">
           <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <span>Generating your anonymous identity...</span>
+          <span>Verifying your humanity...</span>
         </div>
       ) : (
         <IDKitWidget
@@ -84,7 +77,7 @@ const WorldIDVerifier: React.FC<VerifierProps> = ({ onVerificationSuccess }) => 
           {({ open }) => (
             <button
               onClick={open}
-              className="bg-gradient-crypto px-4 py-2 rounded-lg hover:opacity-90 transition-opacity"
+              className="bg-primary px-4 py-2 rounded-lg hover:opacity-90 transition-opacity text-white"
             >
               Verify with World ID
             </button>
