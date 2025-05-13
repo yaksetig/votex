@@ -3,10 +3,10 @@ import { IDKitWidget, ISuccessResult } from '@worldcoin/idkit';
 import { useWallet } from '@/contexts/WalletContext';
 import { useToast } from '@/hooks/use-toast';
 import { 
-  createKeypairFromSeed, 
+  createKeypairFromWorldIDProof, 
   storeKeypair,
   getPublicKeyString 
-} from '@/services/workingBabyJubjubService';
+} from '@/services/worldIdAdapter';
 
 interface VerifierProps {
   onVerificationSuccess: () => void;
@@ -31,11 +31,9 @@ const WorldIDVerifier: React.FC<VerifierProps> = ({ onVerificationSuccess }) => 
       setUserId(userId);
       setIsWorldIDVerified(true);
       
-      // Generate anonymous keypair by creating a deterministic seed from WorldID proof
-      // This ensures the keypair is linked to the WorldID verification but not traceable
+      // Generate anonymous keypair using WorldID proof
       console.log("Generating anonymous keypair from WorldID proof");
-      const seed = `worldid-${userId}-${result.merkle_root}`;
-      const keypair = await createKeypairFromSeed(seed);
+      const keypair = await createKeypairFromWorldIDProof(result);
       
       // Store the keypair
       storeKeypair(keypair);
