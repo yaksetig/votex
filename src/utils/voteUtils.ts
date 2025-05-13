@@ -3,9 +3,7 @@ import {
   signWithKeypair, 
   generateNullifier, 
   getPublicKeyString 
-} from '@/services/fixedBabyJubjubService';
-
-// The rest of the implementation can remain mostly the same, just ensure proper imports
+} from '@/services/babyJubjubService';
 
 /**
  * Check if the current user has voted in an election

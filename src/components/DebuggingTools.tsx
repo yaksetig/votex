@@ -9,7 +9,7 @@ import {
   signWithKeypair as signMessage,
   verifySignature,
   BabyJubjubKeyPair
-} from '@/services/workingBabyJubjubService';
+} from '@/services/babyJubjubService';
 
 const DebuggingTools: React.FC = () => {
   const [keypair, setKeypair] = useState<BabyJubjubKeyPair | null>(null);

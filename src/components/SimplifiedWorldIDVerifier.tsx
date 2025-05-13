@@ -3,8 +3,9 @@ import {
   generateKeypair, 
   storeKeypair, 
   createKeypairFromSeed,
-  getPublicKeyString
-} from '@/services/fixedBabyJubjubService';
+  getPublicKeyString,
+  initBabyJubjub
+} from '@/services/babyJubjubService';
 
 // In the handleVerificationSuccess function:
 const handleVerificationSuccess = async (result: ISuccessResult) => {

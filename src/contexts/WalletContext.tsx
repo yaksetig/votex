@@ -7,7 +7,7 @@ import {
   storeKeypair, 
   retrieveKeypair,
   getPublicKeyString
-} from '@/services/fixedBabyJubjubService';
+} from '@/services/babyJubjubService';
 
 interface WalletContextType {
   isWorldIDVerified: boolean;
