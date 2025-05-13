@@ -42,6 +42,27 @@ export type Database = {
         }
         Relationships: []
       }
+      keypairs: {
+        Row: {
+          created_at: string
+          id: string
+          public_key_x: string
+          public_key_y: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          public_key_x: string
+          public_key_y: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          public_key_x?: string
+          public_key_y?: string
+        }
+        Relationships: []
+      }
       votes: {
         Row: {
           choice: string

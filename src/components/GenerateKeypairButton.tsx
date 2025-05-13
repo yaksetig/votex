@@ -5,6 +5,7 @@ import { KeypairResult } from "@/types/keypair";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Lock } from "lucide-react";
+import { registerKeypair } from "@/services/keypairService";
 
 interface Props {
   onKeypairGenerated: (keypair: KeypairResult) => void;
@@ -21,16 +22,29 @@ const GenerateKeypairButton: React.FC<Props> = ({ onKeypairGenerated }) => {
       onKeypairGenerated(keypair);
       
       // Store keypair in localStorage
-      localStorage.setItem("babyJubKeypair", JSON.stringify({ 
+      const storedKeypair = { 
         k: keypair.k.toString(),
         Ax: keypair.Ax.toString(),
         Ay: keypair.Ay.toString()
-      }));
+      };
       
-      toast({
-        title: "Keypair generated",
-        description: "Your unique keypair has been created and stored securely.",
-      });
+      localStorage.setItem("babyJubKeypair", JSON.stringify(storedKeypair));
+      
+      // Register the keypair in the database
+      const isRegistered = await registerKeypair(storedKeypair);
+      
+      if (isRegistered) {
+        toast({
+          title: "Keypair registered",
+          description: "Your unique keypair has been created and registered successfully.",
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Registration failed",
+          description: "This keypair is already registered in the system.",
+        });
+      }
     } catch (e: any) {
       console.error("Keypair generation failed", e);
       toast({

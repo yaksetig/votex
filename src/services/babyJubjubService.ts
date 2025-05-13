@@ -1,11 +1,11 @@
 
-import type { BabyJub } from "circomlibjs";
 import { buildBabyjub } from "circomlibjs";
 
-let babyJub: BabyJub | null = null;
+// Use a more generic type since the imported BabyJub type is not available
+let babyJub: any = null;
 let ORDER: bigint;
 
-async function getBabyJub(): Promise<BabyJub> {
+async function getBabyJub(): Promise<any> {
   if (babyJub) return babyJub;
   if (!globalThis.crypto?.subtle) {
     throw new Error("WebCrypto API unavailable; must run in a modern browser.");

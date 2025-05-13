@@ -5,29 +5,55 @@ import { Link } from 'react-router-dom';
 import GenerateKeypairButton from '@/components/GenerateKeypairButton';
 import KeypairDisplay from '@/components/KeypairDisplay';
 import { KeypairResult, StoredKeypair } from '@/types/keypair';
+import { isKeypairRegistered } from '@/services/keypairService';
+import { useToast } from '@/hooks/use-toast';
 
 const Success = () => {
   const { isWorldIDVerified } = useWallet();
   const [keypair, setKeypair] = useState<StoredKeypair | null>(null);
+  const [isRegistered, setIsRegistered] = useState<boolean | null>(null);
+  const { toast } = useToast();
 
   // Load keypair from localStorage on component mount
   useEffect(() => {
     const storedKeypair = localStorage.getItem('babyJubKeypair');
     if (storedKeypair) {
       try {
-        setKeypair(JSON.parse(storedKeypair));
+        const parsedKeypair = JSON.parse(storedKeypair);
+        setKeypair(parsedKeypair);
+        
+        // Check if keypair is already registered
+        checkRegistrationStatus(parsedKeypair);
       } catch (e) {
         console.error('Failed to parse stored keypair', e);
       }
     }
   }, []);
 
+  const checkRegistrationStatus = async (keypair: StoredKeypair) => {
+    try {
+      const registered = await isKeypairRegistered(keypair);
+      setIsRegistered(registered);
+      
+      if (registered) {
+        toast({
+          title: "Keypair status",
+          description: "This keypair is already registered in the system.",
+        });
+      }
+    } catch (error) {
+      console.error('Error checking registration status:', error);
+    }
+  };
+
   const handleKeypairGenerated = (result: KeypairResult) => {
-    setKeypair({
+    const storedKeypair = {
       k: result.k.toString(),
       Ax: result.Ax.toString(),
       Ay: result.Ay.toString(),
-    });
+    };
+    setKeypair(storedKeypair);
+    setIsRegistered(true); // Assume registration is successful as the GenerateKeypairButton handles it
   };
 
   if (!isWorldIDVerified) {
@@ -69,6 +95,13 @@ const Success = () => {
         ) : (
           <div className="mb-6">
             <KeypairDisplay keypair={keypair} />
+            {isRegistered !== null && (
+              <div className={`mt-4 p-3 rounded-md ${isRegistered ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>
+                {isRegistered 
+                  ? "This keypair is registered in the system."
+                  : "This keypair is not yet registered. Generate a new one to register."}
+              </div>
+            )}
           </div>
         )}
         

@@ -1,9 +1,9 @@
+
 import React, { useState } from 'react';
-import { IDKitWidget, ISuccessResult, CredentialType } from '@worldcoin/idkit';
+import { IDKitWidget, ISuccessResult } from '@worldcoin/idkit';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from "@/hooks/use-toast";
 import { useWallet } from '@/contexts/WalletContext';
-import { ethers } from 'ethers';
 
 interface WorldIDVerifierProps {
   onVerificationSuccess?: () => void;
@@ -59,13 +59,13 @@ const WorldIDVerifier: React.FC<WorldIDVerifierProps> = ({
   };
 
   // This function will be called when the verification process fails
-  const handleVerificationError = (error: Error) => {
+  const handleVerificationError = (error: any) => {
     console.error('World ID verification error:', error);
-    setErrorMessage(error.message);
+    setErrorMessage(error.message || "Unknown error");
     toast({
       variant: "destructive",
       title: "Verification failed",
-      description: error.message,
+      description: error.message || "Unknown error occurred",
     });
     setIsVerifying(false);
   };
@@ -101,8 +101,5 @@ const WorldIDVerifier: React.FC<WorldIDVerifierProps> = ({
     </div>
   );
 };
-
-
-
 
 export default WorldIDVerifier;
