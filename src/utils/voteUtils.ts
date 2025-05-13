@@ -1,11 +1,10 @@
-
 import { Election, VoteCount } from "@/types/election";
 import { 
   BabyJubjubKeyPair, 
   signWithKeypair, 
   generateNullifier, 
   getPublicKeyString 
-} from '@/services/enhancedBabyJubjubService';
+} from '@/services/workingBabyJubjubService';
 
 /**
  * Check if the current user has voted in an election
