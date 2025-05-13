@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { ElectionContext } from "@/contexts/ElectionContext";
 import { Election, VoteCount } from "@/types/election";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { useWallet } from "@/contexts/WalletContext";
 import { 
   getElections,
@@ -123,6 +123,17 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
           throw new Error("Election not found");
         }
 
+        // Check if user has already voted in this election
+        const alreadyVoted = await userHasVoted(election, userId);
+        if (alreadyVoted) {
+          toast({
+            title: "Already voted",
+            description: "You have already voted in this election.",
+            variant: "destructive",
+          });
+          return false;
+        }
+
         console.log("Using keypair for voting:", {
           hasKeypair: !!anonymousKeypair,
           publicKeyLength: anonymousKeypair ? anonymousKeypair.publicKey.length : 0
@@ -198,5 +209,3 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
     </ElectionContext.Provider>
   );
 };
-
-export default ElectionProvider;
