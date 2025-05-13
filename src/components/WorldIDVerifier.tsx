@@ -79,8 +79,8 @@ const WorldIDVerifier: React.FC<WorldIDVerifierProps> = ({
 
       <div className={isVerifying ? "opacity-50 pointer-events-none" : ""}>
         <IDKitWidget
-          app_id={process.env.WORLDID_APP_ID || "app_GBkZ1KlWUjQIeOUKFQHzthWO"}
-          action="verify-human"
+          app_id={process.env.WORLDID_APP_ID || "app_e2fd2f8c99430ab200a093278e801c57"}
+          action="register"
           onSuccess={handleVerificationSuccess}
           verification_level="orb"
           handleVerify={async () => true}
