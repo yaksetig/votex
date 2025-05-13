@@ -2,14 +2,14 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { ElectionContext } from "@/contexts/ElectionContext";
 import { Election } from "@/types/election";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/components/ui/use-toast";
 import { useWallet } from "@/contexts/WalletContext";
 import { 
   getElections,
   createElection as createElectionService,
   castVote
 } from "@/utils/electionDataService";
-import { generateProof, userHasVoted, getVoteCount } from "@/utils/voteUtils";
+import { generateProof, userHasVoted, getVoteCount, generateSimpleNullifier } from "@/utils/voteUtils";
 
 interface ElectionProviderProps {
   children: React.ReactNode;

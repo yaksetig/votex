@@ -91,3 +91,4 @@ export const generateSimpleNullifier = (electionId: string, userId: string): str
   const combined = `${electionId}-${userId}`;
   return btoa(combined); // Base64 encode for brevity
 };
+
