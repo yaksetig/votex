@@ -1,6 +1,5 @@
-
 import React, { createContext, useState, useEffect, useContext, ReactNode, useCallback } from 'react';
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { 
   BabyJubjubKeyPair, 
   initBabyJubjub, 
@@ -9,7 +8,6 @@ import {
   retrieveKeypair,
   getPublicKeyString
 } from '@/services/workingBabyJubjubService';
-import { ISuccessResult } from '@worldcoin/idkit';
 
 interface WalletContextType {
   isWorldIDVerified: boolean;
