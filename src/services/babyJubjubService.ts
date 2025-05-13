@@ -7,15 +7,15 @@ let ORDER: bigint;
 
 /**
  * Lazily initialize and cache the BabyJubJub instance.
- * Throws if WebCrypto API is unavailable.
+ * Throws if WebCrypto API is unavailable or if something goes wrong.
  */
 async function getBabyJub(): Promise<BabyJub> {
   if (babyJub) return babyJub;
   if (!globalThis.crypto?.subtle) {
-    throw new Error("WebCrypto API unavailable; must run in a browser.");
+    throw new Error("WebCrypto API unavailable; must run in a modern browser.");
   }
-  babyJub = await buildBabyjub();
-  console.log("🐣 babyJub is ready:", babyJub);
+  babyJub = await buildBabyjub();                    // ← CIRCOMLIBJS WASM-backed init
+  console.log("🐣 circomlibjs babyJub ready:", babyJub);
   ORDER = babyJub.subOrder;
   return babyJub;
 }
@@ -34,15 +34,19 @@ function toBytesBE(x: bigint): Uint8Array {
 /** crypto-strong random scalar in [0, order) */
 function randomScalar(order: bigint): bigint {
   const buf = crypto.getRandomValues(new Uint8Array(32));
-  const hex = Array.from(buf).map(b => b.toString(16).padStart(2, "0")).join("");
+  const hex = Array.from(buf).map((b) => b.toString(16).padStart(2, "0")).join("");
   return BigInt("0x" + hex) % order;
 }
 
 /**
- * Generate a fresh keypair (public A = k·B, private k).
- * Ensures buildBabyjub() has completed and WebCrypto is available.
+ * Generate a fresh keypair (private k, public A = k·B).
+ * Always awaits the same singleton BabyJub instance.
  */
-export async function generateKeypair(): Promise<{ k: bigint; Ax: bigint; Ay: bigint }> {
+export async function generateKeypair(): Promise<{
+  k: bigint;
+  Ax: bigint;
+  Ay: bigint;
+}> {
   const bj = await getBabyJub();
   const { F, Base8: B, subOrder } = bj;
   const k = randomScalar(subOrder);
