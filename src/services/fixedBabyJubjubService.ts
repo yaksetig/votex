@@ -1,4 +1,3 @@
-// src/services/fixedBabyJubjubService.ts
 import { buildBabyjub } from 'circomlibjs';
 import { ethers } from 'ethers';
 
@@ -62,6 +61,36 @@ export const initBabyJubjub = async (): Promise<void> => {
   return initPromise;
 };
 
+// Helper functions for byte conversion
+function toHex(x: bigint): string {
+  return "0x" + x.toString(16);
+}
+
+function toBytesBE(x: bigint): Uint8Array {
+  const out = new Uint8Array(32);
+  let v = x;
+  for (let i = 31; i >= 0; i--) {
+    out[i] = Number(v & 0xffn);
+    v >>= 8n;
+  }
+  return out;
+}
+
+// SHA-256 helper
+async function sha256(msg: Uint8Array): Promise<Uint8Array> {
+  const h = await crypto.subtle.digest("SHA-256", msg);
+  return new Uint8Array(h);
+}
+
+// Hash → scalar mod order, over big-endian parts
+async function hashToScalarBE(...parts: Uint8Array[]): Promise<bigint> {
+  const all = Uint8Array.from(parts.flatMap(p => [...p]));
+  const d = await sha256(all);
+  const hex = [...d].map(b => b.toString(16).padStart(2,"0")).join("");
+  const digestValue = BigInt("0x" + hex);
+  return digestValue % ORDER;
+}
+
 // Generate a keypair from scratch with careful error handling
 export const generateKeypair = async (): Promise<BabyJubjubKeyPair> => {
   // Ensure BabyJubjub is initialized
@@ -81,7 +110,7 @@ export const generateKeypair = async (): Promise<BabyJubjubKeyPair> => {
     crypto.getRandomValues(randomBytes);
     const privateKeyHex = [...randomBytes].map(b => b.toString(16).padStart(2,"0")).join("");
     const privateKeyBigInt = BigInt("0x" + privateKeyHex) % ORDER;
-    console.log("Private key generated:", privateKeyBigInt.toString().substring(0, 10) + "...");
+    console.log("Private key generated");
     
     // Convert to bytes for storage
     const privateKeyBytes = ethers.utils.arrayify(
@@ -95,7 +124,6 @@ export const generateKeypair = async (): Promise<BabyJubjubKeyPair> => {
     }
     
     const A_e = babyJub.mulPointEscalar(babyJub.Base8, privateKeyBigInt);
-    console.log("Public key point generated");
     
     // Check if the point is valid
     if (!A_e || !Array.isArray(A_e) || A_e.length !== 2) {
@@ -134,7 +162,6 @@ export const generateKeypair = async (): Promise<BabyJubjubKeyPair> => {
     throw error;
   }
 };
-
 
 // Create a keypair from a seed (useful for WorldID integration)
 export const createKeypairFromSeed = async (seed: string): Promise<BabyJubjubKeyPair> => {
