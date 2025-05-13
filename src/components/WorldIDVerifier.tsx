@@ -1,8 +1,7 @@
-
 import React, { useState } from 'react';
 import { IDKitWidget, ISuccessResult } from '@worldcoin/idkit';
 import { useWallet } from '@/contexts/WalletContext';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { 
   createKeypairFromWorldIDProof, 
   getPublicKeyString 
@@ -105,7 +104,7 @@ const WorldIDVerifier: React.FC<VerifierProps> = ({ onVerificationSuccess }) => 
       ) : (
         <>
           <IDKitWidget
-            app_id="app_e2fd2f8c99430ab200a093278e801c57"
+            app_id="app_e2fd2f8c99430ab200a093278e801c57" // You should update this with your actual app_id
             action="registration"
             onSuccess={handleVerificationSuccess}
             autoClose
@@ -120,7 +119,7 @@ const WorldIDVerifier: React.FC<VerifierProps> = ({ onVerificationSuccess }) => 
             )}
           </IDKitWidget>
           
-          {/* Test button - remove in production */}
+          {/* Test button for development */}
           <button
             onClick={handleTestVerification}
             className="ml-2 px-4 py-2 border border-dashed border-muted-foreground/50 rounded-lg text-muted-foreground text-sm hover:bg-muted hover:text-foreground transition-colors"
