@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
 import { useToast } from "@/hooks/use-toast";
 
@@ -46,7 +45,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     } else {
       console.log('No user ID found in storage');
     }
-  }, [toast]);
+  }, [toast]); // Only run once on mount
   
   // Function to reset identity (for logout)
   const resetIdentity = () => {
