@@ -52,10 +52,13 @@ export const generateProof = async (
     // Generate a cryptographic nullifier for this user and election
     const nullifier = await generateNullifier(electionId, keypair);
     
+    // Get choice from option index
+    const choice = optionIndex === 0 ? "option1" : "option2";
+    
     // Data to sign - include all relevant voting information
     const voteData = {
       electionId,
-      choice: optionIndex === 0 ? "option1" : "option2",
+      choice,
       nullifier,
       timestamp: Date.now(),
     };
@@ -66,13 +69,22 @@ export const generateProof = async (
     
     // Create a proof object with signature
     const proof = {
-      userId: userId, // Still included for backend compatibility 
+      userId, 
       nullifier,
-      choice: voteData.choice,
+      choice,
       timestamp: voteData.timestamp,
       signature,
       publicKey: getPublicKeyString(keypair.publicKey)
     };
+    
+    console.log("Generated vote proof:", {
+      electionId,
+      userId: userId,
+      choice,
+      nullifier: nullifier.substring(0, 10) + "...",
+      hasSignature: !!signature,
+      timestamp: voteData.timestamp
+    });
     
     // Return the stringified proof
     return JSON.stringify(proof);
@@ -91,4 +103,3 @@ export const generateSimpleNullifier = (electionId: string, userId: string): str
   const combined = `${electionId}-${userId}`;
   return btoa(combined); // Base64 encode for brevity
 };
-

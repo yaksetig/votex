@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from "react";
 import { ElectionContext } from "@/contexts/ElectionContext";
 import { Election, VoteCount } from "@/types/election";
@@ -99,13 +98,22 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
   // Vote in an election
   const vote = useCallback(
     async (electionId: string, optionIndex: number): Promise<boolean> => {
-      if (!userId || !anonymousKeypair) {
+      if (!userId) {
         toast({
           title: "Authentication required",
-          description: "You need to be verified with an anonymous identity to vote.",
+          description: "You need to be verified to vote in an election.",
           variant: "destructive",
         });
         throw new Error("Authentication required");
+      }
+
+      if (!anonymousKeypair) {
+        toast({
+          title: "Anonymous identity required",
+          description: "Your anonymous identity is missing. Please re-verify with World ID.",
+          variant: "destructive",
+        });
+        throw new Error("Anonymous keypair missing");
       }
 
       try {
@@ -115,8 +123,13 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
           throw new Error("Election not found");
         }
 
+        console.log("Using keypair for voting:", {
+          hasKeypair: !!anonymousKeypair,
+          publicKeyLength: anonymousKeypair ? anonymousKeypair.publicKey.length : 0
+        });
+
         // Generate proof with the anonymousKeypair
-        const proof = await generateProof(
+        const signedVoteData = await generateProof(
           electionId,
           optionIndex,
           userId,
@@ -124,7 +137,7 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
         );
 
         // Submit the vote
-        const success = await castVote(electionId, optionIndex, proof);
+        const success = await castVote(electionId, optionIndex, signedVoteData);
         
         if (success) {
           toast({
@@ -132,27 +145,7 @@ export const ElectionProvider: React.FC<ElectionProviderProps> = ({ children }) 
             description: "Your vote has been cast successfully.",
           });
           
-          // Update local state (in a real app, this would come from the realtime subscription)
-          setElections((prev) =>
-            prev.map((e) => {
-              if (e.id === electionId) {
-                // Clone and update the vote counts
-                const updatedElection = { ...e };
-                const newVote = {
-                  id: `temp-${Date.now()}`,
-                  voter: userId,
-                  choice: optionIndex === 0 ? election.option1 : election.option2,
-                  nullifier: `temp-${Date.now()}`, // This will be replaced by the server-generated nullifier
-                  timestamp: Date.now()
-                };
-                
-                updatedElection.votes = [...updatedElection.votes, newVote];
-                return updatedElection;
-              }
-              return e;
-            })
-          );
-          
+          // No need to update local state here as realtime subscription will handle it
           return true;
         } else {
           throw new Error("Vote failed");

@@ -88,7 +88,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      insert_vote: {
+        Args: {
+          p_election_id: string
+          p_voter: string
+          p_choice: string
+          p_nullifier: string
+          p_signature: string
+          p_timestamp: number
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never

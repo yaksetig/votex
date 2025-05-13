@@ -11,40 +11,44 @@ export const useRealtimeSubscriptions = (
     let votesChannel: RealtimeChannel
     
     try {
+      console.log("Setting up realtime subscriptions")
+      
+      // Subscribe to elections table changes
       electionsChannel = supabase
-        .channel('public:elections')
+        .channel('elections-changes')
         .on('postgres_changes', { 
           event: '*', 
           schema: 'public',
           table: 'elections'
-        }, () => {
+        }, (payload) => {
+          console.log('Elections change received:', payload.eventType)
           onDataChange()
         })
         .subscribe((status) => {
-          if (status === 'SUBSCRIBED' || status === 'TIMED_OUT' || status === 'CHANNEL_ERROR') {
-            console.log('Elections channel status:', status)
-          }
+          console.log('Elections channel status:', status)
         })
       
+      // Subscribe to votes table changes
       votesChannel = supabase
-        .channel('public:votes')
+        .channel('votes-changes')
         .on('postgres_changes', { 
           event: '*', 
           schema: 'public',
           table: 'votes'
-        }, () => {
+        }, (payload) => {
+          console.log('Votes change received:', payload.eventType)
           onDataChange()
         })
         .subscribe((status) => {
-          if (status === 'SUBSCRIBED' || status === 'TIMED_OUT' || status === 'CHANNEL_ERROR') {
-            console.log('Votes channel status:', status)
-          }
+          console.log('Votes channel status:', status)
         })
     } catch (error) {
       console.error('Error setting up real-time subscriptions:', error)
     }
 
+    // Cleanup function
     return () => {
+      console.log('Cleaning up realtime subscriptions')
       if (electionsChannel) supabase.removeChannel(electionsChannel)
       if (votesChannel) supabase.removeChannel(votesChannel)
     }
