@@ -1,10 +1,9 @@
-
 import React, { useState } from 'react';
-import { IDKitWidget, ISuccessResult, VerificationLevel } from '@worldcoin/idkit';
+import { IDKitWidget, ISuccessResult, CredentialType } from '@worldcoin/idkit';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from "@/hooks/use-toast";
 import { useWallet } from '@/contexts/WalletContext';
-import { processWorldIDVerification, storeWorldIDVerification } from '@/services/worldIdAdapter';
+import { ethers } from 'ethers';
 
 interface WorldIDVerifierProps {
   onVerificationSuccess?: () => void;
@@ -23,19 +22,14 @@ const WorldIDVerifier: React.FC<WorldIDVerifierProps> = ({
     try {
       setIsVerifying(true);
       setErrorMessage(null);
-      console.log('WorldID verification successful');
+      console.log('WorldID verification result:', result);
       
-      // Process the verification result
-      const verification = processWorldIDVerification(result);
+      // Store the nullifier hash as the user ID
+      const nullifierHash = result.nullifier_hash;
       
-      if (!verification.verified) {
-        throw new Error("Invalid World ID verification result");
-      }
-      
-      // Store user ID
-      const userId = verification.nullifierHash;
-      storeWorldIDVerification(userId);
-      setUserId(userId);
+      // Store in localStorage for persistence
+      localStorage.setItem('worldid-user', nullifierHash);
+      setUserId(nullifierHash);
       
       // Update context
       setIsWorldIDVerified(true);
@@ -64,6 +58,18 @@ const WorldIDVerifier: React.FC<WorldIDVerifierProps> = ({
     }
   };
 
+  // This function will be called when the verification process fails
+  const handleVerificationError = (error: Error) => {
+    console.error('World ID verification error:', error);
+    setErrorMessage(error.message);
+    toast({
+      variant: "destructive",
+      title: "Verification failed",
+      description: error.message,
+    });
+    setIsVerifying(false);
+  };
+
   return (
     <div className="flex flex-col items-center justify-center space-y-4">
       <h2 className="text-2xl font-bold">Verify you're human</h2>
@@ -79,10 +85,11 @@ const WorldIDVerifier: React.FC<WorldIDVerifierProps> = ({
 
       <div className={isVerifying ? "opacity-50 pointer-events-none" : ""}>
         <IDKitWidget
-          app_id={"app_e2fd2f8c99430ab200a093278e801c57"}
-          action="register"
+          app_id="app_e2fd2f8c99430ab200a093278e801c57" // Use your app ID from the Developer Portal
+          action="verify_humanity"
           onSuccess={handleVerificationSuccess}
-          verification_level={"orb" as VerificationLevel}
+          onError={handleVerificationError}
+          credential_types={[CredentialType.Orb, CredentialType.Phone]}
           handleVerify={() => Promise.resolve()}
         >
           {({ open }) => (
