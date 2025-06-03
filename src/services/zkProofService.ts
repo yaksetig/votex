@@ -18,14 +18,6 @@ const BASE_POINT = {
 const FIELD_SIZE = 21888242871839275222246405745257275088548364400416034343698204186575808495617n;
 const CURVE_ORDER = 2736030358979909402780800718157159386076813972158567259200215660948447373041n;
 
-// Calculate public key from private key using the same method as the circuit
-function calculatePublicKeyFromPrivate(privateKey: bigint): { x: bigint, y: bigint } {
-  // This should match the circuit's multScalarWithPoint(sk_voter, G) calculation
-  // For now, we'll use the stored public key but validate it matches
-  // In a production system, you'd want to implement the same scalar multiplication here
-  return { x: BASE_POINT.x, y: BASE_POINT.y }; // Placeholder - should implement proper scalar mult
-}
-
 // Initialize ZoKrates with our circuit
 async function initZokrates() {
   if (zokratesProvider) return;
@@ -71,12 +63,13 @@ def expElGamalEncrypt(field[2] pk, field r, field m) -> field[4] {
     return [c1[0], c1[1], c2[0], c2[1]];
 }
 
-// Main verifier circuit - simplified to focus on the core issue
+// Main verifier circuit - proving voter knows secret key and ciphertext is valid
 def main(
     public field[4] ciphertext,
     private field r,
     private field m,
     private field sk_voter,
+    public field[2] pk_voter,
     public field[2] pk_election_authority
 ) {
     field[2] c1 = [ciphertext[0], ciphertext[1]];
@@ -88,10 +81,9 @@ def main(
     field[4] comp = expElGamalEncrypt(pk_election_authority, r, m);
     assert(ciphertext == comp);
 
-    // For nullification, verify m = 1 and that we know the private key
-    // by ensuring we can derive a valid public key from it
+    // Prove that the voter knows their secret key by verifying sk_voter * G = pk_voter
     field[2] pk_calc = multScalarWithPoint(sk_voter, G);
-    assert(onCurveCheck(pk_calc));
+    assert(pk_calc == pk_voter);
     
     // Ensure we're nullifying (m = 1)
     assert(m == 1);
@@ -122,7 +114,7 @@ export async function generateNullificationProof(
     // Initialize ZoKrates if not already done
     await initZokrates();
     
-    // Prepare the arguments for the simplified circuit
+    // Prepare the arguments for the circuit
     const args = [
       // Public: ciphertext (c1.x, c1.y, c2.x, c2.y)
       [
@@ -137,6 +129,8 @@ export async function generateNullificationProof(
       "1",
       // Private: sk_voter (voter's secret key)
       voterKeypair.k,
+      // Public: pk_voter (voter's public key - this proves they know the secret key)
+      [voterKeypair.Ax, voterKeypair.Ay],
       // Public: pk_election_authority (authority's public key)
       [authorityPublicKey.x, authorityPublicKey.y]
     ];
@@ -146,7 +140,8 @@ export async function generateNullificationProof(
       r: args[1],
       m: args[2],
       sk_voter: "***hidden***",
-      pk_authority: args[4]
+      pk_voter: args[4],
+      pk_authority: args[5]
     });
     
     const { witness } = zokratesProvider.computeWitness(artifacts, args);
