@@ -18,14 +18,21 @@ const Dashboard = () => {
   
   // Check verification status and load keypair on component mount
   useEffect(() => {
+    console.log('Dashboard useEffect - isWorldIDVerified:', isWorldIDVerified, 'userId:', userId)
+    
     // If already verified with a userId, show a message
     if (isWorldIDVerified && userId) {
       console.log('User already verified with ID:', userId)
       
       // Load keypair from localStorage
       const storedKeypair = getStoredKeypair()
+      console.log('Stored keypair from localStorage:', storedKeypair)
+      
       if (storedKeypair) {
+        console.log('Setting keypair state with:', storedKeypair)
         setKeypair(storedKeypair)
+      } else {
+        console.log('No keypair found in localStorage')
       }
     }
   }, [isWorldIDVerified, userId])
@@ -82,6 +89,8 @@ const Dashboard = () => {
     )
   }
 
+  console.log('Rendering dashboard with keypair:', keypair)
+
   // Verified view with anonymous identity
   return (
     <div className="container mx-auto py-8 px-4">
@@ -106,7 +115,7 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {keypair && (
+        {keypair ? (
           <Card>
             <CardHeader>
               <div className="flex items-center gap-2">
@@ -118,7 +127,7 @@ const Dashboard = () => {
               <div>
                 <p className="text-sm text-muted-foreground mb-2">Private Key</p>
                 <div className="bg-muted p-3 rounded-md flex items-center justify-between">
-                  <code className="text-sm font-mono flex-1">
+                  <code className="text-sm font-mono flex-1 break-all">
                     {showPrivateKey ? keypair.k : "•".repeat(20)}
                   </code>
                   <Button
@@ -146,6 +155,17 @@ const Dashboard = () => {
                   <code className="text-sm font-mono break-all">{keypair.Ay}</code>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle>No Keypair Found</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">
+                No cryptographic keypair was found in your browser's storage. You may need to generate one first.
+              </p>
             </CardContent>
           </Card>
         )}
