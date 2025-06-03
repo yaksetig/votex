@@ -136,14 +136,14 @@ const Dashboard = () => {
               <div>
                 <p className="text-sm text-muted-foreground mb-2">Public Key X</p>
                 <div className="bg-muted p-3 rounded-md">
-                  <code className="text-sm font-mono break-all">{truncateKey(keypair.Ax)}</code>
+                  <code className="text-sm font-mono break-all">{keypair.Ax}</code>
                 </div>
               </div>
               
               <div>
                 <p className="text-sm text-muted-foreground mb-2">Public Key Y</p>
                 <div className="bg-muted p-3 rounded-md">
-                  <code className="text-sm font-mono break-all">{truncateKey(keypair.Ay)}</code>
+                  <code className="text-sm font-mono break-all">{keypair.Ay}</code>
                 </div>
               </div>
             </CardContent>
