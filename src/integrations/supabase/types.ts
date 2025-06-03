@@ -9,6 +9,41 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      election_participants: {
+        Row: {
+          election_id: string
+          id: string
+          joined_at: string
+          participant_id: string
+          public_key_x: string
+          public_key_y: string
+        }
+        Insert: {
+          election_id: string
+          id?: string
+          joined_at?: string
+          participant_id: string
+          public_key_x: string
+          public_key_y: string
+        }
+        Update: {
+          election_id?: string
+          id?: string
+          joined_at?: string
+          participant_id?: string
+          public_key_x?: string
+          public_key_y?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "election_participants_election_id_fkey"
+            columns: ["election_id"]
+            isOneToOne: false
+            referencedRelation: "elections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       elections: {
         Row: {
           created_at: string

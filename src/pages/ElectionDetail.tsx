@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,6 +14,11 @@ import { ArrowLeft, AlertCircle, CheckCircle, VoteIcon, KeyRound } from "lucide-
 import { signVote } from "@/services/signatureService";
 import { getStoredKeypair } from "@/services/keypairService";
 import { StoredKeypair } from "@/types/keypair";
+import { 
+  registerElectionParticipant, 
+  getElectionParticipants, 
+  ElectionParticipant 
+} from "@/services/electionParticipantsService";
 
 const ElectionDetail = () => {
   const { id } = useParams();
@@ -29,6 +35,7 @@ const ElectionDetail = () => {
   const [nullifying, setNullifying] = useState(false);
   const [keypair, setKeypair] = useState<StoredKeypair | null>(null);
   const [needsKeypair, setNeedsKeypair] = useState(false);
+  const [participants, setParticipants] = useState<ElectionParticipant[]>([]);
 
   useEffect(() => {
     fetchElectionData();
@@ -79,6 +86,12 @@ const ElectionDetail = () => {
         option1: option1Count,
         option2: option2Count
       });
+
+      // Fetch election participants
+      if (id) {
+        const participantsList = await getElectionParticipants(id);
+        setParticipants(participantsList);
+      }
       
     } catch (error) {
       console.error("Error fetching election:", error);
@@ -127,6 +140,17 @@ const ElectionDetail = () => {
     try {
       setSubmitting(true);
       
+      // Register as participant first (if not already registered)
+      const participantRegistered = await registerElectionParticipant(
+        election.id,
+        userId,
+        keypair
+      );
+      
+      if (!participantRegistered) {
+        throw new Error("Failed to register as election participant");
+      }
+      
       // Sign the vote
       const { signature, timestamp } = await signVote(
         keypair,
@@ -168,15 +192,24 @@ const ElectionDetail = () => {
   };
 
   const handleNullifyVote = async () => {
-    if (!userId || !election) return;
+    if (!userId || !election || !id) return;
     
     try {
       setNullifying(true);
       
-      // Dummy action - just show a toast for now
+      // Get all participants for this election (needed for nullification process)
+      const allParticipants = await getElectionParticipants(id);
+      
+      console.log(`Found ${allParticipants.length} participants for nullification process:`, allParticipants);
+      
+      // TODO: Implement the cryptographic nullification process here
+      // For each participant's public key:
+      // - If it's the current user's key: encrypt 1 and generate ZK proof
+      // - If it's not the current user's key: encrypt 0 and generate ZK proof
+      
       toast({
         title: "Nullify Vote",
-        description: "Nullify vote functionality will be implemented with cryptographic proof."
+        description: `Nullification process will use ${allParticipants.length} participant keys. Cryptographic implementation coming soon.`
       });
       
     } catch (error) {
