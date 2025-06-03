@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -283,12 +284,13 @@ const ElectionDetail = () => {
         description: "Creating cryptographic proof for nullification using trusted setup..."
       });
       
+      // Fix: Pass keypair first, then authority public key, then ciphertext, then deterministicR, then election ID
       const zkProof = await generateNullificationProof(
-        id, // Pass election ID to use correct trusted setup
         keypair,
         { x: authority.public_key_x, y: authority.public_key_y },
         nullificationCiphertext,
-        deterministicR
+        deterministicR,
+        id // Pass election ID as last parameter
       );
       
       const stored = await storeNullification(id, userId, nullificationCiphertext, zkProof);
