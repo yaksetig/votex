@@ -1,14 +1,14 @@
-
 import React, { useState, useEffect } from "react"
 import { useWallet } from "@/contexts/WalletContext"
 import { useToast } from "@/hooks/use-toast"
 import WorldIDVerifier from "@/components/WorldIDVerifier"
 import GenerateKeypairButton from "@/components/GenerateKeypairButton"
 import { getStoredKeypair } from "@/services/keypairService"
+import { verifyKeypairConsistency } from "@/services/elGamalService"
 import { StoredKeypair, KeypairResult } from "@/types/keypair"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Eye, EyeOff, Key } from "lucide-react"
+import { Eye, EyeOff, Key, AlertTriangle } from "lucide-react"
 
 const Dashboard = () => {
   const { isWorldIDVerified, userId } = useWallet()
@@ -16,6 +16,7 @@ const Dashboard = () => {
   const [isVerificationComplete, setIsVerificationComplete] = useState(false)
   const [keypair, setKeypair] = useState<StoredKeypair | null>(null)
   const [showPrivateKey, setShowPrivateKey] = useState(false)
+  const [keypairValid, setKeypairValid] = useState<boolean | null>(null)
   
   // Check verification status and load keypair on component mount
   useEffect(() => {
@@ -32,11 +33,24 @@ const Dashboard = () => {
       if (storedKeypair) {
         console.log('Setting keypair state with:', storedKeypair)
         setKeypair(storedKeypair)
+        
+        // Verify the loaded keypair consistency
+        const isValid = verifyKeypairConsistency(storedKeypair)
+        setKeypairValid(isValid)
+        
+        if (!isValid) {
+          console.warn("Loaded keypair failed consistency check!")
+          toast({
+            variant: "destructive",
+            title: "Keypair inconsistency detected",
+            description: "Your stored keypair may be from an old implementation. Consider generating a new one.",
+          })
+        }
       } else {
         console.log('No keypair found in localStorage')
       }
     }
-  }, [isWorldIDVerified, userId])
+  }, [isWorldIDVerified, userId, toast])
 
   const handleVerificationSuccess = () => {
     console.log('Verification success callback in Dashboard')
@@ -122,7 +136,7 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <p>
-              Your identity has been verified with World ID. This is a clean dashboard with all BabyJubjub and election-related code removed.
+              Your identity has been verified with World ID. Your keypair now uses a unified BabyJubJub implementation that's consistent with ZK proofs.
             </p>
           </CardContent>
         </Card>
@@ -133,9 +147,21 @@ const Dashboard = () => {
               <div className="flex items-center gap-2">
                 <Key className="h-5 w-5 text-primary" />
                 <CardTitle>Your Cryptographic Keypair</CardTitle>
+                {keypairValid === false && (
+                  <AlertTriangle className="h-5 w-5 text-amber-500" />
+                )}
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
+              {keypairValid === false && (
+                <div className="bg-amber-50 border border-amber-200 rounded-md p-3">
+                  <p className="text-sm text-amber-800">
+                    ⚠️ This keypair was generated with an older implementation and may not work with ZK proofs. 
+                    Consider generating a new keypair.
+                  </p>
+                </div>
+              )}
+              
               <div>
                 <p className="text-sm text-muted-foreground mb-2">Private Key</p>
                 <div className="bg-muted p-3 rounded-md flex items-center justify-between">

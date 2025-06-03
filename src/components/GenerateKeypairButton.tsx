@@ -1,6 +1,7 @@
 
 import React, { useState } from "react";
 import { generateKeypair } from "@/services/babyJubjubService";
+import { verifyKeypairConsistency } from "@/services/elGamalService";
 import { KeypairResult } from "@/types/keypair";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -18,8 +19,8 @@ const GenerateKeypairButton: React.FC<Props> = ({ onKeypairGenerated }) => {
   const onClick = async () => {
     setLoading(true);
     try {
+      console.log("Starting keypair generation with unified approach...");
       const keypair = await generateKeypair();
-      onKeypairGenerated(keypair);
       
       // Store keypair in localStorage
       const storedKeypair = { 
@@ -28,6 +29,15 @@ const GenerateKeypairButton: React.FC<Props> = ({ onKeypairGenerated }) => {
         Ay: keypair.Ay.toString()
       };
       
+      // Verify consistency between key generation approaches
+      const isConsistent = verifyKeypairConsistency(storedKeypair);
+      if (!isConsistent) {
+        throw new Error("Generated keypair is not consistent with curve implementation!");
+      }
+      
+      console.log("Keypair consistency verified successfully!");
+      
+      onKeypairGenerated(keypair);
       localStorage.setItem("babyJubKeypair", JSON.stringify(storedKeypair));
       
       // Register the keypair in the database

@@ -1,20 +1,8 @@
 
-import { buildBabyjub } from "circomlibjs";
+import { EdwardsPoint } from "@/services/elGamalService";
 
-// Use a more generic type since the imported BabyJub type is not available
-let babyJub: any = null;
-let ORDER: bigint;
-
-async function getBabyJub(): Promise<any> {
-  if (babyJub) return babyJub;
-  if (!globalThis.crypto?.subtle) {
-    throw new Error("WebCrypto API unavailable; must run in a modern browser.");
-  }
-  babyJub = await buildBabyjub();
-  console.log("🐣 circomlibjs babyJub ready:", babyJub);
-  ORDER = babyJub.subOrder;
-  return babyJub;
-}
+// BabyJubJub curve parameters (same as in elGamalService.ts)
+const CURVE_ORDER = 2736030358979909402780800718157159386076813972158567259200215660948447373041n;
 
 function randomScalar(order: bigint): bigint {
   const buf = crypto.getRandomValues(new Uint8Array(32));
@@ -29,11 +17,28 @@ export async function generateKeypair(): Promise<{
   Ax: bigint;
   Ay: bigint;
 }> {
-  const bj = await getBabyJub();
-  const { F, Base8: B, subOrder } = bj;
-  const k = randomScalar(subOrder);
-  const A_e = bj.mulPointEscalar(B, k);
-  const Ax = F.toObject(A_e[0]);
-  const Ay = F.toObject(A_e[1]);
-  return { k, Ax, Ay };
+  console.log("Generating keypair using unified BabyJubJub implementation...");
+  
+  // Generate random private key
+  const k = randomScalar(CURVE_ORDER);
+  console.log(`Generated private key: ${k.toString()}`);
+  
+  // Get base point
+  const basePoint = EdwardsPoint.base();
+  console.log(`Base point: ${basePoint.toString()}`);
+  
+  // Compute public key: A = k * G
+  const publicKeyPoint = basePoint.multiply(k);
+  console.log(`Computed public key: ${publicKeyPoint.toString()}`);
+  
+  // Verify the point is on curve
+  if (!publicKeyPoint.isOnCurve()) {
+    throw new Error("Generated public key is not on curve!");
+  }
+  
+  return { 
+    k, 
+    Ax: publicKeyPoint.x, 
+    Ay: publicKeyPoint.y 
+  };
 }

@@ -55,7 +55,7 @@ async function hashToScalarBE(...parts: Uint8Array[]): Promise<bigint> {
 }
 
 // Edwards curve point operations for BabyJubJub
-class EdwardsPoint {
+export class EdwardsPoint {
   x: bigint;
   y: bigint;
 
@@ -132,6 +132,45 @@ class EdwardsPoint {
   }
 }
 
+// New function: Derive public key from private key
+export function derivePublicKey(privateKey: bigint): EdwardsPoint {
+  const basePoint = EdwardsPoint.base();
+  const publicKey = basePoint.multiply(privateKey);
+  
+  console.log(`Derived public key from private key ${privateKey.toString()}:`);
+  console.log(`Public key: ${publicKey.toString()}`);
+  
+  if (!publicKey.isOnCurve()) {
+    throw new Error("Derived public key is not on curve!");
+  }
+  
+  return publicKey;
+}
+
+// New function: Verify keypair consistency
+export function verifyKeypairConsistency(keypair: StoredKeypair): boolean {
+  try {
+    const privateKey = BigInt(keypair.k);
+    const expectedPublicKey = derivePublicKey(privateKey);
+    
+    const actualPublicKeyX = BigInt(keypair.Ax);
+    const actualPublicKeyY = BigInt(keypair.Ay);
+    
+    const matches = expectedPublicKey.x === actualPublicKeyX && expectedPublicKey.y === actualPublicKeyY;
+    
+    console.log(`Keypair consistency check:`);
+    console.log(`Expected: (${expectedPublicKey.x.toString()}, ${expectedPublicKey.y.toString()})`);
+    console.log(`Actual: (${actualPublicKeyX.toString()}, ${actualPublicKeyY.toString()})`);
+    console.log(`Matches: ${matches}`);
+    
+    return matches;
+  } catch (error) {
+    console.error("Error verifying keypair consistency:", error);
+    return false;
+  }
+}
+
+// ElGamalCiphertext interface
 export interface ElGamalCiphertext {
   c1: EdwardsPoint;
   c2: EdwardsPoint;
