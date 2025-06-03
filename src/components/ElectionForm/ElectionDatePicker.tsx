@@ -62,7 +62,7 @@ const ElectionDatePicker: React.FC<ElectionDatePickerProps> = ({
         </PopoverContent>
       </Popover>
       {errors.endDate && (
-        <p className="text-sm text-red-500">{errors.endDate.message}</p>
+        <p className="text-sm text-red-500">{String(errors.endDate.message)}</p>
       )}
     </div>
   );

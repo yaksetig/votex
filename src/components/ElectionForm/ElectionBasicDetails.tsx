@@ -31,7 +31,7 @@ const ElectionBasicDetails: React.FC<ElectionBasicDetailsProps> = ({
           {...register("title")}
         />
         {errors.title && (
-          <p className="text-sm text-red-500">{errors.title.message}</p>
+          <p className="text-sm text-red-500">{String(errors.title.message)}</p>
         )}
       </div>
 
@@ -44,7 +44,7 @@ const ElectionBasicDetails: React.FC<ElectionBasicDetailsProps> = ({
           {...register("description")}
         />
         {errors.description && (
-          <p className="text-sm text-red-500">{errors.description.message}</p>
+          <p className="text-sm text-red-500">{String(errors.description.message)}</p>
         )}
       </div>
 
@@ -57,7 +57,7 @@ const ElectionBasicDetails: React.FC<ElectionBasicDetailsProps> = ({
             {...register("option1")}
           />
           {errors.option1 && (
-            <p className="text-sm text-red-500">{errors.option1.message}</p>
+            <p className="text-sm text-red-500">{String(errors.option1.message)}</p>
           )}
         </div>
 
@@ -69,7 +69,7 @@ const ElectionBasicDetails: React.FC<ElectionBasicDetailsProps> = ({
             {...register("option2")}
           />
           {errors.option2 && (
-            <p className="text-sm text-red-500">{errors.option2.message}</p>
+            <p className="text-sm text-red-500">{String(errors.option2.message)}</p>
           )}
         </div>
       </div>
