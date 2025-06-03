@@ -139,6 +139,38 @@ export type Database = {
         }
         Relationships: []
       }
+      nullifications: {
+        Row: {
+          created_at: string
+          election_id: string
+          id: string
+          nullifier_ciphertext: Json
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          election_id: string
+          id?: string
+          nullifier_ciphertext: Json
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          election_id?: string
+          id?: string
+          nullifier_ciphertext?: Json
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nullifications_election_id_fkey"
+            columns: ["election_id"]
+            isOneToOne: false
+            referencedRelation: "elections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       votes: {
         Row: {
           choice: string

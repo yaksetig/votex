@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,6 +22,7 @@ import {
 } from "@/services/electionParticipantsService";
 import { getElectionAuthorityForElection, initializeDefaultElectionAuthority } from "@/services/electionAuthorityService";
 import { createNullificationEncryption } from "@/services/elGamalService";
+import { storeNullification } from "@/services/nullificationService";
 
 const ElectionDetail = () => {
   const { id } = useParams();
@@ -247,6 +249,16 @@ const ElectionDetail = () => {
   const handleNullifyVote = async () => {
     if (!userId || !election || !id || !keypair) return;
     
+    // Only allow nullification if user has voted
+    if (!hasVoted) {
+      toast({
+        variant: "destructive",
+        title: "Cannot Nullify",
+        description: "You can only nullify your vote after you have voted."
+      });
+      return;
+    }
+    
     try {
       setNullifying(true);
       
@@ -267,20 +279,26 @@ const ElectionDetail = () => {
         { x: authority.public_key_x, y: authority.public_key_y }
       );
       
-      // For now, just log the ciphertext and show success
-      console.log("Nullification ciphertext created:", nullificationCiphertext);
+      // Store the nullification in the database
+      const stored = await storeNullification(id, userId, nullificationCiphertext);
+      
+      if (!stored) {
+        throw new Error("Failed to store nullification");
+      }
+      
+      console.log("Nullification stored successfully:", nullificationCiphertext);
       
       toast({
-        title: "Nullification Encryption Created",
-        description: `ElGamal encryption of value 1 has been generated. Ciphertext: [${nullificationCiphertext.ciphertext.map(c => c.toString().slice(0, 10) + '...').join(', ')}]`
+        title: "Nullification Submitted",
+        description: "Your nullification has been successfully recorded in the system."
       });
       
     } catch (error) {
-      console.error("Error creating nullification encryption:", error);
+      console.error("Error creating nullification:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to create nullification encryption. Please try again."
+        description: "Failed to submit nullification. Please try again."
       });
     } finally {
       setNullifying(false);
