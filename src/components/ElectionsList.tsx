@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { 
   Card, 
   CardContent, 
@@ -9,9 +9,11 @@ import {
   CardTitle 
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { formatDistanceToNow, isPast } from "date-fns";
 import { EyeIcon, CheckCircle, XCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Election {
   id: string;
@@ -28,8 +30,65 @@ interface ElectionsListProps {
   loading: boolean;
 }
 
+interface VoteCounts {
+  [electionId: string]: {
+    option1: number;
+    option2: number;
+    total: number;
+    option1Percentage: number;
+  };
+}
+
 const ElectionsList: React.FC<ElectionsListProps> = ({ elections, loading }) => {
   const navigate = useNavigate();
+  const [voteCounts, setVoteCounts] = useState<VoteCounts>({});
+  const [votesLoading, setVotesLoading] = useState(false);
+
+  useEffect(() => {
+    if (elections.length > 0) {
+      fetchVoteCounts();
+    }
+  }, [elections]);
+
+  const fetchVoteCounts = async () => {
+    if (elections.length === 0) return;
+    
+    try {
+      setVotesLoading(true);
+      
+      // Fetch all votes for all elections
+      const { data: votes, error } = await supabase
+        .from("votes")
+        .select("election_id, choice")
+        .in("election_id", elections.map(e => e.id));
+        
+      if (error) throw error;
+      
+      // Process vote counts for each election
+      const counts: VoteCounts = {};
+      
+      elections.forEach(election => {
+        const electionVotes = votes?.filter(vote => vote.election_id === election.id) || [];
+        const option1Count = electionVotes.filter(vote => vote.choice === election.option1).length;
+        const option2Count = electionVotes.filter(vote => vote.choice === election.option2).length;
+        const total = option1Count + option2Count;
+        const option1Percentage = total > 0 ? Math.round((option1Count / total) * 100) : 0;
+        
+        counts[election.id] = {
+          option1: option1Count,
+          option2: option2Count,
+          total,
+          option1Percentage
+        };
+      });
+      
+      setVoteCounts(counts);
+    } catch (error) {
+      console.error("Error fetching vote counts:", error);
+    } finally {
+      setVotesLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -58,6 +117,7 @@ const ElectionsList: React.FC<ElectionsListProps> = ({ elections, loading }) => 
       {elections.map((election) => {
         const endDate = new Date(election.end_date);
         const isExpired = isPast(endDate);
+        const voteData = voteCounts[election.id];
 
         return (
           <Card key={election.id} className="flex flex-col">
@@ -77,10 +137,29 @@ const ElectionsList: React.FC<ElectionsListProps> = ({ elections, loading }) => 
               </CardDescription>
             </CardHeader>
             <CardContent className="flex-1">
-              <p className="text-sm text-muted-foreground line-clamp-3">
+              <p className="text-sm text-muted-foreground line-clamp-3 mb-4">
                 {election.description}
               </p>
-              <div className="mt-4 flex justify-between">
+              
+              {/* Vote Distribution Bar */}
+              {voteData && voteData.total > 0 ? (
+                <div className="mb-4 space-y-2">
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>{election.option1}: {voteData.option1}</span>
+                    <span>{election.option2}: {voteData.option2}</span>
+                  </div>
+                  <Progress value={voteData.option1Percentage} className="h-2" />
+                  <div className="text-center text-xs text-muted-foreground">
+                    {voteData.total} vote{voteData.total !== 1 ? 's' : ''} total
+                  </div>
+                </div>
+              ) : (
+                <div className="mb-4 text-center text-xs text-muted-foreground">
+                  {votesLoading ? "Loading votes..." : "No votes yet"}
+                </div>
+              )}
+              
+              <div className="flex justify-between">
                 <span className="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
                   {election.option1}
                 </span>
