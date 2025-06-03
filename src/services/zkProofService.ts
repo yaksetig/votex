@@ -1,4 +1,3 @@
-
 import { initialize } from "zokrates-js";
 import { StoredKeypair } from "@/types/keypair";
 import { ElGamalCiphertext } from "@/services/elGamalService";
@@ -63,7 +62,7 @@ def expElGamalEncrypt(field[2] pk, field r, field m) -> field[4] {
     return [c1[0], c1[1], c2[0], c2[1]];
 }
 
-// Main verifier circuit - proving voter knows secret key and ciphertext is valid
+// Main verifier circuit - original logic: either encrypt 0 OR (encrypt 1 AND know secret key)
 def main(
     public field[4] ciphertext,
     private field r,
@@ -81,12 +80,11 @@ def main(
     field[4] comp = expElGamalEncrypt(pk_election_authority, r, m);
     assert(ciphertext == comp);
 
-    // Prove that the voter knows their secret key by verifying sk_voter * G = pk_voter
+    // Original logic: either m=0 (dummy nullification) OR (m=1 AND voter knows secret key)
     field[2] pk_calc = multScalarWithPoint(sk_voter, G);
-    assert(pk_calc == pk_voter);
-    
-    // Ensure we're nullifying (m = 1)
-    assert(m == 1);
+    bool knows = (pk_calc == pk_voter);
+    bool ok = (m == 0) || (m == 1 && knows);
+    assert(ok);
 
     return;
 }
