@@ -17,9 +17,14 @@ const NavBar = () => {
       </div>
       <div className="flex items-center gap-4">
         {isWorldIDVerified && (
-          <Link to="/elections" className="text-sm hover:text-primary transition-colors">
-            Elections
-          </Link>
+          <>
+            <Link to="/dashboard" className="text-sm hover:text-primary transition-colors">
+              Dashboard
+            </Link>
+            <Link to="/elections" className="text-sm hover:text-primary transition-colors">
+              Elections
+            </Link>
+          </>
         )}
         {isWorldIDVerified && (
           <>
