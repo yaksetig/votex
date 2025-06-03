@@ -97,6 +97,19 @@ def main(
   console.log("ZoKrates circuit compiled successfully");
 }
 
+// Load proving key based on format (binary .key or JSON)
+function loadProvingKey(provingKey: any): any {
+  if (provingKey instanceof Uint8Array) {
+    console.log("Loading binary .key proving key");
+    // For binary .key files, ZoKrates can load them directly
+    return zokratesProvider.loadProvingKey(provingKey);
+  } else {
+    console.log("Loading JSON proving key");
+    // For JSON format, use as-is
+    return provingKey;
+  }
+}
+
 // Generate ZK proof for nullification using global trusted setup
 export async function generateNullificationProof(
   voterKeypair: StoredKeypair,
@@ -166,6 +179,9 @@ export async function generateNullificationProof(
     // Initialize ZoKrates if not already done
     await initZokrates();
     
+    // Load the proving key (handles both .key and .json formats)
+    const loadedProvingKey = loadProvingKey(provingKey);
+    
     // Prepare the arguments for the circuit
     const args = [
       // Public: ciphertext (c1.x, c1.y, c2.x, c2.y)
@@ -190,9 +206,9 @@ export async function generateNullificationProof(
     console.log("Computing witness with real global trusted setup");
     const { witness } = zokratesProvider.computeWitness(artifacts, args);
     
-    console.log("Generating proof with real proving key");
-    // Use the real proving key fetched from server
-    const proof = zokratesProvider.generateProof(artifacts.program, witness, provingKey);
+    console.log("Generating proof with real proving key (.key or .json format)");
+    // Use the loaded proving key (works with both formats)
+    const proof = zokratesProvider.generateProof(artifacts.program, witness, loadedProvingKey);
     
     const realProof = {
       mock: false,

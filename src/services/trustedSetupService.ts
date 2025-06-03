@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 export interface TrustedSetup {
@@ -92,7 +91,7 @@ export async function getTrustedSetupForElection(electionId: string): Promise<Tr
   }
 }
 
-// Get proving key from server file system
+// Get proving key from server file system - supports both .key and .json formats
 export async function getProvingKeyFromServer(filename: string): Promise<any> {
   try {
     console.log(`Fetching proving key from server: ${filename}`);
@@ -103,21 +102,44 @@ export async function getProvingKeyFromServer(filename: string): Promise<any> {
       throw new Error(`Failed to fetch proving key: ${response.status} ${response.statusText}`);
     }
     
-    const provingKey = await response.json();
-    console.log("Proving key fetched successfully from server");
-    return provingKey;
+    // Check file extension to determine how to parse
+    const isKeyFile = filename.toLowerCase().endsWith('.key');
+    
+    if (isKeyFile) {
+      console.log("Loading .key file as binary data");
+      const arrayBuffer = await response.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      console.log("Binary proving key fetched successfully from server");
+      return uint8Array;
+    } else {
+      console.log("Loading .json file as JSON data");
+      const provingKey = await response.json();
+      console.log("JSON proving key fetched successfully from server");
+      return provingKey;
+    }
+    
   } catch (error) {
     console.error("Error fetching proving key from server:", error);
     throw error;
   }
 }
 
-// Verify proving key integrity using stored hash
+// Verify proving key integrity using stored hash - supports both binary and JSON data
 export async function verifyProvingKeyIntegrity(provingKey: any, expectedHash: string): Promise<boolean> {
   try {
-    const provingKeyString = JSON.stringify(provingKey);
-    const encoder = new TextEncoder();
-    const data = encoder.encode(provingKeyString);
+    let data: Uint8Array;
+    
+    if (provingKey instanceof Uint8Array) {
+      // Binary .key file - hash the raw bytes
+      console.log("Verifying integrity of binary .key file");
+      data = provingKey;
+    } else {
+      // JSON file - hash the stringified JSON
+      console.log("Verifying integrity of JSON file");
+      const provingKeyString = JSON.stringify(provingKey);
+      const encoder = new TextEncoder();
+      data = encoder.encode(provingKeyString);
+    }
     
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
@@ -166,7 +188,7 @@ export async function getCompleteTrustedSetup(electionId?: string): Promise<{
       };
     }
 
-    // Fetch proving key from server
+    // Fetch proving key from server (supports both .key and .json)
     const provingKey = await getProvingKeyFromServer(setup.proving_key_filename);
     
     // Verify proving key integrity
@@ -197,9 +219,17 @@ export async function hasTrustedSetup(electionId?: string): Promise<boolean> {
 
 // Generate SHA-256 hash for a proving key (utility function for manual setup)
 export async function generateProvingKeyHash(provingKey: any): Promise<string> {
-  const provingKeyString = JSON.stringify(provingKey);
-  const encoder = new TextEncoder();
-  const data = encoder.encode(provingKeyString);
+  let data: Uint8Array;
+  
+  if (provingKey instanceof Uint8Array) {
+    // Binary .key file
+    data = provingKey;
+  } else {
+    // JSON file
+    const provingKeyString = JSON.stringify(provingKey);
+    const encoder = new TextEncoder();
+    data = encoder.encode(provingKeyString);
+  }
   
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
