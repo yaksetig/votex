@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,7 +16,8 @@ import { StoredKeypair } from "@/types/keypair";
 import { 
   registerElectionParticipant, 
   getElectionParticipants, 
-  ElectionParticipant 
+  ElectionParticipant,
+  isUserParticipant 
 } from "@/services/electionParticipantsService";
 
 const ElectionDetail = () => {
@@ -36,6 +36,7 @@ const ElectionDetail = () => {
   const [keypair, setKeypair] = useState<StoredKeypair | null>(null);
   const [needsKeypair, setNeedsKeypair] = useState(false);
   const [participants, setParticipants] = useState<ElectionParticipant[]>([]);
+  const [isParticipant, setIsParticipant] = useState(false);
 
   useEffect(() => {
     fetchElectionData();
@@ -49,6 +50,25 @@ const ElectionDetail = () => {
       setNeedsKeypair(true);
     }
   }, [id]);
+
+  useEffect(() => {
+    // Check if user is a participant when userId and id are available
+    if (userId && id) {
+      checkParticipantStatus();
+    }
+  }, [userId, id]);
+
+  const checkParticipantStatus = async () => {
+    if (!userId || !id) return;
+    
+    try {
+      const participantStatus = await isUserParticipant(id, userId);
+      console.log(`User ${userId} participant status for election ${id}:`, participantStatus);
+      setIsParticipant(participantStatus);
+    } catch (error) {
+      console.error("Error checking participant status:", error);
+    }
+  };
 
   const fetchElectionData = async () => {
     try {
@@ -90,6 +110,7 @@ const ElectionDetail = () => {
       // Fetch election participants
       if (id) {
         const participantsList = await getElectionParticipants(id);
+        console.log(`Found ${participantsList.length} total participants for election ${id}:`, participantsList);
         setParticipants(participantsList);
       }
       
@@ -124,6 +145,39 @@ const ElectionDetail = () => {
     }
   };
 
+  const ensureUserIsParticipant = async (): Promise<boolean> => {
+    if (!userId || !election || !keypair) return false;
+    
+    try {
+      // Check if user is already a participant
+      if (isParticipant) {
+        console.log("User is already a participant");
+        return true;
+      }
+      
+      // Register as participant
+      console.log("Registering user as participant...");
+      const participantRegistered = await registerElectionParticipant(
+        election.id,
+        userId,
+        keypair
+      );
+      
+      if (participantRegistered) {
+        setIsParticipant(true);
+        // Refresh participants list
+        const updatedParticipants = await getElectionParticipants(election.id);
+        setParticipants(updatedParticipants);
+        console.log(`User registered as participant. Total participants now: ${updatedParticipants.length}`);
+      }
+      
+      return participantRegistered;
+    } catch (error) {
+      console.error("Error ensuring user is participant:", error);
+      return false;
+    }
+  };
+
   const handleVote = async () => {
     if (!selectedOption || !userId || !election || !keypair) {
       if (!keypair) {
@@ -140,12 +194,8 @@ const ElectionDetail = () => {
     try {
       setSubmitting(true);
       
-      // Register as participant first (if not already registered)
-      const participantRegistered = await registerElectionParticipant(
-        election.id,
-        userId,
-        keypair
-      );
+      // Ensure user is registered as participant first
+      const participantRegistered = await ensureUserIsParticipant();
       
       if (!participantRegistered) {
         throw new Error("Failed to register as election participant");
@@ -197,10 +247,22 @@ const ElectionDetail = () => {
     try {
       setNullifying(true);
       
-      // Get all participants for this election (needed for nullification process)
+      // Ensure user is registered as participant first
+      await ensureUserIsParticipant();
+      
+      // Get fresh list of all participants for this election
       const allParticipants = await getElectionParticipants(id);
       
       console.log(`Found ${allParticipants.length} participants for nullification process:`, allParticipants);
+      
+      if (allParticipants.length === 0) {
+        toast({
+          variant: "destructive",
+          title: "No Participants Found",
+          description: "No participants found for this election. This might be a data consistency issue."
+        });
+        return;
+      }
       
       // TODO: Implement the cryptographic nullification process here
       // For each participant's public key:
@@ -296,6 +358,11 @@ const ElectionDetail = () => {
           <div>
             <h3 className="text-lg font-medium mb-2">Description</h3>
             <p className="text-muted-foreground whitespace-pre-line">{election.description}</p>
+          </div>
+          
+          {/* Debug info for participants */}
+          <div className="text-xs text-muted-foreground bg-muted p-2 rounded">
+            Debug: {participants.length} participants found | User is participant: {isParticipant ? 'Yes' : 'No'}
           </div>
           
           {needsKeypair && !keypair && (

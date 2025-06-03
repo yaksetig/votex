@@ -18,6 +18,8 @@ export async function registerElectionParticipant(
   keypair: StoredKeypair
 ): Promise<boolean> {
   try {
+    console.log(`Attempting to register participant ${participantId} for election ${electionId}`);
+    
     const { error } = await supabase
       .from("election_participants")
       .insert({
@@ -37,6 +39,7 @@ export async function registerElectionParticipant(
       return false;
     }
 
+    console.log("Successfully registered participant");
     return true;
   } catch (error) {
     console.error("Error in registerElectionParticipant:", error);
@@ -47,6 +50,8 @@ export async function registerElectionParticipant(
 // Get all participants for an election (needed for nullification)
 export async function getElectionParticipants(electionId: string): Promise<ElectionParticipant[]> {
   try {
+    console.log(`Fetching participants for election: ${electionId}`);
+    
     const { data, error } = await supabase
       .from("election_participants")
       .select("*")
@@ -58,6 +63,7 @@ export async function getElectionParticipants(electionId: string): Promise<Elect
       return [];
     }
 
+    console.log(`Found ${data?.length || 0} participants:`, data);
     return data || [];
   } catch (error) {
     console.error("Error in getElectionParticipants:", error);
@@ -71,6 +77,8 @@ export async function isUserParticipant(
   participantId: string
 ): Promise<boolean> {
   try {
+    console.log(`Checking if user ${participantId} is participant in election ${electionId}`);
+    
     const { data, error } = await supabase
       .from("election_participants")
       .select("id")
@@ -83,7 +91,9 @@ export async function isUserParticipant(
       return false;
     }
 
-    return !!data;
+    const isParticipant = !!data;
+    console.log(`User is participant: ${isParticipant}`);
+    return isParticipant;
   } catch (error) {
     console.error("Error in isUserParticipant:", error);
     return false;
