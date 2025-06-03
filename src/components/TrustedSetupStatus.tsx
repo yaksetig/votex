@@ -3,16 +3,21 @@ import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Shield, AlertTriangle, CheckCircle, Settings, Server, Database } from "lucide-react";
-import { hasTrustedSetup, generateTrustedSetup, getTrustedSetupForElection } from "@/services/trustedSetupService";
+import { Shield, AlertTriangle, CheckCircle, Settings, Server, Database, Globe } from "lucide-react";
+import { hasTrustedSetup, getActiveTrustedSetup, getTrustedSetupForElection } from "@/services/trustedSetupService";
 import { useToast } from "@/hooks/use-toast";
 
 interface Props {
-  electionId: string;
+  electionId?: string;
   isAdmin?: boolean;
+  showGlobalStatus?: boolean;
 }
 
-const TrustedSetupStatus: React.FC<Props> = ({ electionId, isAdmin = false }) => {
+const TrustedSetupStatus: React.FC<Props> = ({ 
+  electionId, 
+  isAdmin = false, 
+  showGlobalStatus = false 
+}) => {
   const [hasSetup, setHasSetup] = useState<boolean | null>(null);
   const [setupDetails, setSetupDetails] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -21,17 +26,26 @@ const TrustedSetupStatus: React.FC<Props> = ({ electionId, isAdmin = false }) =>
 
   useEffect(() => {
     checkSetupStatus();
-  }, [electionId]);
+  }, [electionId, showGlobalStatus]);
 
   const checkSetupStatus = async () => {
     try {
       setLoading(true);
-      const setupExists = await hasTrustedSetup(electionId);
-      setHasSetup(setupExists);
       
-      if (setupExists) {
-        const details = await getTrustedSetupForElection(electionId);
-        setSetupDetails(details);
+      if (showGlobalStatus) {
+        // Check global trusted setup
+        const globalSetup = await getActiveTrustedSetup();
+        setHasSetup(globalSetup !== null);
+        setSetupDetails(globalSetup);
+      } else {
+        // Check election-specific setup (will fallback to global)
+        const setupExists = await hasTrustedSetup(electionId);
+        setHasSetup(setupExists);
+        
+        if (setupExists && electionId) {
+          const details = await getTrustedSetupForElection(electionId);
+          setSetupDetails(details);
+        }
       }
     } catch (error) {
       console.error("Error checking trusted setup status:", error);
@@ -45,23 +59,11 @@ const TrustedSetupStatus: React.FC<Props> = ({ electionId, isAdmin = false }) =>
     try {
       setGenerating(true);
       
-      // This will fail due to RLS policy, but shows the intended flow
-      const success = await generateTrustedSetup(electionId, "admin-user");
-      
-      if (success) {
-        toast({
-          title: "Trusted Setup Generated",
-          description: "The cryptographic trusted setup has been created for this election.",
-        });
-        setHasSetup(true);
-        checkSetupStatus();
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Setup Generation Failed",
-          description: "Only authorized administrators can generate trusted setups.",
-        });
-      }
+      toast({
+        variant: "destructive",
+        title: "Manual Setup Required",
+        description: "Global trusted setups must be created manually by administrators through the database.",
+      });
     } catch (error) {
       toast({
         variant: "destructive",
@@ -75,6 +77,7 @@ const TrustedSetupStatus: React.FC<Props> = ({ electionId, isAdmin = false }) =>
 
   const isHybridSetup = setupDetails?.proving_key_filename && setupDetails?.proving_key_hash;
   const isLegacySetup = setupDetails?.proving_key && !isHybridSetup;
+  const isGlobalSetup = setupDetails && 'is_active' in setupDetails;
 
   if (loading) {
     return (
@@ -94,7 +97,7 @@ const TrustedSetupStatus: React.FC<Props> = ({ electionId, isAdmin = false }) =>
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center space-x-2 text-sm">
           <Shield className="h-4 w-4" />
-          <span>Cryptographic Setup</span>
+          <span>{showGlobalStatus ? 'Global' : 'Cryptographic'} Setup</span>
           {hasSetup ? (
             <Badge variant="default" className="bg-green-100 text-green-800">
               <CheckCircle className="h-3 w-3 mr-1" />
@@ -112,11 +115,17 @@ const TrustedSetupStatus: React.FC<Props> = ({ electionId, isAdmin = false }) =>
         {hasSetup ? (
           <div className="space-y-3">
             <p className="text-sm text-green-700">
-              ✓ Trusted setup completed - nullification is available
+              ✓ {showGlobalStatus ? 'Global' : ''} Trusted setup completed - nullification is available
             </p>
             
             {/* Setup type indicator */}
             <div className="flex items-center space-x-2 text-xs">
+              {isGlobalSetup && (
+                <div className="flex items-center space-x-1 text-green-600">
+                  <Globe className="h-3 w-3" />
+                  <span>Global Setup</span>
+                </div>
+              )}
               {isHybridSetup ? (
                 <>
                   <div className="flex items-center space-x-1 text-blue-600">
@@ -141,15 +150,17 @@ const TrustedSetupStatus: React.FC<Props> = ({ electionId, isAdmin = false }) =>
             <p className="text-xs text-muted-foreground">
               The cryptographic parameters required for secure nullification have been generated and stored.
               {isHybridSetup && " Using hybrid storage for optimal performance."}
+              {isGlobalSetup && " This setup is shared across all elections."}
             </p>
           </div>
         ) : (
           <div className="space-y-3">
             <p className="text-sm text-amber-700">
-              ⚠ Trusted setup required for nullification
+              ⚠ {showGlobalStatus ? 'Global' : ''} Trusted setup required for nullification
             </p>
             <p className="text-xs text-muted-foreground">
-              A cryptographic trusted setup ceremony must be completed before voters can nullify their votes securely.
+              A cryptographic trusted setup ceremony must be completed before {showGlobalStatus ? 'any' : ''} voters can nullify their votes securely.
+              {showGlobalStatus && " This setup will be shared across all elections."}
             </p>
             {isAdmin && (
               <Button 
@@ -160,7 +171,7 @@ const TrustedSetupStatus: React.FC<Props> = ({ electionId, isAdmin = false }) =>
                 className="bg-amber-100 hover:bg-amber-200 text-amber-800 border-amber-300"
               >
                 <Settings className="h-3 w-3 mr-1" />
-                {generating ? "Generating..." : "Generate Setup"}
+                {generating ? "Processing..." : "Create Setup"}
               </Button>
             )}
           </div>

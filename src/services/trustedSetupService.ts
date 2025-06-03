@@ -12,34 +12,80 @@ export interface TrustedSetup {
   created_by: string;
 }
 
-export interface HybridTrustedSetup {
+export interface GlobalTrustedSetup {
   id: string;
-  election_id: string;
+  name: string;
+  description?: string;
   verification_key: any;
   proving_key_hash: string;
   proving_key_filename: string;
   created_at: string;
   created_by: string;
+  is_active: boolean;
 }
 
-// Get trusted setup for an election (verification key from DB)
-export async function getTrustedSetupForElection(electionId: string): Promise<TrustedSetup | null> {
+// Get the active global trusted setup
+export async function getActiveTrustedSetup(): Promise<GlobalTrustedSetup | null> {
   try {
-    console.log(`Fetching trusted setup for election: ${electionId}`);
+    console.log("Fetching active global trusted setup");
     
     const { data, error } = await supabase
+      .from("global_trusted_setups")
+      .select("*")
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (error) {
+      console.error("Error fetching active trusted setup:", error);
+      return null;
+    }
+
+    console.log(`Active trusted setup found:`, data ? "Yes" : "No");
+    return data;
+  } catch (error) {
+    console.error("Error in getActiveTrustedSetup:", error);
+    return null;
+  }
+}
+
+// Backward compatibility: Get trusted setup for an election (will use global setup)
+export async function getTrustedSetupForElection(electionId: string): Promise<TrustedSetup | null> {
+  try {
+    console.log(`Getting trusted setup for election: ${electionId} (using global setup)`);
+    
+    // First check if there's a legacy election-specific setup
+    const { data: legacyData, error: legacyError } = await supabase
       .from("election_trusted_setups")
       .select("*")
       .eq("election_id", electionId)
       .maybeSingle();
 
-    if (error) {
-      console.error("Error fetching trusted setup:", error);
+    if (legacyError) {
+      console.error("Error checking legacy trusted setup:", legacyError);
+    }
+
+    if (legacyData) {
+      console.log("Using legacy election-specific trusted setup");
+      return legacyData;
+    }
+
+    // Use global trusted setup
+    const globalSetup = await getActiveTrustedSetup();
+    if (!globalSetup) {
+      console.log("No global trusted setup found");
       return null;
     }
 
-    console.log(`Trusted setup found:`, data ? "Yes" : "No");
-    return data;
+    // Convert global setup to election-specific format for backward compatibility
+    return {
+      id: globalSetup.id,
+      election_id: electionId,
+      verification_key: globalSetup.verification_key,
+      proving_key_hash: globalSetup.proving_key_hash,
+      proving_key_filename: globalSetup.proving_key_filename,
+      created_at: globalSetup.created_at,
+      created_by: globalSetup.created_by
+    };
   } catch (error) {
     console.error("Error in getTrustedSetupForElection:", error);
     return null;
@@ -88,26 +134,35 @@ export async function verifyProvingKeyIntegrity(provingKey: any, expectedHash: s
 }
 
 // Get complete trusted setup (verification key from DB + proving key from server)
-export async function getCompleteTrustedSetup(electionId: string): Promise<{
+export async function getCompleteTrustedSetup(electionId?: string): Promise<{
   verificationKey: any;
   provingKey: any;
-  setup: HybridTrustedSetup;
+  setup: GlobalTrustedSetup | TrustedSetup;
 } | null> {
   try {
-    const setup = await getTrustedSetupForElection(electionId);
+    let setup: TrustedSetup | GlobalTrustedSetup | null;
+
+    if (electionId) {
+      // Try election-specific first for backward compatibility
+      setup = await getTrustedSetupForElection(electionId);
+    } else {
+      // Use global setup directly
+      setup = await getActiveTrustedSetup();
+    }
     
     if (!setup) {
-      console.log("No trusted setup found for election");
+      console.log("No trusted setup found");
       return null;
     }
 
     // Check if this is a hybrid setup (has proving key metadata)
     if (!setup.proving_key_filename || !setup.proving_key_hash) {
       console.log("Legacy setup detected - using proving key from database");
+      const legacySetup = setup as TrustedSetup;
       return {
         verificationKey: setup.verification_key,
-        provingKey: setup.proving_key,
-        setup: setup as HybridTrustedSetup
+        provingKey: legacySetup.proving_key,
+        setup
       };
     }
 
@@ -124,7 +179,7 @@ export async function getCompleteTrustedSetup(electionId: string): Promise<{
     return {
       verificationKey: setup.verification_key,
       provingKey,
-      setup: setup as HybridTrustedSetup
+      setup
     };
   } catch (error) {
     console.error("Error getting complete trusted setup:", error);
@@ -132,9 +187,11 @@ export async function getCompleteTrustedSetup(electionId: string): Promise<{
   }
 }
 
-// Check if trusted setup exists for an election
-export async function hasTrustedSetup(electionId: string): Promise<boolean> {
-  const setup = await getTrustedSetupForElection(electionId);
+// Check if trusted setup exists (now checks for global setup)
+export async function hasTrustedSetup(electionId?: string): Promise<boolean> {
+  const setup = electionId ? 
+    await getTrustedSetupForElection(electionId) : 
+    await getActiveTrustedSetup();
   return setup !== null;
 }
 
@@ -151,7 +208,50 @@ export async function generateProvingKeyHash(provingKey: any): Promise<string> {
   return hashHex;
 }
 
-// Store hybrid trusted setup (verification key in DB, proving key hash/filename)
+// Store global trusted setup
+export async function storeGlobalTrustedSetup(
+  name: string,
+  description: string,
+  verificationKey: any,
+  provingKeyHash: string,
+  provingKeyFilename: string,
+  createdBy: string
+): Promise<boolean> {
+  try {
+    console.log(`Storing global trusted setup: ${name}`);
+    
+    // First, deactivate any existing active setups
+    await supabase
+      .from("global_trusted_setups")
+      .update({ is_active: false })
+      .eq("is_active", true);
+    
+    const { error } = await supabase
+      .from("global_trusted_setups")
+      .insert({
+        name,
+        description,
+        verification_key: verificationKey,
+        proving_key_hash: provingKeyHash,
+        proving_key_filename: provingKeyFilename,
+        created_by: createdBy,
+        is_active: true
+      });
+
+    if (error) {
+      console.error("Error storing global trusted setup:", error);
+      return false;
+    }
+
+    console.log("Global trusted setup stored successfully");
+    return true;
+  } catch (error) {
+    console.error("Error in storeGlobalTrustedSetup:", error);
+    return false;
+  }
+}
+
+// Legacy function - kept for backward compatibility
 export async function storeHybridTrustedSetup(
   electionId: string,
   verificationKey: any,
@@ -160,7 +260,7 @@ export async function storeHybridTrustedSetup(
   createdBy: string
 ): Promise<boolean> {
   try {
-    console.log(`Storing hybrid trusted setup for election: ${electionId}`);
+    console.log(`Storing hybrid trusted setup for election: ${electionId} (deprecated - use global setup instead)`);
     
     const { error } = await supabase
       .from("election_trusted_setups")
@@ -188,7 +288,7 @@ export async function storeHybridTrustedSetup(
 // Legacy function - kept for backward compatibility
 export async function generateTrustedSetup(electionId: string, createdBy: string): Promise<boolean> {
   try {
-    console.log(`Generating trusted setup for election: ${electionId}`);
+    console.log(`Generating trusted setup for election: ${electionId} (deprecated - use global setup instead)`);
     
     // For now, we'll use a mock setup. In production, this would be done by trusted admin
     // with proper ceremony and stored securely
