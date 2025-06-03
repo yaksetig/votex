@@ -45,6 +45,40 @@ export async function createElectionAuthority(
   }
 }
 
+// Create election authority with raw public key coordinates
+export async function createElectionAuthorityWithPublicKey(
+  name: string,
+  description: string,
+  publicKeyX: string,
+  publicKeyY: string
+): Promise<ElectionAuthority | null> {
+  try {
+    console.log(`Creating election authority with public key: ${name}`);
+    
+    const { data, error } = await supabase
+      .from("election_authorities")
+      .insert({
+        name,
+        description,
+        public_key_x: publicKeyX,
+        public_key_y: publicKeyY
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error creating election authority:", error);
+      return null;
+    }
+
+    console.log("Successfully created election authority:", data);
+    return data;
+  } catch (error) {
+    console.error("Error in createElectionAuthorityWithPublicKey:", error);
+    return null;
+  }
+}
+
 // Get all election authorities
 export async function getElectionAuthorities(): Promise<ElectionAuthority[]> {
   try {
@@ -111,7 +145,7 @@ export async function getElectionAuthorityForElection(electionId: string): Promi
       return null;
     }
 
-    const authority = data?.election_authorities as ElectionAuthority;
+    const authority = (data?.election_authorities as unknown) as ElectionAuthority;
     console.log("Found election authority for election:", authority);
     return authority || null;
   } catch (error) {
@@ -169,5 +203,33 @@ export async function deleteElectionAuthority(id: string): Promise<boolean> {
   } catch (error) {
     console.error("Error in deleteElectionAuthority:", error);
     return false;
+  }
+}
+
+// Initialize default election authority with the provided public key
+export async function initializeDefaultElectionAuthority(): Promise<void> {
+  try {
+    console.log("Initializing default election authority");
+    
+    const existingAuthorities = await getElectionAuthorities();
+    
+    // Check if we already have the default authority
+    const defaultExists = existingAuthorities.some(
+      auth => auth.name === "Default Election Authority"
+    );
+    
+    if (!defaultExists) {
+      await createElectionAuthorityWithPublicKey(
+        "Default Election Authority",
+        "Primary election authority for the platform",
+        "13522923618312071650302635321243604285850047309527197690046697525217605329069",
+        "10932479589697132144784969532699395534930855291504911162904822788453670442360"
+      );
+      console.log("Default election authority created successfully");
+    } else {
+      console.log("Default election authority already exists");
+    }
+  } catch (error) {
+    console.error("Error initializing default election authority:", error);
   }
 }

@@ -1,7 +1,7 @@
-
 import React, { useState, useEffect } from "react";
 import { useWallet } from "@/contexts/WalletContext";
 import { supabase } from "@/integrations/supabase/client";
+import { initializeDefaultElectionAuthority } from "@/services/electionAuthorityService";
 import ElectionForm from "@/components/ElectionForm";
 import ElectionsList from "@/components/ElectionsList";
 import { Button } from "@/components/ui/button";
@@ -40,7 +40,12 @@ const Elections = () => {
   };
 
   useEffect(() => {
-    fetchElections();
+    const initializeAndFetch = async () => {
+      await initializeDefaultElectionAuthority();
+      await fetchElections();
+    };
+    
+    initializeAndFetch();
   }, []);
 
   const handleFormSubmit = async (formData: any) => {
