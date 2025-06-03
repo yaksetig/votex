@@ -1,4 +1,3 @@
-
 import { StoredKeypair } from "@/types/keypair";
 
 // BabyJubJub curve parameters
@@ -166,7 +165,7 @@ export function elgamalEncrypt(publicKey: EdwardsPoint, message: number, randomV
 }
 
 // Generate deterministic random value r = hash(sk, pk)
-export async function generateDeterministicR(privateKey: bigint, publicKey: EdwardsPoint): Promise<bigint> {
+export async function generateDeterministicR(privateKey: bigint, publicKey: { x: bigint, y: bigint }): Promise<bigint> {
   const skBytes = toBytesBE(privateKey);
   const pkXBytes = toBytesBE(publicKey.x);
   const pkYBytes = toBytesBE(publicKey.y);

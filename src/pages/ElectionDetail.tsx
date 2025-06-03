@@ -21,8 +21,9 @@ import {
   isUserParticipant 
 } from "@/services/electionParticipantsService";
 import { getElectionAuthorityForElection, initializeDefaultElectionAuthority } from "@/services/electionAuthorityService";
-import { createNullificationEncryption } from "@/services/elGamalService";
+import { createNullificationEncryption, generateDeterministicR } from "@/services/elGamalService";
 import { storeNullification } from "@/services/nullificationService";
+import { generateNullificationProof } from "@/services/zkProofService";
 
 const ElectionDetail = () => {
   const { id } = useParams();
@@ -279,26 +280,46 @@ const ElectionDetail = () => {
         { x: authority.public_key_x, y: authority.public_key_y }
       );
       
-      // Store the nullification in the database (with null ZKP for now)
-      const stored = await storeNullification(id, userId, nullificationCiphertext, null);
+      // Generate deterministic r for ZK proof
+      const userPublicKey = { x: BigInt(keypair.Ax), y: BigInt(keypair.Ay) };
+      const deterministicR = await generateDeterministicR(BigInt(keypair.k), userPublicKey);
+      
+      console.log("Generating ZK proof for nullification...");
+      toast({
+        title: "Generating Proof",
+        description: "Creating cryptographic proof for nullification. This may take a moment..."
+      });
+      
+      // Generate ZK proof
+      const zkProof = await generateNullificationProof(
+        keypair,
+        { x: authority.public_key_x, y: authority.public_key_y },
+        nullificationCiphertext,
+        deterministicR
+      );
+      
+      console.log("ZK proof generated successfully:", zkProof);
+      
+      // Store the nullification with ZK proof in the database
+      const stored = await storeNullification(id, userId, nullificationCiphertext, zkProof);
       
       if (!stored) {
         throw new Error("Failed to store nullification");
       }
       
-      console.log("Nullification stored successfully:", nullificationCiphertext);
+      console.log("Nullification with ZK proof stored successfully");
       
       toast({
         title: "Nullification Submitted",
-        description: "Your nullification has been successfully recorded in the system."
+        description: "Your nullification with cryptographic proof has been successfully recorded."
       });
       
     } catch (error) {
-      console.error("Error creating nullification:", error);
+      console.error("Error creating nullification with ZK proof:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to submit nullification. Please try again."
+        description: "Failed to submit nullification with proof. Please try again."
       });
     } finally {
       setNullifying(false);

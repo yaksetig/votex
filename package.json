@@ -76,7 +76,8 @@
     "viem": "^2.26.2",
     "vite-plugin-node-polyfills": "^0.23.0",
     "wagmi": "^1.4.3",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "zokrates-js": "^1.1.9"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.0",
