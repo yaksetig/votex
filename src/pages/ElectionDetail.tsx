@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { formatDistanceToNow, isPast } from "date-fns";
-import { ArrowLeft, AlertCircle, CheckCircle, VoteIcon, KeyRound } from "lucide-react";
+import { ArrowLeft, AlertCircle, CheckCircle, VoteIcon, KeyRound, XCircle } from "lucide-react";
 import { signVote } from "@/services/signatureService";
 import { getStoredKeypair } from "@/services/keypairService";
 import { StoredKeypair } from "@/types/keypair";
@@ -27,6 +26,7 @@ const ElectionDetail = () => {
   const [selectedOption, setSelectedOption] = useState<string>("");
   const [hasVoted, setHasVoted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [nullifying, setNullifying] = useState(false);
   const [keypair, setKeypair] = useState<StoredKeypair | null>(null);
   const [needsKeypair, setNeedsKeypair] = useState(false);
 
@@ -167,6 +167,42 @@ const ElectionDetail = () => {
     }
   };
 
+  const handleNullifyVote = async () => {
+    if (!userId || !election) return;
+    
+    try {
+      setNullifying(true);
+      
+      // Delete the user's vote from this election
+      const { error } = await supabase
+        .from("votes")
+        .delete()
+        .eq("election_id", election.id)
+        .eq("voter", userId);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Vote nullified",
+        description: "Your vote has been successfully removed from this election."
+      });
+      
+      // Update local state
+      setHasVoted(false);
+      fetchElectionData();
+      
+    } catch (error) {
+      console.error("Error nullifying vote:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to nullify your vote. Please try again."
+      });
+    } finally {
+      setNullifying(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="container mx-auto py-8 px-4">
@@ -288,9 +324,23 @@ const ElectionDetail = () => {
               </div>
               
               {hasVoted && (
-                <div className="flex items-center justify-center p-3 bg-primary/10 rounded-md">
-                  <CheckCircle className="h-5 w-5 mr-2 text-primary" />
-                  <span className="text-sm font-medium">You have voted in this election</span>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-center p-3 bg-primary/10 rounded-md">
+                    <CheckCircle className="h-5 w-5 mr-2 text-primary" />
+                    <span className="text-sm font-medium">You have voted in this election</span>
+                  </div>
+                  {!isExpired && (
+                    <Button 
+                      variant="destructive" 
+                      size="sm"
+                      className="w-full"
+                      onClick={handleNullifyVote}
+                      disabled={nullifying}
+                    >
+                      <XCircle className="mr-2 h-4 w-4" />
+                      {nullifying ? "Nullifying..." : "Nullify Vote"}
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
