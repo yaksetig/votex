@@ -111,7 +111,7 @@ export async function getElectionAuthorityForElection(electionId: string): Promi
       return null;
     }
 
-    const authority = data?.election_authorities;
+    const authority = data?.election_authorities as ElectionAuthority;
     console.log("Found election authority for election:", authority);
     return authority || null;
   } catch (error) {
