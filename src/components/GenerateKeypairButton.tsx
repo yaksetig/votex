@@ -19,7 +19,6 @@ const GenerateKeypairButton: React.FC<Props> = ({ onKeypairGenerated }) => {
   const onClick = async () => {
     setLoading(true);
     try {
-      console.log("Starting keypair generation with unified approach...");
       const keypair = await generateKeypair();
       
       // Store keypair in localStorage
@@ -34,8 +33,6 @@ const GenerateKeypairButton: React.FC<Props> = ({ onKeypairGenerated }) => {
       if (!isConsistent) {
         throw new Error("Generated keypair is not consistent with curve implementation!");
       }
-      
-      console.log("Keypair consistency verified successfully!");
       
       onKeypairGenerated(keypair);
       localStorage.setItem("babyJubKeypair", JSON.stringify(storedKeypair));
@@ -56,11 +53,10 @@ const GenerateKeypairButton: React.FC<Props> = ({ onKeypairGenerated }) => {
         });
       }
     } catch (e: any) {
-      console.error("Keypair generation failed", e);
       toast({
         variant: "destructive",
         title: "Failed to generate keypair",
-        description: e.message || String(e),
+        description: "Unable to create keypair. Please try again.",
       });
     } finally {
       setLoading(false);

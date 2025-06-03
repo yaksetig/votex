@@ -17,19 +17,14 @@ export async function generateKeypair(): Promise<{
   Ax: bigint;
   Ay: bigint;
 }> {
-  console.log("Generating keypair using unified BabyJubJub implementation...");
-  
   // Generate random private key
   const k = randomScalar(CURVE_ORDER);
-  console.log(`Generated private key: ${k.toString()}`);
   
   // Get base point
   const basePoint = EdwardsPoint.base();
-  console.log(`Base point: ${basePoint.toString()}`);
   
   // Compute public key: A = k * G
   const publicKeyPoint = basePoint.multiply(k);
-  console.log(`Computed public key: ${publicKeyPoint.toString()}`);
   
   // Verify the point is on curve
   if (!publicKeyPoint.isOnCurve()) {

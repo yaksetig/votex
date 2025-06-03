@@ -1,3 +1,4 @@
+
 import { StoredKeypair } from "@/types/keypair";
 
 // BabyJubJub curve parameters
@@ -132,13 +133,10 @@ export class EdwardsPoint {
   }
 }
 
-// New function: Derive public key from private key
+// Derive public key from private key
 export function derivePublicKey(privateKey: bigint): EdwardsPoint {
   const basePoint = EdwardsPoint.base();
   const publicKey = basePoint.multiply(privateKey);
-  
-  console.log(`Derived public key from private key ${privateKey.toString()}:`);
-  console.log(`Public key: ${publicKey.toString()}`);
   
   if (!publicKey.isOnCurve()) {
     throw new Error("Derived public key is not on curve!");
@@ -147,7 +145,7 @@ export function derivePublicKey(privateKey: bigint): EdwardsPoint {
   return publicKey;
 }
 
-// New function: Verify keypair consistency
+// Verify keypair consistency
 export function verifyKeypairConsistency(keypair: StoredKeypair): boolean {
   try {
     const privateKey = BigInt(keypair.k);
@@ -156,16 +154,8 @@ export function verifyKeypairConsistency(keypair: StoredKeypair): boolean {
     const actualPublicKeyX = BigInt(keypair.Ax);
     const actualPublicKeyY = BigInt(keypair.Ay);
     
-    const matches = expectedPublicKey.x === actualPublicKeyX && expectedPublicKey.y === actualPublicKeyY;
-    
-    console.log(`Keypair consistency check:`);
-    console.log(`Expected: (${expectedPublicKey.x.toString()}, ${expectedPublicKey.y.toString()})`);
-    console.log(`Actual: (${actualPublicKeyX.toString()}, ${actualPublicKeyY.toString()})`);
-    console.log(`Matches: ${matches}`);
-    
-    return matches;
+    return expectedPublicKey.x === actualPublicKeyX && expectedPublicKey.y === actualPublicKeyY;
   } catch (error) {
-    console.error("Error verifying keypair consistency:", error);
     return false;
   }
 }
@@ -183,16 +173,9 @@ export function elgamalEncrypt(publicKey: EdwardsPoint, message: number, randomV
   const r = randomValue || BigInt(Math.floor(Math.random() * Number.MAX_SAFE_INTEGER));
   const basePoint = EdwardsPoint.base();
   
-  // c1 = r * G (where G is the base point)
   const c1 = basePoint.multiply(r);
-  
-  // Shared secret: r * pk
   const sharedSecret = publicKey.multiply(r);
-  
-  // m * G (message in the exponent)
   const mG = basePoint.multiply(BigInt(message));
-  
-  // c2 = sharedSecret + mG
   const c2 = sharedSecret.add(mG);
   
   return {
@@ -209,9 +192,7 @@ export async function generateDeterministicR(privateKey: bigint, publicKey: { x:
   const pkXBytes = toBytesBE(publicKey.x);
   const pkYBytes = toBytesBE(publicKey.y);
   
-  const r = await hashToScalarBE(skBytes, pkXBytes, pkYBytes);
-  console.log(`Generated deterministic r: ${r.toString()}`);
-  return r;
+  return await hashToScalarBE(skBytes, pkXBytes, pkYBytes);
 }
 
 // Create ElGamal encryption for nullification
@@ -219,26 +200,12 @@ export async function createNullificationEncryption(
   userKeypair: StoredKeypair,
   authorityPublicKey: { x: string, y: string }
 ): Promise<ElGamalCiphertext> {
-  console.log("Creating nullification encryption...");
-  
-  // Convert authority public key to EdwardsPoint
   const authorityPoint = new EdwardsPoint(BigInt(authorityPublicKey.x), BigInt(authorityPublicKey.y));
-  console.log(`Authority public key: ${authorityPoint.toString()}`);
-  
-  // Convert user public key to EdwardsPoint for deterministic r generation
   const userPublicKey = new EdwardsPoint(BigInt(userKeypair.Ax), BigInt(userKeypair.Ay));
   const userPrivateKey = BigInt(userKeypair.k);
   
-  // Generate deterministic r = hash(sk, pk of that voter)
   const deterministicR = await generateDeterministicR(userPrivateKey, userPublicKey);
-  
-  // Encrypt the value 1 (nullification signal)
   const ciphertext = elgamalEncrypt(authorityPoint, 1, deterministicR);
-  
-  console.log("Nullification encryption created:");
-  console.log(`c1: ${ciphertext.c1.toString()}`);
-  console.log(`c2: ${ciphertext.c2.toString()}`);
-  console.log(`r: ${ciphertext.r.toString()}`);
   
   return ciphertext;
 }

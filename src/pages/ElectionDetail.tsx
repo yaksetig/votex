@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -46,9 +45,8 @@ const ElectionDetail = () => {
   useEffect(() => {
     fetchElectionData();
     checkIfUserVoted();
-    initializeDefaultElectionAuthority(); // Initialize default authority
+    initializeDefaultElectionAuthority();
     
-    // Load keypair from localStorage
     const storedKeypair = getStoredKeypair();
     if (storedKeypair) {
       setKeypair(storedKeypair);
@@ -58,7 +56,6 @@ const ElectionDetail = () => {
   }, [id]);
 
   useEffect(() => {
-    // Check if user is a participant when userId and id are available
     if (userId && id) {
       checkParticipantStatus();
     }
@@ -69,10 +66,9 @@ const ElectionDetail = () => {
     
     try {
       const participantStatus = await isUserParticipant(id, userId);
-      console.log(`User ${userId} participant status for election ${id}:`, participantStatus);
       setIsParticipant(participantStatus);
     } catch (error) {
-      console.error("Error checking participant status:", error);
+      // Silent error handling
     }
   };
 
@@ -80,7 +76,6 @@ const ElectionDetail = () => {
     try {
       setLoading(true);
       
-      // Fetch election details
       const { data: electionData, error: electionError } = await supabase
         .from("elections")
         .select("*")
@@ -96,7 +91,6 @@ const ElectionDetail = () => {
       
       setElection(electionData);
       
-      // Fetch vote counts
       const { data: votes, error: votesError } = await supabase
         .from("votes")
         .select("choice")
@@ -104,7 +98,6 @@ const ElectionDetail = () => {
         
       if (votesError) throw votesError;
       
-      // Count votes for each option
       const option1Count = votes?.filter(vote => vote.choice === electionData.option1).length || 0;
       const option2Count = votes?.filter(vote => vote.choice === electionData.option2).length || 0;
       
@@ -113,15 +106,12 @@ const ElectionDetail = () => {
         option2: option2Count
       });
 
-      // Fetch election participants
       if (id) {
         const participantsList = await getElectionParticipants(id);
-        console.log(`Found ${participantsList.length} total participants for election ${id}:`, participantsList);
         setParticipants(participantsList);
       }
       
     } catch (error) {
-      console.error("Error fetching election:", error);
       toast({
         variant: "destructive",
         title: "Error",
@@ -136,7 +126,6 @@ const ElectionDetail = () => {
     if (!userId || !id) return;
     
     try {
-      // Check if the user has voted in this election
       const { data, error } = await supabase
         .from("votes")
         .select("*")
@@ -147,7 +136,7 @@ const ElectionDetail = () => {
       
       setHasVoted(data && data.length > 0);
     } catch (error) {
-      console.error("Error checking vote status:", error);
+      // Silent error handling
     }
   };
 
@@ -155,14 +144,10 @@ const ElectionDetail = () => {
     if (!userId || !election || !keypair) return false;
     
     try {
-      // Check if user is already a participant
       if (isParticipant) {
-        console.log("User is already a participant");
         return true;
       }
       
-      // Register as participant
-      console.log("Registering user as participant...");
       const participantRegistered = await registerElectionParticipant(
         election.id,
         userId,
@@ -171,15 +156,12 @@ const ElectionDetail = () => {
       
       if (participantRegistered) {
         setIsParticipant(true);
-        // Refresh participants list
         const updatedParticipants = await getElectionParticipants(election.id);
         setParticipants(updatedParticipants);
-        console.log(`User registered as participant. Total participants now: ${updatedParticipants.length}`);
       }
       
       return participantRegistered;
     } catch (error) {
-      console.error("Error ensuring user is participant:", error);
       return false;
     }
   };
@@ -200,26 +182,23 @@ const ElectionDetail = () => {
     try {
       setSubmitting(true);
       
-      // Ensure user is registered as participant first
       const participantRegistered = await ensureUserIsParticipant();
       
       if (!participantRegistered) {
         throw new Error("Failed to register as election participant");
       }
       
-      // Sign the vote
       const { signature, timestamp } = await signVote(
         keypair,
         election.id,
         selectedOption
       );
       
-      // Submit the vote
       const { error } = await supabase.rpc("insert_vote", {
         p_election_id: election.id,
         p_voter: userId,
         p_choice: selectedOption,
-        p_nullifier: null, // We would implement nullifier for privacy
+        p_nullifier: null,
         p_signature: signature,
         p_timestamp: timestamp
       });
@@ -231,12 +210,10 @@ const ElectionDetail = () => {
         description: "Your vote has been recorded successfully."
       });
       
-      // Update local state
       setHasVoted(true);
       fetchElectionData();
       
     } catch (error) {
-      console.error("Error submitting vote:", error);
       toast({
         variant: "destructive",
         title: "Error",
@@ -250,7 +227,6 @@ const ElectionDetail = () => {
   const handleNullifyVote = async () => {
     if (!userId || !election || !id || !keypair) return;
     
-    // Only allow nullification if user has voted
     if (!hasVoted) {
       toast({
         variant: "destructive",
@@ -263,34 +239,26 @@ const ElectionDetail = () => {
     try {
       setNullifying(true);
       
-      // Ensure user is registered as participant first
       await ensureUserIsParticipant();
       
-      // Get election authority for this election
       const authority = await getElectionAuthorityForElection(id);
       if (!authority) {
-        throw new Error("Failed to get election authority - this should not happen");
+        throw new Error("Failed to get election authority");
       }
       
-      console.log("Found election authority:", authority);
-      
-      // Create ElGamal encryption of 1 for nullification
       const nullificationCiphertext = await createNullificationEncryption(
         keypair,
         { x: authority.public_key_x, y: authority.public_key_y }
       );
       
-      // Generate deterministic r for ZK proof
       const userPublicKey = { x: BigInt(keypair.Ax), y: BigInt(keypair.Ay) };
       const deterministicR = await generateDeterministicR(BigInt(keypair.k), userPublicKey);
       
-      console.log("Generating ZK proof for nullification...");
       toast({
         title: "Generating Proof",
         description: "Creating cryptographic proof for nullification. This may take a moment..."
       });
       
-      // Generate ZK proof
       const zkProof = await generateNullificationProof(
         keypair,
         { x: authority.public_key_x, y: authority.public_key_y },
@@ -298,16 +266,11 @@ const ElectionDetail = () => {
         deterministicR
       );
       
-      console.log("ZK proof generated successfully:", zkProof);
-      
-      // Store the nullification with ZK proof in the database
       const stored = await storeNullification(id, userId, nullificationCiphertext, zkProof);
       
       if (!stored) {
         throw new Error("Failed to store nullification");
       }
-      
-      console.log("Nullification with ZK proof stored successfully");
       
       toast({
         title: "Nullification Submitted",
@@ -315,11 +278,10 @@ const ElectionDetail = () => {
       });
       
     } catch (error) {
-      console.error("Error creating nullification with ZK proof:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to submit nullification with proof. Please try again."
+        description: "Failed to submit nullification. Please try again."
       });
     } finally {
       setNullifying(false);
@@ -398,11 +360,6 @@ const ElectionDetail = () => {
           <div>
             <h3 className="text-lg font-medium mb-2">Description</h3>
             <p className="text-muted-foreground whitespace-pre-line">{election.description}</p>
-          </div>
-          
-          {/* Debug info for participants */}
-          <div className="text-xs text-muted-foreground bg-muted p-2 rounded">
-            Debug: {participants.length} participants found | User is participant: {isParticipant ? 'Yes' : 'No'}
           </div>
           
           {needsKeypair && !keypair && (
