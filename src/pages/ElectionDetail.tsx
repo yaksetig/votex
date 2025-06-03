@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { formatDistanceToNow, isPast } from "date-fns";
-import { ArrowLeft, AlertCircle, CheckCircle, VoteIcon, KeyRound, XCircle } from "lucide-react";
+import { ArrowLeft, AlertCircle, CheckCircle, VoteIcon, KeyRound } from "lucide-react";
 import { signVote } from "@/services/signatureService";
 import { getStoredKeypair } from "@/services/keypairService";
 import { StoredKeypair } from "@/types/keypair";
@@ -173,30 +173,18 @@ const ElectionDetail = () => {
     try {
       setNullifying(true);
       
-      // Delete the user's vote from this election
-      const { error } = await supabase
-        .from("votes")
-        .delete()
-        .eq("election_id", election.id)
-        .eq("voter", userId);
-      
-      if (error) throw error;
-      
+      // Dummy action - just show a toast for now
       toast({
-        title: "Vote nullified",
-        description: "Your vote has been successfully removed from this election."
+        title: "Nullify Vote",
+        description: "Nullify vote functionality will be implemented with cryptographic proof."
       });
-      
-      // Update local state
-      setHasVoted(false);
-      fetchElectionData();
       
     } catch (error) {
       console.error("Error nullifying vote:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to nullify your vote. Please try again."
+        description: "Failed to process nullify request. Please try again."
       });
     } finally {
       setNullifying(false);
@@ -331,14 +319,13 @@ const ElectionDetail = () => {
                   </div>
                   {!isExpired && (
                     <Button 
-                      variant="destructive" 
+                      variant="outline" 
                       size="sm"
-                      className="w-full"
+                      className="w-full bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
                       onClick={handleNullifyVote}
                       disabled={nullifying}
                     >
-                      <XCircle className="mr-2 h-4 w-4" />
-                      {nullifying ? "Nullifying..." : "Nullify Vote"}
+                      {nullifying ? "Processing..." : "Nullify Vote"}
                     </Button>
                   )}
                 </div>
