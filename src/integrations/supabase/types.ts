@@ -74,6 +74,41 @@ export type Database = {
           },
         ]
       }
+      election_trusted_setups: {
+        Row: {
+          created_at: string
+          created_by: string
+          election_id: string
+          id: string
+          proving_key: Json
+          verification_key: Json
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          election_id: string
+          id?: string
+          proving_key: Json
+          verification_key: Json
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          election_id?: string
+          id?: string
+          proving_key?: Json
+          verification_key?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "election_trusted_setups_election_id_fkey"
+            columns: ["election_id"]
+            isOneToOne: true
+            referencedRelation: "elections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       elections: {
         Row: {
           authority_id: string | null
