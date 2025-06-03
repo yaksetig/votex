@@ -36,6 +36,7 @@ interface VoteCounts {
     option2: number;
     total: number;
     option1Percentage: number;
+    option2Percentage: number;
   };
 }
 
@@ -73,12 +74,14 @@ const ElectionsList: React.FC<ElectionsListProps> = ({ elections, loading }) => 
         const option2Count = electionVotes.filter(vote => vote.choice === election.option2).length;
         const total = option1Count + option2Count;
         const option1Percentage = total > 0 ? Math.round((option1Count / total) * 100) : 0;
+        const option2Percentage = total > 0 ? Math.round((option2Count / total) * 100) : 0;
         
         counts[election.id] = {
           option1: option1Count,
           option2: option2Count,
           total,
-          option1Percentage
+          option1Percentage,
+          option2Percentage
         };
       });
       
@@ -145,8 +148,8 @@ const ElectionsList: React.FC<ElectionsListProps> = ({ elections, loading }) => 
               {voteData && voteData.total > 0 ? (
                 <div className="mb-4 space-y-2">
                   <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>{election.option1}: {voteData.option1}</span>
-                    <span>{election.option2}: {voteData.option2}</span>
+                    <span>{election.option1}: {voteData.option1} ({voteData.option1Percentage}%)</span>
+                    <span>{election.option2}: {voteData.option2} ({voteData.option2Percentage}%)</span>
                   </div>
                   <Progress value={voteData.option1Percentage} className="h-2" />
                   <div className="text-center text-xs text-muted-foreground">
@@ -158,15 +161,6 @@ const ElectionsList: React.FC<ElectionsListProps> = ({ elections, loading }) => 
                   {votesLoading ? "Loading votes..." : "No votes yet"}
                 </div>
               )}
-              
-              <div className="flex justify-between">
-                <span className="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
-                  {election.option1}
-                </span>
-                <span className="inline-flex items-center rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/20">
-                  {election.option2}
-                </span>
-              </div>
             </CardContent>
             <CardFooter>
               <Button 
