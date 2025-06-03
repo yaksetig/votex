@@ -279,8 +279,8 @@ const ElectionDetail = () => {
         { x: authority.public_key_x, y: authority.public_key_y }
       );
       
-      // Store the nullification in the database
-      const stored = await storeNullification(id, userId, nullificationCiphertext);
+      // Store the nullification in the database (with null ZKP for now)
+      const stored = await storeNullification(id, userId, nullificationCiphertext, null);
       
       if (!stored) {
         throw new Error("Failed to store nullification");

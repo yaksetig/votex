@@ -145,6 +145,7 @@ export type Database = {
           election_id: string
           id: string
           nullifier_ciphertext: Json
+          nullifier_zkp: Json | null
           user_id: string
         }
         Insert: {
@@ -152,6 +153,7 @@ export type Database = {
           election_id: string
           id?: string
           nullifier_ciphertext: Json
+          nullifier_zkp?: Json | null
           user_id: string
         }
         Update: {
@@ -159,6 +161,7 @@ export type Database = {
           election_id?: string
           id?: string
           nullifier_ciphertext?: Json
+          nullifier_zkp?: Json | null
           user_id?: string
         }
         Relationships: [

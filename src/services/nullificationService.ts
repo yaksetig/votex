@@ -7,6 +7,7 @@ export interface Nullification {
   election_id: string;
   user_id: string;
   nullifier_ciphertext: any; // JSONB data
+  nullifier_zkp: any; // JSONB data for zero-knowledge proof
   created_at: string;
 }
 
@@ -14,12 +15,14 @@ export interface Nullification {
 export async function storeNullification(
   electionId: string,
   userId: string,
-  ciphertext: ElGamalCiphertext
+  ciphertext: ElGamalCiphertext,
+  zkp?: any // Zero-knowledge proof (optional for now)
 ): Promise<boolean> {
   try {
     console.log(`Storing nullification for user ${userId} in election ${electionId}`);
     
-    // Convert the ciphertext to a JSON format for storage
+    // Store only the essential ciphertext data (c1 and c2 points)
+    // Remove the insecure 'r' value and redundant ciphertext array
     const nullifierData = {
       c1: {
         x: ciphertext.c1.x.toString(),
@@ -28,9 +31,7 @@ export async function storeNullification(
       c2: {
         x: ciphertext.c2.x.toString(),
         y: ciphertext.c2.y.toString()
-      },
-      r: ciphertext.r.toString(),
-      ciphertext: ciphertext.ciphertext.map(c => c.toString())
+      }
     };
 
     const { error } = await supabase
@@ -38,7 +39,8 @@ export async function storeNullification(
       .insert({
         election_id: electionId,
         user_id: userId,
-        nullifier_ciphertext: nullifierData
+        nullifier_ciphertext: nullifierData,
+        nullifier_zkp: zkp || null
       });
 
     if (error) {
