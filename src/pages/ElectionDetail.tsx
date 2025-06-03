@@ -19,7 +19,7 @@ import {
   ElectionParticipant,
   isUserParticipant 
 } from "@/services/electionParticipantsService";
-import { getElectionAuthorityForElection } from "@/services/electionAuthorityService";
+import { getElectionAuthorityForElection, initializeDefaultElectionAuthority } from "@/services/electionAuthorityService";
 import { createNullificationEncryption } from "@/services/elGamalService";
 
 const ElectionDetail = () => {
@@ -43,6 +43,7 @@ const ElectionDetail = () => {
   useEffect(() => {
     fetchElectionData();
     checkIfUserVoted();
+    initializeDefaultElectionAuthority(); // Initialize default authority
     
     // Load keypair from localStorage
     const storedKeypair = getStoredKeypair();
@@ -255,7 +256,7 @@ const ElectionDetail = () => {
       // Get election authority for this election
       const authority = await getElectionAuthorityForElection(id);
       if (!authority) {
-        throw new Error("No election authority found for this election");
+        throw new Error("Failed to get election authority - this should not happen");
       }
       
       console.log("Found election authority:", authority);

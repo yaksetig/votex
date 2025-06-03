@@ -146,6 +146,30 @@ export async function getElectionAuthorityForElection(electionId: string): Promi
     }
 
     const authority = (data?.election_authorities as unknown) as ElectionAuthority;
+    
+    // If no specific authority is assigned, get the default one
+    if (!authority) {
+      console.log("No specific authority assigned, fetching default authority");
+      
+      // First ensure default authority exists
+      await initializeDefaultElectionAuthority();
+      
+      // Then fetch the default authority
+      const { data: defaultAuthority, error: defaultError } = await supabase
+        .from("election_authorities")
+        .select("*")
+        .eq("name", "Default Election Authority")
+        .maybeSingle();
+        
+      if (defaultError) {
+        console.error("Error fetching default election authority:", defaultError);
+        return null;
+      }
+      
+      console.log("Using default election authority:", defaultAuthority);
+      return defaultAuthority;
+    }
+    
     console.log("Found election authority for election:", authority);
     return authority || null;
   } catch (error) {
