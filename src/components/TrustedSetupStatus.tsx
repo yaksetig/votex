@@ -3,8 +3,8 @@ import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Shield, AlertTriangle, CheckCircle, Settings } from "lucide-react";
-import { hasTrustedSetup, generateTrustedSetup } from "@/services/trustedSetupService";
+import { Shield, AlertTriangle, CheckCircle, Settings, Server, Database } from "lucide-react";
+import { hasTrustedSetup, generateTrustedSetup, getTrustedSetupForElection } from "@/services/trustedSetupService";
 import { useToast } from "@/hooks/use-toast";
 
 interface Props {
@@ -14,6 +14,7 @@ interface Props {
 
 const TrustedSetupStatus: React.FC<Props> = ({ electionId, isAdmin = false }) => {
   const [hasSetup, setHasSetup] = useState<boolean | null>(null);
+  const [setupDetails, setSetupDetails] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const { toast } = useToast();
@@ -27,6 +28,11 @@ const TrustedSetupStatus: React.FC<Props> = ({ electionId, isAdmin = false }) =>
       setLoading(true);
       const setupExists = await hasTrustedSetup(electionId);
       setHasSetup(setupExists);
+      
+      if (setupExists) {
+        const details = await getTrustedSetupForElection(electionId);
+        setSetupDetails(details);
+      }
     } catch (error) {
       console.error("Error checking trusted setup status:", error);
       setHasSetup(false);
@@ -48,6 +54,7 @@ const TrustedSetupStatus: React.FC<Props> = ({ electionId, isAdmin = false }) =>
           description: "The cryptographic trusted setup has been created for this election.",
         });
         setHasSetup(true);
+        checkSetupStatus();
       } else {
         toast({
           variant: "destructive",
@@ -65,6 +72,9 @@ const TrustedSetupStatus: React.FC<Props> = ({ electionId, isAdmin = false }) =>
       setGenerating(false);
     }
   };
+
+  const isHybridSetup = setupDetails?.proving_key_filename && setupDetails?.proving_key_hash;
+  const isLegacySetup = setupDetails?.proving_key && !isHybridSetup;
 
   if (loading) {
     return (
@@ -100,12 +110,37 @@ const TrustedSetupStatus: React.FC<Props> = ({ electionId, isAdmin = false }) =>
       </CardHeader>
       <CardContent className="pt-0">
         {hasSetup ? (
-          <div className="space-y-2">
+          <div className="space-y-3">
             <p className="text-sm text-green-700">
               ✓ Trusted setup completed - nullification is available
             </p>
+            
+            {/* Setup type indicator */}
+            <div className="flex items-center space-x-2 text-xs">
+              {isHybridSetup ? (
+                <>
+                  <div className="flex items-center space-x-1 text-blue-600">
+                    <Server className="h-3 w-3" />
+                    <span>Proving Key: Server</span>
+                  </div>
+                  <div className="flex items-center space-x-1 text-purple-600">
+                    <Database className="h-3 w-3" />
+                    <span>Verification Key: Database</span>
+                  </div>
+                </>
+              ) : isLegacySetup ? (
+                <div className="flex items-center space-x-1 text-gray-600">
+                  <Database className="h-3 w-3" />
+                  <span>Legacy: All keys in database</span>
+                </div>
+              ) : (
+                <span className="text-gray-500">Setup type unknown</span>
+              )}
+            </div>
+            
             <p className="text-xs text-muted-foreground">
               The cryptographic parameters required for secure nullification have been generated and stored.
+              {isHybridSetup && " Using hybrid storage for optimal performance."}
             </p>
           </div>
         ) : (

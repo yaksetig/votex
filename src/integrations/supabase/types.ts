@@ -81,6 +81,8 @@ export type Database = {
           election_id: string
           id: string
           proving_key: Json
+          proving_key_filename: string | null
+          proving_key_hash: string | null
           verification_key: Json
         }
         Insert: {
@@ -89,6 +91,8 @@ export type Database = {
           election_id: string
           id?: string
           proving_key: Json
+          proving_key_filename?: string | null
+          proving_key_hash?: string | null
           verification_key: Json
         }
         Update: {
@@ -97,6 +101,8 @@ export type Database = {
           election_id?: string
           id?: string
           proving_key?: Json
+          proving_key_filename?: string | null
+          proving_key_hash?: string | null
           verification_key?: Json
         }
         Relationships: [
