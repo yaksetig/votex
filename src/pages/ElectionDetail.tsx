@@ -19,6 +19,8 @@ import {
   ElectionParticipant,
   isUserParticipant 
 } from "@/services/electionParticipantsService";
+import { getElectionAuthorityForElection } from "@/services/electionAuthorityService";
+import { createNullificationEncryption } from "@/services/elGamalService";
 
 const ElectionDetail = () => {
   const { id } = useParams();
@@ -242,7 +244,7 @@ const ElectionDetail = () => {
   };
 
   const handleNullifyVote = async () => {
-    if (!userId || !election || !id) return;
+    if (!userId || !election || !id || !keypair) return;
     
     try {
       setNullifying(true);
@@ -250,36 +252,34 @@ const ElectionDetail = () => {
       // Ensure user is registered as participant first
       await ensureUserIsParticipant();
       
-      // Get fresh list of all participants for this election
-      const allParticipants = await getElectionParticipants(id);
-      
-      console.log(`Found ${allParticipants.length} participants for nullification process:`, allParticipants);
-      
-      if (allParticipants.length === 0) {
-        toast({
-          variant: "destructive",
-          title: "No Participants Found",
-          description: "No participants found for this election. This might be a data consistency issue."
-        });
-        return;
+      // Get election authority for this election
+      const authority = await getElectionAuthorityForElection(id);
+      if (!authority) {
+        throw new Error("No election authority found for this election");
       }
       
-      // TODO: Implement the cryptographic nullification process here
-      // For each participant's public key:
-      // - If it's the current user's key: encrypt 1 and generate ZK proof
-      // - If it's not the current user's key: encrypt 0 and generate ZK proof
+      console.log("Found election authority:", authority);
+      
+      // Create ElGamal encryption of 1 for nullification
+      const nullificationCiphertext = await createNullificationEncryption(
+        keypair,
+        { x: authority.public_key_x, y: authority.public_key_y }
+      );
+      
+      // For now, just log the ciphertext and show success
+      console.log("Nullification ciphertext created:", nullificationCiphertext);
       
       toast({
-        title: "Nullify Vote",
-        description: `Nullification process will use ${allParticipants.length} participant keys. Cryptographic implementation coming soon.`
+        title: "Nullification Encryption Created",
+        description: `ElGamal encryption of value 1 has been generated. Ciphertext: [${nullificationCiphertext.ciphertext.map(c => c.toString().slice(0, 10) + '...').join(', ')}]`
       });
       
     } catch (error) {
-      console.error("Error nullifying vote:", error);
+      console.error("Error creating nullification encryption:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to process nullify request. Please try again."
+        description: "Failed to create nullification encryption. Please try again."
       });
     } finally {
       setNullifying(false);
