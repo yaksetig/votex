@@ -3,8 +3,9 @@ import React, { useState, useEffect } from "react"
 import { useWallet } from "@/contexts/WalletContext"
 import { useToast } from "@/hooks/use-toast"
 import WorldIDVerifier from "@/components/WorldIDVerifier"
+import GenerateKeypairButton from "@/components/GenerateKeypairButton"
 import { getStoredKeypair } from "@/services/keypairService"
-import { StoredKeypair } from "@/types/keypair"
+import { StoredKeypair, KeypairResult } from "@/types/keypair"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Eye, EyeOff, Key } from "lucide-react"
@@ -46,6 +47,17 @@ const Dashboard = () => {
       title: "Welcome to Votex!",
       description: "You can now create and participate in anonymous elections.",
     })
+  }
+
+  const handleKeypairGenerated = (newKeypair: KeypairResult) => {
+    console.log('Keypair generated in Dashboard:', newKeypair)
+    // Convert to StoredKeypair format
+    const storedKeypair: StoredKeypair = {
+      k: newKeypair.k.toString(),
+      Ax: newKeypair.Ax.toString(),
+      Ay: newKeypair.Ay.toString()
+    }
+    setKeypair(storedKeypair)
   }
 
   const truncateKey = (key: string, showFull: boolean = false) => {
@@ -162,10 +174,11 @@ const Dashboard = () => {
             <CardHeader>
               <CardTitle>No Keypair Found</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               <p className="text-muted-foreground">
-                No cryptographic keypair was found in your browser's storage. You may need to generate one first.
+                No cryptographic keypair was found in your browser's storage. Generate one to participate in anonymous voting.
               </p>
+              <GenerateKeypairButton onKeypairGenerated={handleKeypairGenerated} />
             </CardContent>
           </Card>
         )}
