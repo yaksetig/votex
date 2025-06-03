@@ -33,7 +33,7 @@ const NavBar = () => {
               onClick={resetIdentity}
               className="text-sm text-muted-foreground hover:text-destructive"
             >
-              Reset
+              Sign out
             </button>
           </>
         )}
