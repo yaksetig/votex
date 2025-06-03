@@ -9,6 +9,36 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      election_authorities: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          public_key_x: string
+          public_key_y: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          public_key_x: string
+          public_key_y: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          public_key_x?: string
+          public_key_y?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       election_participants: {
         Row: {
           election_id: string
@@ -46,6 +76,7 @@ export type Database = {
       }
       elections: {
         Row: {
+          authority_id: string | null
           created_at: string
           creator: string
           description: string
@@ -56,6 +87,7 @@ export type Database = {
           title: string
         }
         Insert: {
+          authority_id?: string | null
           created_at?: string
           creator: string
           description: string
@@ -66,6 +98,7 @@ export type Database = {
           title: string
         }
         Update: {
+          authority_id?: string | null
           created_at?: string
           creator?: string
           description?: string
@@ -75,7 +108,15 @@ export type Database = {
           option2?: string
           title?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "elections_authority_id_fkey"
+            columns: ["authority_id"]
+            isOneToOne: false
+            referencedRelation: "election_authorities"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       keypairs: {
         Row: {

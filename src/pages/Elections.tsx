@@ -20,7 +20,14 @@ const Elections = () => {
       setLoading(true);
       const { data, error } = await supabase
         .from("elections")
-        .select("*")
+        .select(`
+          *,
+          election_authorities (
+            id,
+            name,
+            description
+          )
+        `)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -47,8 +54,16 @@ const Elections = () => {
           option2: formData.option2,
           creator: userId,
           end_date: formData.endDate.toISOString(),
+          authority_id: formData.authorityId,
         })
-        .select();
+        .select(`
+          *,
+          election_authorities (
+            id,
+            name,
+            description
+          )
+        `);
 
       if (error) throw error;
       
