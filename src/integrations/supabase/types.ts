@@ -83,6 +83,7 @@ export type Database = {
           proving_key: Json
           proving_key_filename: string | null
           proving_key_hash: string | null
+          proving_key_url: string | null
           verification_key: Json
         }
         Insert: {
@@ -93,6 +94,7 @@ export type Database = {
           proving_key: Json
           proving_key_filename?: string | null
           proving_key_hash?: string | null
+          proving_key_url?: string | null
           verification_key: Json
         }
         Update: {
@@ -103,6 +105,7 @@ export type Database = {
           proving_key?: Json
           proving_key_filename?: string | null
           proving_key_hash?: string | null
+          proving_key_url?: string | null
           verification_key?: Json
         }
         Relationships: [
@@ -167,8 +170,9 @@ export type Database = {
           id: string
           is_active: boolean
           name: string
-          proving_key_filename: string
-          proving_key_hash: string
+          proving_key_filename: string | null
+          proving_key_hash: string | null
+          proving_key_url: string | null
           verification_key: Json
         }
         Insert: {
@@ -178,8 +182,9 @@ export type Database = {
           id?: string
           is_active?: boolean
           name: string
-          proving_key_filename: string
-          proving_key_hash: string
+          proving_key_filename?: string | null
+          proving_key_hash?: string | null
+          proving_key_url?: string | null
           verification_key: Json
         }
         Update: {
@@ -189,8 +194,9 @@ export type Database = {
           id?: string
           is_active?: boolean
           name?: string
-          proving_key_filename?: string
-          proving_key_hash?: string
+          proving_key_filename?: string | null
+          proving_key_hash?: string | null
+          proving_key_url?: string | null
           verification_key?: Json
         }
         Relationships: []

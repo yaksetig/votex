@@ -283,13 +283,13 @@ const ElectionDetail = () => {
         description: "Creating cryptographic proof for nullification using trusted setup..."
       });
       
-      // Fix: Pass keypair first, then authority public key, then ciphertext, then deterministicR, then election ID
+      // Generate ZK proof - now automatically uses Firebase JSON proving key
       const zkProof = await generateNullificationProof(
         keypair,
         { x: authority.public_key_x, y: authority.public_key_y },
         nullificationCiphertext,
         deterministicR,
-        id // Pass election ID as last parameter
+        id
       );
       
       const stored = await storeNullification(id, userId, nullificationCiphertext, zkProof);

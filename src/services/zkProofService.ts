@@ -102,14 +102,13 @@ export async function generateNullificationProof(
   authorityPublicKey: { x: string, y: string },
   ciphertext: ElGamalCiphertext,
   deterministicR: bigint,
-  electionId?: string,
-  firebaseAccessToken?: string
+  electionId?: string
 ): Promise<any> {
   try {
     console.log("Generating ZK proof for nullification...");
     
-    // Get complete trusted setup (Firebase URL or legacy)
-    const trustedSetupData = await getCompleteTrustedSetup(electionId, firebaseAccessToken);
+    // Get complete trusted setup (Firebase URL or legacy) - no access token needed
+    const trustedSetupData = await getCompleteTrustedSetup(electionId);
     if (!trustedSetupData) {
       throw new Error("No trusted setup found - cryptographic setup is required for nullification");
     }
