@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 
 export interface TrustedSetup {
@@ -63,7 +64,7 @@ export async function generateKeyFileHash(filename: string): Promise<string> {
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     
-    console.log(`Hash generated successfully for ${filename}: ${hashHex.substring(0, 16)}...`);
+    console.log(`Complete hash generated for ${filename}: ${hashHex}`);
     return hashHex;
     
   } catch (error) {
@@ -323,6 +324,7 @@ export async function generateProvingKeyHash(provingKey: any): Promise<string> {
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
   
+  console.log(`Complete proving key hash generated: ${hashHex}`);
   return hashHex;
 }
 
