@@ -1,12 +1,28 @@
 
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import { useWallet } from "@/contexts/WalletContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle, VoteIcon } from "lucide-react";
+import { useEffect } from "react";
 
 const Success: React.FC = () => {
   const navigate = useNavigate();
+  const { isWorldIDVerified, userId } = useWallet();
+
+  // Redirect to home if not verified
+  useEffect(() => {
+    if (!isWorldIDVerified || !userId) {
+      console.log('User not verified, redirecting to home');
+      navigate("/", { replace: true });
+    }
+  }, [isWorldIDVerified, userId, navigate]);
+
+  // Don't render anything if not verified (while redirecting)
+  if (!isWorldIDVerified || !userId) {
+    return null;
+  }
 
   return (
     <div className="container mx-auto py-16 px-4 max-w-md">
