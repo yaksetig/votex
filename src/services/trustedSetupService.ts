@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 export interface TrustedSetup {
@@ -220,26 +219,41 @@ export async function verifyProvingKeyIntegrity(provingKey: any, expectedHash: s
     
     if (provingKey instanceof Uint8Array) {
       // Binary .key file - hash the raw bytes
-      console.log("Verifying integrity of binary .key file");
+      console.log("🔍 DEBUG: Verifying integrity of binary .key file");
       data = provingKey;
     } else {
       // JSON file - hash the stringified JSON
-      console.log("Verifying integrity of JSON file");
+      console.log("🔍 DEBUG: Verifying integrity of JSON file");
       const provingKeyString = JSON.stringify(provingKey);
       const encoder = new TextEncoder();
       data = encoder.encode(provingKeyString);
     }
     
+    console.log("🔍 DEBUG: Computing hash for integrity check...");
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    const computedHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     
-    const isValid = hashHex === expectedHash;
-    console.log(`Proving key integrity check: ${isValid ? 'PASSED' : 'FAILED'}`);
+    console.log("🔍 DEBUG: ===== HASH COMPARISON =====");
+    console.log("🔍 DEBUG: Expected hash (from DB):", expectedHash);
+    console.log("🔍 DEBUG: Computed hash (from file):", computedHash);
+    console.log("🔍 DEBUG: Hashes match:", computedHash === expectedHash);
+    console.log("🔍 DEBUG: Expected length:", expectedHash.length);
+    console.log("🔍 DEBUG: Computed length:", computedHash.length);
+    
+    if (computedHash !== expectedHash) {
+      console.log("🔍 DEBUG: HASH MISMATCH DETAILS:");
+      console.log("🔍 DEBUG: First 32 chars of expected:", expectedHash.substring(0, 32));
+      console.log("🔍 DEBUG: First 32 chars of computed:", computedHash.substring(0, 32));
+      console.log("🔍 DEBUG: Data size used for hashing:", data.length, "bytes");
+    }
+    
+    const isValid = computedHash === expectedHash;
+    console.log(`🔍 DEBUG: Proving key integrity check: ${isValid ? 'PASSED' : 'FAILED'}`);
     
     return isValid;
   } catch (error) {
-    console.error("Error verifying proving key integrity:", error);
+    console.error("🔍 DEBUG: Error verifying proving key integrity:", error);
     return false;
   }
 }

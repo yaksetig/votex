@@ -23,7 +23,7 @@ import { getElectionAuthorityForElection, initializeDefaultElectionAuthority } f
 import { createNullificationEncryption, generateDeterministicR } from "@/services/elGamalService";
 import { storeNullification } from "@/services/nullificationService";
 import { generateNullificationProof } from "@/services/zkProofService";
-import { hasTrustedSetup, generateKeyFileHash } from "@/services/trustedSetupService";
+import { hasTrustedSetup } from "@/services/trustedSetupService";
 import TrustedSetupStatus from "@/components/TrustedSetupStatus";
 
 const ElectionDetail = () => {
