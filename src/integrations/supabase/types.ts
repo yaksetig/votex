@@ -159,6 +159,42 @@ export type Database = {
           },
         ]
       }
+      global_trusted_setups: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          proving_key_filename: string
+          proving_key_hash: string
+          verification_key: Json
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          proving_key_filename: string
+          proving_key_hash: string
+          verification_key: Json
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          proving_key_filename?: string
+          proving_key_hash?: string
+          verification_key?: Json
+        }
+        Relationships: []
+      }
       keypairs: {
         Row: {
           created_at: string

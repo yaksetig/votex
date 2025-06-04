@@ -23,6 +23,94 @@ export interface GlobalTrustedSetup {
   is_active: boolean;
 }
 
+// Read JSON content from a .key file (like verification-key.key)
+export async function readKeyFileAsJson(filename: string): Promise<any> {
+  try {
+    console.log(`Reading .key file as JSON: ${filename}`);
+    
+    const response = await fetch(`/trusted-setups/${filename}`);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch .key file: ${response.status} ${response.statusText}`);
+    }
+    
+    const jsonContent = await response.json();
+    console.log(`.key file read successfully as JSON: ${filename}`);
+    return jsonContent;
+    
+  } catch (error) {
+    console.error(`Error reading .key file as JSON (${filename}):`, error);
+    throw error;
+  }
+}
+
+// Generate hash of a .key file (binary or JSON content)
+export async function generateKeyFileHash(filename: string): Promise<string> {
+  try {
+    console.log(`Generating hash for .key file: ${filename}`);
+    
+    const response = await fetch(`/trusted-setups/${filename}`);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch .key file for hashing: ${response.status} ${response.statusText}`);
+    }
+    
+    // Read as array buffer to handle both binary and text content
+    const arrayBuffer = await response.arrayBuffer();
+    const data = new Uint8Array(arrayBuffer);
+    
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    
+    console.log(`Hash generated successfully for ${filename}: ${hashHex.substring(0, 16)}...`);
+    return hashHex;
+    
+  } catch (error) {
+    console.error(`Error generating hash for .key file (${filename}):`, error);
+    throw error;
+  }
+}
+
+// Setup global trusted setup from .key files in public/trusted-setups/
+export async function setupGlobalTrustedSetupFromKeyFiles(
+  name: string,
+  description: string,
+  createdBy: string
+): Promise<boolean> {
+  try {
+    console.log(`Setting up global trusted setup: ${name}`);
+    
+    // Read verification key JSON from verification-key.key
+    const verificationKey = await readKeyFileAsJson('verification-key.key');
+    
+    // Generate hash of proving-key.key
+    const provingKeyHash = await generateKeyFileHash('proving-key.key');
+    
+    // Store in database
+    const success = await storeGlobalTrustedSetup(
+      name,
+      description,
+      verificationKey,
+      provingKeyHash,
+      'proving-key.key',
+      createdBy
+    );
+    
+    if (success) {
+      console.log('Global trusted setup created successfully from .key files');
+    } else {
+      console.error('Failed to store global trusted setup');
+    }
+    
+    return success;
+    
+  } catch (error) {
+    console.error('Error setting up global trusted setup from .key files:', error);
+    return false;
+  }
+}
+
 // Get the active global trusted setup
 export async function getActiveTrustedSetup(): Promise<GlobalTrustedSetup | null> {
   try {
