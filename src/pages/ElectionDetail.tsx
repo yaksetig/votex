@@ -283,17 +283,6 @@ const ElectionDetail = () => {
         description: "Creating cryptographic proof for nullification using trusted setup..."
       });
       
-      // TEMPORARY DEBUG: Hash the proving-key.key file and log it
-      try {
-        console.log("🔍 DEBUG: Computing hash of proving-key.key file...");
-        const computedHash = await generateKeyFileHash('proving-key.key');
-        console.log("🔍 DEBUG: Computed proving-key.key hash:", computedHash);
-        console.log("🔍 DEBUG: Database stored hash: 8e3044f5be9a0dd6827ee6198344d742bd17ff73e5c0d5e79de55905150dc9e0");
-        console.log("🔍 DEBUG: Hashes match:", computedHash === "8e3044f5be9a0dd6827ee6198344d742bd17ff73e5c0d5e79de55905150dc9e0");
-      } catch (hashError) {
-        console.error("🔍 DEBUG: Error computing proving key hash:", hashError);
-      }
-      
       // Fix: Pass keypair first, then authority public key, then ciphertext, then deterministicR, then election ID
       const zkProof = await generateNullificationProof(
         keypair,
