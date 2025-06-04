@@ -1,19 +1,24 @@
+
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
 import { useToast } from "@/hooks/use-toast";
 
 interface WalletContextType {
   isWorldIDVerified: boolean;
   userId: string | null;
+  justVerified: boolean;
   setIsWorldIDVerified: (value: boolean) => void;
   setUserId: (id: string | null) => void;
+  setJustVerified: (value: boolean) => void;
   resetIdentity: () => void;
 }
 
 const WalletContext = createContext<WalletContextType>({
   isWorldIDVerified: false,
   userId: null,
+  justVerified: false,
   setIsWorldIDVerified: () => {},
   setUserId: () => {},
+  setJustVerified: () => {},
   resetIdentity: () => {},
 });
 
@@ -26,6 +31,7 @@ interface WalletProviderProps {
 export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   const [isWorldIDVerified, setIsWorldIDVerified] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [justVerified, setJustVerified] = useState(false);
   const { toast } = useToast();
   
   // Load identity from storage on component mount
@@ -37,6 +43,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       console.log('User ID loaded from storage:', storedUserId);
       setUserId(storedUserId);
       setIsWorldIDVerified(true);
+      // Don't set justVerified to true for restored sessions
       
       toast({
         title: "Authentication loaded",
@@ -53,6 +60,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     localStorage.removeItem('worldid-user');
     setUserId(null);
     setIsWorldIDVerified(false);
+    setJustVerified(false);
     
     toast({
       title: "Identity reset",
@@ -65,8 +73,10 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   const value = {
     isWorldIDVerified,
     userId,
+    justVerified,
     setIsWorldIDVerified,
     setUserId,
+    setJustVerified,
     resetIdentity
   };
   

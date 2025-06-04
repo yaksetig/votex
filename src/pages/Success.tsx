@@ -9,18 +9,29 @@ import { useEffect } from "react";
 
 const Success: React.FC = () => {
   const navigate = useNavigate();
-  const { isWorldIDVerified, userId } = useWallet();
+  const { isWorldIDVerified, userId, justVerified, setJustVerified } = useWallet();
 
-  // Redirect to home if not verified
+  // Redirect to home if not verified OR not just verified
   useEffect(() => {
-    if (!isWorldIDVerified || !userId) {
-      console.log('User not verified, redirecting to home');
+    if (!isWorldIDVerified || !userId || !justVerified) {
+      console.log('User not freshly verified, redirecting to home');
       navigate("/", { replace: true });
     }
-  }, [isWorldIDVerified, userId, navigate]);
+  }, [isWorldIDVerified, userId, justVerified, navigate]);
+
+  // Clear the justVerified flag after showing success (so they can't refresh to see it again)
+  useEffect(() => {
+    if (justVerified) {
+      const timer = setTimeout(() => {
+        setJustVerified(false);
+      }, 1000); // Clear after 1 second
+      
+      return () => clearTimeout(timer);
+    }
+  }, [justVerified, setJustVerified]);
 
   // Don't render anything if not verified (while redirecting)
-  if (!isWorldIDVerified || !userId) {
+  if (!isWorldIDVerified || !userId || !justVerified) {
     return null;
   }
 

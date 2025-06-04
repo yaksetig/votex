@@ -15,7 +15,7 @@ const WorldIDVerifier: React.FC<WorldIDVerifierProps> = ({
   const [isVerifying, setIsVerifying] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { toast } = useToast();
-  const { setIsWorldIDVerified, setUserId } = useWallet();
+  const { setIsWorldIDVerified, setUserId, setJustVerified } = useWallet();
   const navigate = useNavigate();
 
   const handleVerificationSuccess = async (result: ISuccessResult) => {
@@ -33,6 +33,7 @@ const WorldIDVerifier: React.FC<WorldIDVerifierProps> = ({
       
       // Update context
       setIsWorldIDVerified(true);
+      setJustVerified(true); // Mark as freshly verified
       
       // Show success toast
       toast({
