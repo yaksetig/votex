@@ -24,7 +24,7 @@ const Success: React.FC = () => {
     if (justVerified) {
       const timer = setTimeout(() => {
         setJustVerified(false);
-      }, 1000); // Clear after 1 second
+      }, 5000); // Increased to 5 seconds to give enough time to see the page
       
       return () => clearTimeout(timer);
     }
