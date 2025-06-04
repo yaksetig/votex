@@ -84,21 +84,32 @@ export async function setupGlobalTrustedSetupFromKeyFiles(
     // Read verification key JSON from verification-key.key
     const verificationKey = await readKeyFileAsJson('verification-key.key');
     
+    // For ZoKrates.js compatibility, we need JSON proving keys, not binary .key files
+    // Try to read proving key as JSON first
+    let provingKeyData;
+    try {
+      provingKeyData = await readKeyFileAsJson('proving-key.key');
+      console.log("Proving key successfully loaded as JSON format");
+    } catch (error) {
+      throw new Error("Proving key must be in JSON format for ZoKrates.js compatibility. Binary .key files are not supported.");
+    }
+    
     // Generate hash of proving-key.key
     const provingKeyHash = await generateKeyFileHash('proving-key.key');
     
-    // Store in database
-    const success = await storeGlobalTrustedSetup(
+    // Store in database with the JSON proving key directly
+    const success = await storeGlobalTrustedSetupWithJsonProvingKey(
       name,
       description,
       verificationKey,
+      provingKeyData,
       provingKeyHash,
       'proving-key.key',
       createdBy
     );
     
     if (success) {
-      console.log('Global trusted setup created successfully from .key files');
+      console.log('Global trusted setup created successfully from .key files with JSON proving key');
     } else {
       console.error('Failed to store global trusted setup');
     }
@@ -179,7 +190,7 @@ export async function getTrustedSetupForElection(electionId: string): Promise<Tr
   }
 }
 
-// Get proving key from server file system - supports both .key and .json formats
+// Get proving key from server file system - only supports JSON format for ZoKrates.js compatibility
 export async function getProvingKeyFromServer(filename: string): Promise<any> {
   try {
     console.log(`Fetching proving key from server: ${filename}`);
@@ -190,20 +201,13 @@ export async function getProvingKeyFromServer(filename: string): Promise<any> {
       throw new Error(`Failed to fetch proving key: ${response.status} ${response.statusText}`);
     }
     
-    // Check file extension to determine how to parse
-    const isKeyFile = filename.toLowerCase().endsWith('.key');
-    
-    if (isKeyFile) {
-      console.log("Loading .key file as binary data");
-      const arrayBuffer = await response.arrayBuffer();
-      const uint8Array = new Uint8Array(arrayBuffer);
-      console.log("Binary proving key fetched successfully from server");
-      return uint8Array;
-    } else {
-      console.log("Loading .json file as JSON data");
+    // Check if this might be a binary file by trying to parse as JSON first
+    try {
       const provingKey = await response.json();
       console.log("JSON proving key fetched successfully from server");
       return provingKey;
+    } catch (parseError) {
+      throw new Error("Proving key must be in JSON format for ZoKrates.js compatibility. Binary .key files are not supported.");
     }
     
   } catch (error) {
@@ -258,7 +262,7 @@ export async function verifyProvingKeyIntegrity(provingKey: any, expectedHash: s
   }
 }
 
-// Get complete trusted setup (verification key from DB + proving key from server)
+// Get complete trusted setup (verification key from DB + proving key from server) - JSON only
 export async function getCompleteTrustedSetup(electionId?: string): Promise<{
   verificationKey: any;
   provingKey: any;
@@ -284,6 +288,12 @@ export async function getCompleteTrustedSetup(electionId?: string): Promise<{
     if (!setup.proving_key_filename || !setup.proving_key_hash) {
       console.log("Legacy setup detected - using proving key from database");
       const legacySetup = setup as TrustedSetup;
+      
+      // Verify legacy setup is not mock
+      if (legacySetup.proving_key?.mock) {
+        throw new Error("Mock proving key detected in legacy setup - real cryptographic setup is required");
+      }
+      
       return {
         verificationKey: setup.verification_key,
         provingKey: legacySetup.proving_key,
@@ -291,7 +301,7 @@ export async function getCompleteTrustedSetup(electionId?: string): Promise<{
       };
     }
 
-    // Fetch proving key from server (supports both .key and .json)
+    // Fetch proving key from server (JSON format only)
     const provingKey = await getProvingKeyFromServer(setup.proving_key_filename);
     
     // Verify proving key integrity
@@ -340,6 +350,52 @@ export async function generateProvingKeyHash(provingKey: any): Promise<string> {
   
   console.log(`Complete proving key hash generated: ${hashHex}`);
   return hashHex;
+}
+
+// Store global trusted setup with JSON proving key directly in database
+export async function storeGlobalTrustedSetupWithJsonProvingKey(
+  name: string,
+  description: string,
+  verificationKey: any,
+  provingKeyData: any,
+  provingKeyHash: string,
+  provingKeyFilename: string,
+  createdBy: string
+): Promise<boolean> {
+  try {
+    console.log(`Storing global trusted setup with JSON proving key: ${name}`);
+    
+    // First, deactivate any existing active setups
+    await supabase
+      .from("global_trusted_setups")
+      .update({ is_active: false })
+      .eq("is_active", true);
+    
+    // Store with JSON proving key in a separate field for hybrid approach
+    const { error } = await supabase
+      .from("global_trusted_setups")
+      .insert({
+        name,
+        description,
+        verification_key: verificationKey,
+        proving_key: provingKeyData, // Store JSON proving key directly
+        proving_key_hash: provingKeyHash,
+        proving_key_filename: provingKeyFilename,
+        created_by: createdBy,
+        is_active: true
+      });
+
+    if (error) {
+      console.error("Error storing global trusted setup:", error);
+      return false;
+    }
+
+    console.log("Global trusted setup with JSON proving key stored successfully");
+    return true;
+  } catch (error) {
+    console.error("Error in storeGlobalTrustedSetupWithJsonProvingKey:", error);
+    return false;
+  }
 }
 
 // Store global trusted setup

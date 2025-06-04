@@ -111,20 +111,23 @@ export async function generateNullificationProof(
     // Get complete trusted setup (global or election-specific for backward compatibility)
     const trustedSetupData = await getCompleteTrustedSetup(electionId);
     if (!trustedSetupData) {
-      console.warn("No trusted setup found - attempting to generate mock proof");
-      return await generateMockProof(voterKeypair, authorityPublicKey, ciphertext, deterministicR);
+      throw new Error("No trusted setup found - cryptographic setup is required for nullification");
     }
 
     const { verificationKey, provingKey, setup } = trustedSetupData;
 
-    // Check if this is a real setup or mock
-    if (provingKey.mock || verificationKey.mock) {
-      console.warn("Using mock proof generation - trusted setup ceremony not yet implemented");
-      return await generateMockProof(voterKeypair, authorityPublicKey, ciphertext, deterministicR, setup.id);
+    // Reject binary .key format - only JSON proving keys are supported
+    if (provingKey instanceof Uint8Array) {
+      throw new Error("Binary .key proving key format is incompatible with ZoKrates.js. Please convert to JSON format or use a different proving system.");
     }
 
-    // Real trusted setup - use actual ZoKrates proving
-    console.log("Using real global trusted setup for proof generation");
+    // Check if this is a mock setup and reject it
+    if (provingKey.mock || verificationKey.mock) {
+      throw new Error("Mock trusted setup detected - real cryptographic setup is required for production");
+    }
+
+    // Real trusted setup with JSON proving key
+    console.log("Using real global trusted setup with JSON proving key for proof generation");
     
     // Initialize ZoKrates if not already done
     await initZokrates();
@@ -153,115 +156,24 @@ export async function generateNullificationProof(
     console.log("Computing witness with real global trusted setup");
     const { witness } = zokratesProvider.computeWitness(artifacts, args);
     
-    // Try to use the proving key - handle different formats
-    try {
-      console.log("Attempting to generate proof with binary proving key");
-      
-      // For binary .key files, we need to set up the proving key properly
-      if (provingKey instanceof Uint8Array) {
-        console.log("Setting up binary proving key for ZoKrates");
-        // Try to use the setupProof method which might handle binary keys better
-        const proof = zokratesProvider.generateProof(artifacts.program, witness, provingKey);
-        
-        const realProof = {
-          mock: false,
-          trusted_setup_id: setup.id,
-          proof_data: proof,
-          generated_at: new Date().toISOString(),
-          proving_key_hash: 'proving_key_hash' in setup ? setup.proving_key_hash : undefined,
-          note: "Real ZK proof using verified global trusted setup"
-        };
-        
-        console.log("Real ZK proof generated successfully");
-        return realProof;
-      } else {
-        console.log("Using JSON proving key format");
-        const proof = zokratesProvider.generateProof(artifacts.program, witness, provingKey);
-        
-        const realProof = {
-          mock: false,
-          trusted_setup_id: setup.id,
-          proof_data: proof,
-          generated_at: new Date().toISOString(),
-          proving_key_hash: 'proving_key_hash' in setup ? setup.proving_key_hash : undefined,
-          note: "Real ZK proof using verified global trusted setup"
-        };
-        
-        console.log("Real ZK proof generated successfully");
-        return realProof;
-      }
-    } catch (provingError) {
-      console.error("Error with proving key format:", provingError);
-      console.warn("Binary proving key format incompatible - falling back to mock proof");
-      return await generateMockProof(voterKeypair, authorityPublicKey, ciphertext, deterministicR, setup.id);
-    }
+    console.log("Generating real ZK proof with JSON proving key");
+    const proof = zokratesProvider.generateProof(artifacts.program, witness, provingKey);
+    
+    const realProof = {
+      mock: false,
+      trusted_setup_id: setup.id,
+      proof_data: proof,
+      generated_at: new Date().toISOString(),
+      proving_key_hash: 'proving_key_hash' in setup ? setup.proving_key_hash : undefined,
+      note: "Real ZK proof using verified global trusted setup"
+    };
+    
+    console.log("Real ZK proof generated successfully");
+    return realProof;
     
   } catch (error) {
     console.error("Error generating ZK proof:", error);
-    
-    // If there's an integrity check failure, try to generate a mock proof as fallback
-    if (error instanceof Error && error.message.includes("integrity check failed")) {
-      console.warn("Proving key integrity check failed - falling back to mock proof");
-      return await generateMockProof(voterKeypair, authorityPublicKey, ciphertext, deterministicR);
-    }
-    
-    throw new Error(`Failed to generate ZK proof: ${error}`);
-  }
-}
-
-// Generate mock proof as fallback
-async function generateMockProof(
-  voterKeypair: StoredKeypair,
-  authorityPublicKey: { x: string, y: string },
-  ciphertext: ElGamalCiphertext,
-  deterministicR: bigint,
-  setupId?: string
-): Promise<any> {
-  try {
-    console.log("Generating mock ZK proof...");
-    
-    // Initialize ZoKrates for mock proof
-    await initZokrates();
-    
-    // Prepare the arguments for the circuit
-    const args = [
-      // Public: ciphertext (c1.x, c1.y, c2.x, c2.y)
-      [
-        ciphertext.c1.x.toString(),
-        ciphertext.c1.y.toString(),
-        ciphertext.c2.x.toString(),
-        ciphertext.c2.y.toString()
-      ],
-      // Private: r (deterministic random value)
-      deterministicR.toString(),
-      // Private: m (message = 1 for nullification)
-      "1",
-      // Private: sk_voter (voter's secret key)
-      voterKeypair.k,
-      // Public: pk_voter (voter's public key - this proves they know the secret key)
-      [voterKeypair.Ax, voterKeypair.Ay],
-      // Public: pk_election_authority (authority's public key)
-      [authorityPublicKey.x, authorityPublicKey.y]
-    ];
-    
-    console.log("Computing witness for mock proof");
-    const { witness } = zokratesProvider.computeWitness(artifacts, args);
-    
-    // Generate a mock proof that includes reference to the trusted setup
-    const mockProof = {
-      mock: true,
-      trusted_setup_id: setupId || "fallback-mock",
-      generated_at: new Date().toISOString(),
-      witness_computed: true,
-      note: "Mock proof - binary proving key format incompatible with ZoKrates.js"
-    };
-    
-    console.log("Mock ZK proof generated successfully");
-    return mockProof;
-    
-  } catch (error) {
-    console.error("Error generating mock proof:", error);
-    throw new Error(`Failed to generate mock proof: ${error}`);
+    throw new Error(`Failed to generate ZK proof: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -277,14 +189,13 @@ export async function verifyNullificationProof(proof: any, electionId?: string):
 
     const { verificationKey } = trustedSetupData;
 
-    // For mock proofs, just verify the structure
-    if (proof.mock && proof.trusted_setup_id) {
-      console.log("Mock proof verification passed");
-      return true;
+    // Reject mock proofs
+    if (proof.mock) {
+      throw new Error("Mock proofs are not accepted in production");
     }
 
     // Real proof verification
-    if (!proof.mock && proof.proof_data && verificationKey && !verificationKey.mock) {
+    if (proof.proof_data && verificationKey && !verificationKey.mock) {
       console.log("Verifying real ZK proof using verification key from global trusted setup");
       
       // Initialize ZoKrates if needed
@@ -296,9 +207,7 @@ export async function verifyNullificationProof(proof: any, electionId?: string):
       return isValid;
     }
 
-    // Fallback for mixed cases
-    console.warn("Using mock proof verification - trusted setup ceremony not yet implemented");
-    return true;
+    throw new Error("Invalid proof format or mock verification key detected");
     
   } catch (error) {
     console.error("Error verifying ZK proof:", error);
