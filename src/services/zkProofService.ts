@@ -97,14 +97,14 @@ def main(
   console.log("ZoKrates circuit compiled successfully");
 }
 
-// Load proving key based on format (binary .key or JSON)
+// Load proving key based on format (binary .key or JSON) - Fixed version
 function loadProvingKey(provingKey: any): any {
   if (provingKey instanceof Uint8Array) {
-    console.log("Loading binary .key proving key");
-    // For binary .key files, ZoKrates can load them directly
-    return zokratesProvider.loadProvingKey(provingKey);
+    console.log("Using binary .key proving key directly");
+    // For binary .key files, use the data directly as the proving key
+    return provingKey;
   } else {
-    console.log("Loading JSON proving key");
+    console.log("Using JSON proving key directly");
     // For JSON format, use as-is
     return provingKey;
   }
