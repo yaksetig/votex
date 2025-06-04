@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 
 export interface TrustedSetup {
@@ -46,6 +47,20 @@ export async function getProvingKeyFromFirebase(url: string): Promise<any> {
   }
 }
 
+// Legacy function to fetch proving key from server file system
+export async function getProvingKeyFromServer(filename: string): Promise<any> {
+  try {
+    console.log(`Fetching proving key from server: ${filename}`);
+    
+    // This is legacy and expects JSON format
+    throw new Error("Proving key must be in JSON format for ZoKrates.js compatibility. Binary .key files are not supported.");
+    
+  } catch (error) {
+    console.error("Error fetching proving key from server:", error);
+    throw error;
+  }
+}
+
 // Updated function to get proving key from either server or Firebase (no access token needed)
 export async function getProvingKeyFromSource(setup: GlobalTrustedSetup | TrustedSetup): Promise<any> {
   try {
@@ -73,6 +88,65 @@ export async function getProvingKeyFromSource(setup: GlobalTrustedSetup | Truste
   } catch (error) {
     console.error("Error getting proving key from source:", error);
     throw error;
+  }
+}
+
+// Get active global trusted setup
+export async function getActiveTrustedSetup(): Promise<GlobalTrustedSetup | null> {
+  try {
+    const { data, error } = await supabase
+      .from("global_trusted_setups")
+      .select("*")
+      .eq("is_active", true)
+      .single();
+
+    if (error) {
+      console.error("Error fetching active trusted setup:", error);
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error in getActiveTrustedSetup:", error);
+    return null;
+  }
+}
+
+// Get trusted setup for specific election (fallback to global)
+export async function getTrustedSetupForElection(electionId: string): Promise<TrustedSetup | GlobalTrustedSetup | null> {
+  try {
+    // First try election-specific setup
+    const { data: electionSetup, error: electionError } = await supabase
+      .from("election_trusted_setups")
+      .select("*")
+      .eq("election_id", electionId)
+      .single();
+
+    if (!electionError && electionSetup) {
+      return electionSetup;
+    }
+
+    // Fallback to global setup
+    return await getActiveTrustedSetup();
+  } catch (error) {
+    console.error("Error in getTrustedSetupForElection:", error);
+    return null;
+  }
+}
+
+// Check if trusted setup exists (election-specific or global)
+export async function hasTrustedSetup(electionId?: string): Promise<boolean> {
+  try {
+    if (electionId) {
+      const setup = await getTrustedSetupForElection(electionId);
+      return setup !== null;
+    } else {
+      const globalSetup = await getActiveTrustedSetup();
+      return globalSetup !== null;
+    }
+  } catch (error) {
+    console.error("Error checking trusted setup:", error);
+    return false;
   }
 }
 
@@ -118,4 +192,59 @@ export async function getCompleteTrustedSetup(electionId?: string): Promise<{
   }
 }
 
-// ... keep existing code (all other functions remain the same)
+// Store global trusted setup with Firebase URL
+export async function storeGlobalTrustedSetupWithFirebaseUrl(
+  name: string,
+  description: string,
+  verificationKey: any,
+  firebaseUrl: string,
+  createdBy: string
+): Promise<boolean> {
+  try {
+    // Deactivate existing setups
+    await supabase
+      .from("global_trusted_setups")
+      .update({ is_active: false })
+      .eq("is_active", true);
+
+    // Insert new setup
+    const { error } = await supabase
+      .from("global_trusted_setups")
+      .insert({
+        name,
+        description,
+        verification_key: verificationKey,
+        proving_key_url: firebaseUrl,
+        created_by: createdBy,
+        is_active: true
+      });
+
+    if (error) {
+      console.error("Error storing global trusted setup:", error);
+      return false;
+    }
+
+    console.log("Global trusted setup stored successfully");
+    return true;
+  } catch (error) {
+    console.error("Error in storeGlobalTrustedSetupWithFirebaseUrl:", error);
+    return false;
+  }
+}
+
+// Setup global trusted setup from key files (legacy)
+export async function setupGlobalTrustedSetupFromKeyFiles(
+  name: string,
+  description: string,
+  verificationKeyPath: string,
+  provingKeyPath: string,
+  createdBy: string
+): Promise<boolean> {
+  try {
+    console.log("Legacy setup from key files - not recommended for production");
+    return false;
+  } catch (error) {
+    console.error("Error in setupGlobalTrustedSetupFromKeyFiles:", error);
+    return false;
+  }
+}
