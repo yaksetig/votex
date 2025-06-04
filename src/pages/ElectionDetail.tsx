@@ -23,8 +23,6 @@ import { getElectionAuthorityForElection, initializeDefaultElectionAuthority } f
 import { createNullificationEncryption, generateDeterministicR } from "@/services/elGamalService";
 import { storeNullification } from "@/services/nullificationService";
 import { generateNullificationProof } from "@/services/zkProofService";
-import { hasTrustedSetup } from "@/services/trustedSetupService";
-import TrustedSetupStatus from "@/components/TrustedSetupStatus";
 
 const ElectionDetail = () => {
   const { id } = useParams();
@@ -43,7 +41,6 @@ const ElectionDetail = () => {
   const [needsKeypair, setNeedsKeypair] = useState(false);
   const [participants, setParticipants] = useState<ElectionParticipant[]>([]);
   const [isParticipant, setIsParticipant] = useState(false);
-  const [canNullify, setCanNullify] = useState(false);
 
   useEffect(() => {
     fetchElectionData();
@@ -61,20 +58,8 @@ const ElectionDetail = () => {
   useEffect(() => {
     if (userId && id) {
       checkParticipantStatus();
-      checkNullificationAvailability();
     }
   }, [userId, id]);
-
-  const checkNullificationAvailability = async () => {
-    if (!id) return;
-    
-    try {
-      const setupExists = await hasTrustedSetup(id);
-      setCanNullify(setupExists);
-    } catch (error) {
-      setCanNullify(false);
-    }
-  };
 
   const checkParticipantStatus = async () => {
     if (!userId || !id) return;
@@ -250,15 +235,6 @@ const ElectionDetail = () => {
       });
       return;
     }
-
-    if (!canNullify) {
-      toast({
-        variant: "destructive",
-        title: "Nullification Unavailable",
-        description: "The cryptographic trusted setup has not been completed for this election."
-      });
-      return;
-    }
     
     try {
       setNullifying(true);
@@ -280,16 +256,14 @@ const ElectionDetail = () => {
       
       toast({
         title: "Generating Proof",
-        description: "Creating cryptographic proof for nullification using trusted setup..."
+        description: "Creating cryptographic proof for nullification. This may take a moment..."
       });
       
-      // Generate ZK proof - now automatically uses Firebase JSON proving key
       const zkProof = await generateNullificationProof(
         keypair,
         { x: authority.public_key_x, y: authority.public_key_y },
         nullificationCiphertext,
-        deterministicR,
-        id
+        deterministicR
       );
       
       const stored = await storeNullification(id, userId, nullificationCiphertext, zkProof);
@@ -307,7 +281,7 @@ const ElectionDetail = () => {
       toast({
         variant: "destructive",
         title: "Error",
-        description: `Failed to submit nullification: ${error instanceof Error ? error.message : 'Please try again.'}`
+        description: "Failed to submit nullification. Please try again."
       });
     } finally {
       setNullifying(false);
@@ -367,132 +341,127 @@ const ElectionDetail = () => {
         Back to Elections
       </Button>
       
-      <div className="max-w-2xl mx-auto space-y-4">
-        {/* Trusted Setup Status */}
-        <TrustedSetupStatus electionId={election.id} isAdmin={false} />
+      <Card className="max-w-2xl mx-auto">
+        <CardHeader>
+          <div className="flex justify-between items-center">
+            <CardTitle className="text-2xl">{election.title}</CardTitle>
+            <Badge variant={isExpired ? "destructive" : "default"}>
+              {isExpired ? "Expired" : "Active"}
+            </Badge>
+          </div>
+          <CardDescription>
+            {isExpired 
+              ? `Ended ${formatDistanceToNow(endDate, { addSuffix: true })}` 
+              : `Ends ${formatDistanceToNow(endDate, { addSuffix: true })}`}
+          </CardDescription>
+        </CardHeader>
         
-        <Card>
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <CardTitle className="text-2xl">{election.title}</CardTitle>
-              <Badge variant={isExpired ? "destructive" : "default"}>
-                {isExpired ? "Expired" : "Active"}
-              </Badge>
-            </div>
-            <CardDescription>
-              {isExpired 
-                ? `Ended ${formatDistanceToNow(endDate, { addSuffix: true })}` 
-                : `Ends ${formatDistanceToNow(endDate, { addSuffix: true })}`}
-            </CardDescription>
-          </CardHeader>
+        <CardContent className="space-y-6">
+          <div>
+            <h3 className="text-lg font-medium mb-2">Description</h3>
+            <p className="text-muted-foreground whitespace-pre-line">{election.description}</p>
+          </div>
           
-          <CardContent className="space-y-6">
-            <div>
-              <h3 className="text-lg font-medium mb-2">Description</h3>
-              <p className="text-muted-foreground whitespace-pre-line">{election.description}</p>
+          {needsKeypair && !keypair && (
+            <div className="flex flex-col items-center p-4 bg-amber-50 dark:bg-amber-950 rounded-md border border-amber-200 dark:border-amber-800">
+              <KeyRound className="h-8 w-8 text-amber-500 mb-2" />
+              <h3 className="text-lg font-medium">Keypair Required</h3>
+              <p className="text-center text-muted-foreground mb-3">
+                To vote securely, you need to generate a cryptographic keypair first.
+              </p>
+              <Button onClick={() => navigate("/dashboard")}>
+                Go to Dashboard
+              </Button>
             </div>
-            
-            {needsKeypair && !keypair && (
-              <div className="flex flex-col items-center p-4 bg-amber-50 dark:bg-amber-950 rounded-md border border-amber-200 dark:border-amber-800">
-                <KeyRound className="h-8 w-8 text-amber-500 mb-2" />
-                <h3 className="text-lg font-medium">Keypair Required</h3>
-                <p className="text-center text-muted-foreground mb-3">
-                  To vote securely, you need to generate a cryptographic keypair first.
-                </p>
-                <Button onClick={() => navigate("/dashboard")}>
-                  Go to Dashboard
-                </Button>
-              </div>
-            )}
-            
-            {(isExpired || hasVoted) ? (
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Results</h3>
-                <div className="space-y-3">
-                  <div>
-                    <div className="flex justify-between mb-1">
-                      <span>{election.option1}</span>
-                      <span>{voteCounts.option1} votes ({option1Percentage}%)</span>
-                    </div>
-                    <div className="h-2 bg-muted rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-primary" 
-                        style={{ width: `${option1Percentage}%` }}
-                      ></div>
-                    </div>
+          )}
+          
+          {(isExpired || hasVoted) ? (
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Results</h3>
+              <div className="space-y-3">
+                <div>
+                  <div className="flex justify-between mb-1">
+                    <span>{election.option1}</span>
+                    <span>{voteCounts.option1} votes ({option1Percentage}%)</span>
                   </div>
-                  <div>
-                    <div className="flex justify-between mb-1">
-                      <span>{election.option2}</span>
-                      <span>{voteCounts.option2} votes ({option2Percentage}%)</span>
-                    </div>
-                    <div className="h-2 bg-muted rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-destructive" 
-                        style={{ width: `${option2Percentage}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                  <div className="text-center text-sm text-muted-foreground pt-2">
-                    Total votes: {totalVotes}
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-primary" 
+                      style={{ width: `${option1Percentage}%` }}
+                    ></div>
                   </div>
                 </div>
-                
-                {hasVoted && (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-center p-3 bg-primary/10 rounded-md">
-                      <CheckCircle className="h-5 w-5 mr-2 text-primary" />
-                      <span className="text-sm font-medium">You have voted in this election</span>
-                    </div>
-                    {!isExpired && (
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        className="w-full bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
-                        onClick={handleNullifyVote}
-                        disabled={nullifying || !canNullify}
-                      >
-                        {nullifying ? "Processing..." : !canNullify ? "Nullification Unavailable" : "Nullify Vote"}
-                      </Button>
-                    )}
+                <div>
+                  <div className="flex justify-between mb-1">
+                    <span>{election.option2}</span>
+                    <span>{voteCounts.option2} votes ({option2Percentage}%)</span>
                   </div>
-                )}
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-destructive" 
+                      style={{ width: `${option2Percentage}%` }}
+                    ></div>
+                  </div>
+                </div>
+                <div className="text-center text-sm text-muted-foreground pt-2">
+                  Total votes: {totalVotes}
+                </div>
               </div>
-            ) : (
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Cast Your Vote</h3>
-                <RadioGroup 
-                  value={selectedOption}
-                  onValueChange={setSelectedOption}
-                  className="space-y-3"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value={election.option1} id="option1" />
-                    <Label htmlFor="option1">{election.option1}</Label>
+              
+              {hasVoted && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-center p-3 bg-primary/10 rounded-md">
+                    <CheckCircle className="h-5 w-5 mr-2 text-primary" />
+                    <span className="text-sm font-medium">You have voted in this election</span>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value={election.option2} id="option2" />
-                    <Label htmlFor="option2">{election.option2}</Label>
-                  </div>
-                </RadioGroup>
-              </div>
-            )}
-          </CardContent>
-          
-          <CardFooter>
-            {!isExpired && !hasVoted && (
-              <Button 
-                className="w-full" 
-                disabled={!selectedOption || submitting || !keypair}
-                onClick={handleVote}
+                  {!isExpired && (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      className="w-full bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
+                      onClick={handleNullifyVote}
+                      disabled={nullifying}
+                    >
+                      {nullifying ? "Processing..." : "Nullify Vote"}
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Cast Your Vote</h3>
+              <RadioGroup 
+                value={selectedOption}
+                onValueChange={setSelectedOption}
+                className="space-y-3"
               >
-                <VoteIcon className="mr-2 h-4 w-4" />
-                {submitting ? "Submitting..." : "Submit Vote"}
-              </Button>
-            )}
-          </CardFooter>
-        </Card>
-      </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value={election.option1} id="option1" />
+                  <Label htmlFor="option1">{election.option1}</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value={election.option2} id="option2" />
+                  <Label htmlFor="option2">{election.option2}</Label>
+                </div>
+              </RadioGroup>
+            </div>
+          )}
+        </CardContent>
+        
+        <CardFooter>
+          {!isExpired && !hasVoted && (
+            <Button 
+              className="w-full" 
+              disabled={!selectedOption || submitting || !keypair}
+              onClick={handleVote}
+            >
+              <VoteIcon className="mr-2 h-4 w-4" />
+              {submitting ? "Submitting..." : "Submit Vote"}
+            </Button>
+          )}
+        </CardFooter>
+      </Card>
     </div>
   );
 };
