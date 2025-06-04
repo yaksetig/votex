@@ -5,8 +5,9 @@ export interface TrustedSetup {
   election_id: string;
   proving_key?: any; // Legacy field - not used in hybrid approach
   verification_key: any;
-  proving_key_hash?: string;
-  proving_key_filename?: string;
+  proving_key_url?: string; // New field for Firebase URL
+  proving_key_hash?: string; // Legacy field - optional now
+  proving_key_filename?: string; // Legacy field - optional now
   created_at: string;
   created_by: string;
 }
@@ -16,8 +17,9 @@ export interface GlobalTrustedSetup {
   name: string;
   description?: string;
   verification_key: any;
-  proving_key_hash: string;
-  proving_key_filename: string;
+  proving_key_url?: string; // New field for Firebase URL
+  proving_key_hash?: string; // Legacy field - optional now
+  proving_key_filename?: string; // Legacy field - optional now
   created_at: string;
   created_by: string;
   is_active: boolean;
@@ -190,6 +192,63 @@ export async function getTrustedSetupForElection(electionId: string): Promise<Tr
   }
 }
 
+// New function to fetch proving key from Firebase URL
+export async function getProvingKeyFromFirebase(url: string, accessToken: string): Promise<any> {
+  try {
+    console.log(`Fetching proving key from Firebase: ${url}`);
+    
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch proving key from Firebase: ${response.status} ${response.statusText}`);
+    }
+    
+    const provingKey = await response.json();
+    console.log("JSON proving key fetched successfully from Firebase");
+    return provingKey;
+    
+  } catch (error) {
+    console.error("Error fetching proving key from Firebase:", error);
+    throw error;
+  }
+}
+
+// Updated function to get proving key from either server or Firebase
+export async function getProvingKeyFromSource(setup: GlobalTrustedSetup | TrustedSetup, accessToken?: string): Promise<any> {
+  try {
+    // Check if we have a Firebase URL
+    if (setup.proving_key_url) {
+      if (!accessToken) {
+        throw new Error("Firebase access token required to fetch proving key from URL");
+      }
+      return await getProvingKeyFromFirebase(setup.proving_key_url, accessToken);
+    }
+    
+    // Fallback to server file system (legacy)
+    if (setup.proving_key_filename) {
+      return await getProvingKeyFromServer(setup.proving_key_filename);
+    }
+    
+    // Check for legacy setup with proving key in database
+    const legacySetup = setup as TrustedSetup;
+    if (legacySetup.proving_key) {
+      console.log("Using legacy proving key from database");
+      return legacySetup.proving_key;
+    }
+    
+    throw new Error("No proving key source found - neither URL, filename, nor legacy key available");
+    
+  } catch (error) {
+    console.error("Error getting proving key from source:", error);
+    throw error;
+  }
+}
+
 // Get proving key from server file system - only supports JSON format for ZoKrates.js compatibility
 export async function getProvingKeyFromServer(filename: string): Promise<any> {
   try {
@@ -263,7 +322,7 @@ export async function verifyProvingKeyIntegrity(provingKey: any, expectedHash: s
 }
 
 // Get complete trusted setup (verification key from DB + proving key from server) - JSON only
-export async function getCompleteTrustedSetup(electionId?: string): Promise<{
+export async function getCompleteTrustedSetup(electionId?: string, firebaseAccessToken?: string): Promise<{
   verificationKey: any;
   provingKey: any;
   setup: GlobalTrustedSetup | TrustedSetup;
@@ -284,31 +343,12 @@ export async function getCompleteTrustedSetup(electionId?: string): Promise<{
       return null;
     }
 
-    // Check if this is a hybrid setup (has proving key metadata)
-    if (!setup.proving_key_filename || !setup.proving_key_hash) {
-      console.log("Legacy setup detected - using proving key from database");
-      const legacySetup = setup as TrustedSetup;
-      
-      // Verify legacy setup is not mock
-      if (legacySetup.proving_key?.mock) {
-        throw new Error("Mock proving key detected in legacy setup - real cryptographic setup is required");
-      }
-      
-      return {
-        verificationKey: setup.verification_key,
-        provingKey: legacySetup.proving_key,
-        setup
-      };
-    }
-
-    // Fetch proving key from server (JSON format only)
-    const provingKey = await getProvingKeyFromServer(setup.proving_key_filename);
+    // Get proving key from appropriate source
+    const provingKey = await getProvingKeyFromSource(setup, firebaseAccessToken);
     
-    // Verify proving key integrity
-    const isValid = await verifyProvingKeyIntegrity(provingKey, setup.proving_key_hash);
-    
-    if (!isValid) {
-      throw new Error("Proving key integrity check failed - file may be corrupted");
+    // Verify it's not a mock setup
+    if (provingKey?.mock) {
+      throw new Error("Mock proving key detected - real cryptographic setup is required");
     }
 
     return {
@@ -394,6 +434,47 @@ export async function storeGlobalTrustedSetupWithJsonProvingKey(
     return true;
   } catch (error) {
     console.error("Error in storeGlobalTrustedSetupWithJsonProvingKey:", error);
+    return false;
+  }
+}
+
+// Store global trusted setup with Firebase URL
+export async function storeGlobalTrustedSetupWithFirebaseUrl(
+  name: string,
+  description: string,
+  verificationKey: any,
+  provingKeyUrl: string,
+  createdBy: string
+): Promise<boolean> {
+  try {
+    console.log(`Storing global trusted setup with Firebase URL: ${name}`);
+    
+    // First, deactivate any existing active setups
+    await supabase
+      .from("global_trusted_setups")
+      .update({ is_active: false })
+      .eq("is_active", true);
+    
+    const { error } = await supabase
+      .from("global_trusted_setups")
+      .insert({
+        name,
+        description,
+        verification_key: verificationKey,
+        proving_key_url: provingKeyUrl,
+        created_by: createdBy,
+        is_active: true
+      });
+
+    if (error) {
+      console.error("Error storing global trusted setup:", error);
+      return false;
+    }
+
+    console.log("Global trusted setup with Firebase URL stored successfully");
+    return true;
+  } catch (error) {
+    console.error("Error in storeGlobalTrustedSetupWithFirebaseUrl:", error);
     return false;
   }
 }

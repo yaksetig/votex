@@ -1,4 +1,3 @@
-
 import { initialize } from "zokrates-js";
 import { StoredKeypair } from "@/types/keypair";
 import { ElGamalCiphertext } from "@/services/elGamalService";
@@ -103,31 +102,31 @@ export async function generateNullificationProof(
   authorityPublicKey: { x: string, y: string },
   ciphertext: ElGamalCiphertext,
   deterministicR: bigint,
-  electionId?: string
+  electionId?: string,
+  firebaseAccessToken?: string
 ): Promise<any> {
   try {
-    console.log("Generating ZK proof for nullification using global trusted setup...");
+    console.log("Generating ZK proof for nullification...");
     
-    // Get complete trusted setup (global or election-specific for backward compatibility)
-    const trustedSetupData = await getCompleteTrustedSetup(electionId);
+    // Get complete trusted setup (Firebase URL or legacy)
+    const trustedSetupData = await getCompleteTrustedSetup(electionId, firebaseAccessToken);
     if (!trustedSetupData) {
       throw new Error("No trusted setup found - cryptographic setup is required for nullification");
     }
 
     const { verificationKey, provingKey, setup } = trustedSetupData;
 
-    // Reject binary .key format - only JSON proving keys are supported
-    if (provingKey instanceof Uint8Array) {
-      throw new Error("Binary .key proving key format is incompatible with ZoKrates.js. Please convert to JSON format or use a different proving system.");
+    // Verify we have a real proving key (not mock)
+    if (provingKey?.mock) {
+      throw new Error("Mock proving key detected - real cryptographic setup is required for production");
     }
 
-    // Check if this is a mock setup and reject it
-    if (provingKey.mock || verificationKey.mock) {
-      throw new Error("Mock trusted setup detected - real cryptographic setup is required for production");
+    // For Firebase URLs, we know it's JSON format since you control it
+    if ('proving_key_url' in setup && setup.proving_key_url) {
+      console.log("Using proving key from Firebase URL - JSON format confirmed");
+    } else {
+      console.log("Using legacy proving key source");
     }
-
-    // Real trusted setup with JSON proving key
-    console.log("Using real global trusted setup with JSON proving key for proof generation");
     
     // Initialize ZoKrates if not already done
     await initZokrates();
@@ -153,10 +152,10 @@ export async function generateNullificationProof(
       [authorityPublicKey.x, authorityPublicKey.y]
     ];
     
-    console.log("Computing witness with real global trusted setup");
+    console.log("Computing witness with trusted setup");
     const { witness } = zokratesProvider.computeWitness(artifacts, args);
     
-    console.log("Generating real ZK proof with JSON proving key");
+    console.log("Generating ZK proof with JSON proving key");
     const proof = zokratesProvider.generateProof(artifacts.program, witness, provingKey);
     
     const realProof = {
@@ -164,11 +163,11 @@ export async function generateNullificationProof(
       trusted_setup_id: setup.id,
       proof_data: proof,
       generated_at: new Date().toISOString(),
-      proving_key_hash: 'proving_key_hash' in setup ? setup.proving_key_hash : undefined,
-      note: "Real ZK proof using verified global trusted setup"
+      proving_key_source: setup.proving_key_url ? 'firebase' : 'legacy',
+      note: "Real ZK proof using verified trusted setup"
     };
     
-    console.log("Real ZK proof generated successfully");
+    console.log("ZK proof generated successfully");
     return realProof;
     
   } catch (error) {

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -75,8 +74,9 @@ const TrustedSetupStatus: React.FC<Props> = ({
     }
   };
 
+  const isFirebaseSetup = setupDetails?.proving_key_url;
   const isHybridSetup = setupDetails?.proving_key_filename && setupDetails?.proving_key_hash;
-  const isLegacySetup = setupDetails?.proving_key && !isHybridSetup;
+  const isLegacySetup = setupDetails?.proving_key && !isHybridSetup && !isFirebaseSetup;
   const isGlobalSetup = setupDetails && 'is_active' in setupDetails;
 
   if (loading) {
@@ -126,7 +126,18 @@ const TrustedSetupStatus: React.FC<Props> = ({
                   <span>Global Setup</span>
                 </div>
               )}
-              {isHybridSetup ? (
+              {isFirebaseSetup ? (
+                <>
+                  <div className="flex items-center space-x-1 text-orange-600">
+                    <Server className="h-3 w-3" />
+                    <span>Proving Key: Firebase</span>
+                  </div>
+                  <div className="flex items-center space-x-1 text-purple-600">
+                    <Database className="h-3 w-3" />
+                    <span>Verification Key: Database</span>
+                  </div>
+                </>
+              ) : isHybridSetup ? (
                 <>
                   <div className="flex items-center space-x-1 text-blue-600">
                     <Server className="h-3 w-3" />
@@ -149,6 +160,7 @@ const TrustedSetupStatus: React.FC<Props> = ({
             
             <p className="text-xs text-muted-foreground">
               The cryptographic parameters required for secure nullification have been generated and stored.
+              {isFirebaseSetup && " Using Firebase-hosted proving key for optimal performance."}
               {isHybridSetup && " Using hybrid storage for optimal performance."}
               {isGlobalSetup && " This setup is shared across all elections."}
             </p>
