@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { getNullificationsForElection } from "@/services/nullificationService";
 import { getElectionAuthorityForElection } from "@/services/electionAuthorityService";
+import { updateVoteNullification } from "@/services/voteTrackingService";
 import { 
   addElGamalCiphertexts, 
   decryptElGamalInExponent, 
@@ -82,19 +83,28 @@ export async function processElectionTally(
       return null;
     }
     
-    // Get all participants who have voted in this election
-    const { data: votes, error: votesError } = await supabase
-      .from("votes")
-      .select("voter")
+    // Get all participants from both vote tracking tables
+    const { data: yesVotes, error: yesError } = await supabase
+      .from("yes_votes")
+      .select("voter_id")
       .eq("election_id", electionId);
       
-    if (votesError) {
-      console.error("Error fetching votes:", votesError);
+    const { data: noVotes, error: noError } = await supabase
+      .from("no_votes")
+      .select("voter_id")
+      .eq("election_id", electionId);
+      
+    if (yesError || noError) {
+      console.error("Error fetching votes:", yesError || noError);
       return null;
     }
     
-    // Get unique voters
-    const uniqueVoters = [...new Set(votes?.map(v => v.voter) || [])];
+    // Get unique voters from both tables
+    const allVoterIds = [
+      ...(yesVotes?.map(v => v.voter_id) || []),
+      ...(noVotes?.map(v => v.voter_id) || [])
+    ];
+    const uniqueVoters = [...new Set(allVoterIds)];
     console.log(`Found ${uniqueVoters.length} unique voters`);
     
     const privateKey = BigInt(authorityPrivateKey);
@@ -121,6 +131,9 @@ export async function processElectionTally(
           nullificationCount = decryptedCount;
           // Apply parity rule: odd count nullifies the vote
           voteNullified = nullificationCount % 2 === 1;
+          
+          // Update the vote tracking tables with nullification status
+          await updateVoteNullification(electionId, userId, nullificationCount, voteNullified);
         }
       }
       
@@ -214,7 +227,7 @@ export async function getElectionTallyResults(electionId: string): Promise<Tally
   }
 }
 
-// Calculate final vote counts after applying nullifications
+// Calculate final vote counts after applying nullifications - now using vote tracking tables
 export async function calculateFinalResults(electionId: string): Promise<{
   preliminaryResults: { option1: number; option2: number };
   finalResults: { option1: number; option2: number };
@@ -223,82 +236,35 @@ export async function calculateFinalResults(electionId: string): Promise<{
   try {
     console.log(`Starting final results calculation for election: ${electionId}`);
     
-    // Get all votes for the election with detailed logging
-    const { data: votes, error: votesError } = await supabase
-      .from("votes")
-      .select("voter, choice")
+    // Get vote data from tracking tables
+    const { data: yesVotes, error: yesError } = await supabase
+      .from("yes_votes")
+      .select("*")
       .eq("election_id", electionId);
       
-    if (votesError) {
-      console.error("Error fetching votes:", votesError);
+    const { data: noVotes, error: noError } = await supabase
+      .from("no_votes")
+      .select("*")
+      .eq("election_id", electionId);
+      
+    if (yesError || noError) {
+      console.error("Error fetching votes from tracking tables:", yesError || noError);
       return null;
     }
     
-    console.log(`Raw votes data from database:`, votes);
-    console.log(`Found ${votes?.length || 0} total votes in database`);
+    console.log(`Vote tracking data:`, { yesVotes, noVotes });
     
-    if (!votes || votes.length === 0) {
-      console.log("No votes found in database");
-      return {
-        preliminaryResults: { option1: 0, option2: 0 },
-        finalResults: { option1: 0, option2: 0 },
-        nullifiedVotes: 0
-      };
-    }
-    
-    // Get tally results to see which votes are nullified
-    console.log("Fetching tally results for nullification check...");
-    const tallyResults = await getElectionTallyResults(electionId);
-    console.log(`Found ${tallyResults.length} tally results:`, tallyResults);
-    
-    const nullifiedUsers = new Set(
-      tallyResults.filter(r => r.voteNullified).map(r => r.userId)
-    );
-    
-    console.log(`Nullified users set:`, Array.from(nullifiedUsers));
-    
-    // Calculate preliminary results (all votes)
-    const preliminaryResults = { option1: 0, option2: 0 };
-    const finalResults = { option1: 0, option2: 0 };
-    let nullifiedVotes = 0;
-    
-    // Process each vote with detailed logging
-    for (const vote of votes) {
-      console.log(`Processing vote: voter=${vote.voter}, choice=${vote.choice}`);
-      
-      // Count in preliminary results
-      if (vote.choice === 'option1') {
-        preliminaryResults.option1++;
-        console.log(`Added to preliminary option1, new count: ${preliminaryResults.option1}`);
-      } else if (vote.choice === 'option2') {
-        preliminaryResults.option2++;
-        console.log(`Added to preliminary option2, new count: ${preliminaryResults.option2}`);
-      } else {
-        console.warn(`Unknown choice value: ${vote.choice}`);
-      }
-      
-      // Count in final results only if not nullified
-      const isNullified = nullifiedUsers.has(vote.voter);
-      console.log(`Vote from ${vote.voter} nullified: ${isNullified}`);
-      
-      if (!isNullified) {
-        if (vote.choice === 'option1') {
-          finalResults.option1++;
-          console.log(`Added to final option1, new count: ${finalResults.option1}`);
-        } else if (vote.choice === 'option2') {
-          finalResults.option2++;
-          console.log(`Added to final option2, new count: ${finalResults.option2}`);
-        }
-      } else {
-        nullifiedVotes++;
-        console.log(`Vote nullified, total nullified votes: ${nullifiedVotes}`);
-      }
-    }
+    const totalYesVotes = yesVotes?.length || 0;
+    const totalNoVotes = noVotes?.length || 0;
+    const nullifiedYesVotes = yesVotes?.filter(vote => vote.nullified).length || 0;
+    const nullifiedNoVotes = noVotes?.filter(vote => vote.nullified).length || 0;
+    const validYesVotes = totalYesVotes - nullifiedYesVotes;
+    const validNoVotes = totalNoVotes - nullifiedNoVotes;
     
     const results = {
-      preliminaryResults,
-      finalResults,
-      nullifiedVotes
+      preliminaryResults: { option1: totalYesVotes, option2: totalNoVotes },
+      finalResults: { option1: validYesVotes, option2: validNoVotes },
+      nullifiedVotes: nullifiedYesVotes + nullifiedNoVotes
     };
     
     console.log('Final calculated results:', results);

@@ -238,6 +238,36 @@ export type Database = {
         }
         Relationships: []
       }
+      no_votes: {
+        Row: {
+          created_at: string
+          election_id: string
+          id: string
+          nullification_count: number
+          nullified: boolean
+          updated_at: string
+          voter_id: string
+        }
+        Insert: {
+          created_at?: string
+          election_id: string
+          id?: string
+          nullification_count?: number
+          nullified?: boolean
+          updated_at?: string
+          voter_id: string
+        }
+        Update: {
+          created_at?: string
+          election_id?: string
+          id?: string
+          nullification_count?: number
+          nullified?: boolean
+          updated_at?: string
+          voter_id?: string
+        }
+        Relationships: []
+      }
       nullifications: {
         Row: {
           created_at: string
@@ -313,6 +343,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      yes_votes: {
+        Row: {
+          created_at: string
+          election_id: string
+          id: string
+          nullification_count: number
+          nullified: boolean
+          updated_at: string
+          voter_id: string
+        }
+        Insert: {
+          created_at?: string
+          election_id: string
+          id?: string
+          nullification_count?: number
+          nullified?: boolean
+          updated_at?: string
+          voter_id: string
+        }
+        Update: {
+          created_at?: string
+          election_id?: string
+          id?: string
+          nullification_count?: number
+          nullified?: boolean
+          updated_at?: string
+          voter_id?: string
+        }
+        Relationships: []
       }
     }
     Views: {

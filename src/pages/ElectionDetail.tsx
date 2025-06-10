@@ -93,20 +93,44 @@ const ElectionDetail = () => {
       
       setElection(electionData);
       
-      const { data: votes, error: votesError } = await supabase
-        .from("votes")
-        .select("choice")
+      // Get vote counts from new tracking tables
+      const { data: yesVotes, error: yesError } = await supabase
+        .from("yes_votes")
+        .select("*")
         .eq("election_id", id);
         
-      if (votesError) throw votesError;
-      
-      const option1Count = votes?.filter(vote => vote.choice === electionData.option1).length || 0;
-      const option2Count = votes?.filter(vote => vote.choice === electionData.option2).length || 0;
-      
-      setVoteCounts({
-        option1: option1Count,
-        option2: option2Count
-      });
+      const { data: noVotes, error: noError } = await supabase
+        .from("no_votes")
+        .select("*")
+        .eq("election_id", id);
+        
+      if (yesError || noError) {
+        console.error("Error fetching vote counts:", yesError || noError);
+        // Fallback to old votes table if needed
+        const { data: votes, error: votesError } = await supabase
+          .from("votes")
+          .select("choice")
+          .eq("election_id", id);
+          
+        if (votesError) throw votesError;
+        
+        const option1Count = votes?.filter(vote => vote.choice === electionData.option1).length || 0;
+        const option2Count = votes?.filter(vote => vote.choice === electionData.option2).length || 0;
+        
+        setVoteCounts({
+          option1: option1Count,
+          option2: option2Count
+        });
+      } else {
+        // Use vote tracking tables
+        const validYesVotes = yesVotes?.filter(vote => !vote.nullified).length || 0;
+        const validNoVotes = noVotes?.filter(vote => !vote.nullified).length || 0;
+        
+        setVoteCounts({
+          option1: validYesVotes,
+          option2: validNoVotes
+        });
+      }
 
       if (id) {
         const participantsList = await getElectionParticipants(id);
@@ -196,7 +220,8 @@ const ElectionDetail = () => {
         selectedOption
       );
       
-      const { error } = await supabase.rpc("insert_vote", {
+      // Record vote in both old and new systems for compatibility
+      const { error: oldVoteError } = await supabase.rpc("insert_vote", {
         p_election_id: election.id,
         p_voter: userId,
         p_choice: selectedOption,
@@ -205,7 +230,25 @@ const ElectionDetail = () => {
         p_timestamp: timestamp
       });
       
-      if (error) throw error;
+      if (oldVoteError) throw oldVoteError;
+      
+      // Record in new tracking table
+      const tableName = selectedOption === 'Yes' ? 'yes_votes' : 'no_votes';
+      const { error: newVoteError } = await supabase
+        .from(tableName)
+        .upsert({
+          election_id: election.id,
+          voter_id: userId,
+          nullified: false,
+          nullification_count: 0
+        }, {
+          onConflict: 'election_id,voter_id'
+        });
+      
+      if (newVoteError) {
+        console.error("Error recording vote in tracking table:", newVoteError);
+        // Don't throw error here, vote was already recorded in main table
+      }
       
       toast({
         title: "Vote submitted",
