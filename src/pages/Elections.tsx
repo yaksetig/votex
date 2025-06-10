@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+
+import React, { useState, useEffect, useCallback } from "react";
 import { useWallet } from "@/contexts/WalletContext";
 import { supabase } from "@/integrations/supabase/client";
 import { initializeDefaultElectionAuthority } from "@/services/electionAuthorityService";
@@ -8,16 +9,20 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus } from "lucide-react";
 import { isPast } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
 
 const Elections = () => {
   const { userId } = useWallet();
+  const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
   const [elections, setElections] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchElections = async () => {
+  const fetchElections = useCallback(async () => {
     try {
       setLoading(true);
+      console.log('Fetching elections...');
+      
       const { data, error } = await supabase
         .from("elections")
         .select(`
@@ -30,26 +35,48 @@ const Elections = () => {
         `)
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Supabase error:", error);
+        toast({
+          variant: "destructive",
+          title: "Error loading elections",
+          description: error.message
+        });
+        throw error;
+      }
+
+      console.log('Elections fetched:', data);
       setElections(data || []);
     } catch (error) {
       console.error("Error fetching elections:", error);
+      toast({
+        variant: "destructive",
+        title: "Failed to load elections",
+        description: "Please try refreshing the page"
+      });
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     const initializeAndFetch = async () => {
-      await initializeDefaultElectionAuthority();
-      await fetchElections();
+      try {
+        console.log('Initializing election authority and fetching elections...');
+        await initializeDefaultElectionAuthority();
+        await fetchElections();
+      } catch (error) {
+        console.error('Error during initialization:', error);
+      }
     };
     
     initializeAndFetch();
-  }, []);
+  }, [fetchElections]);
 
   const handleFormSubmit = async (formData: any) => {
     try {
+      console.log('Creating new election with data:', formData);
+      
       const { data, error } = await supabase
         .from("elections")
         .insert({
@@ -70,10 +97,24 @@ const Elections = () => {
           )
         `);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error creating election:", error);
+        toast({
+          variant: "destructive",
+          title: "Failed to create election",
+          description: error.message
+        });
+        throw error;
+      }
       
+      console.log('Election created successfully:', data);
       setElections([data[0], ...elections]);
       setShowForm(false);
+      
+      toast({
+        title: "Election created successfully",
+        description: `"${formData.title}" has been created and is now active.`
+      });
     } catch (error) {
       console.error("Error creating election:", error);
     }
