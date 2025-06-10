@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { EdwardsPoint } from '@/services/elGamalService';
 import { generateKeypair } from '@/services/babyJubjubService';
@@ -190,37 +189,81 @@ export async function closeElectionEarly(
   performedBy: string = 'Election Authority'
 ): Promise<boolean> {
   try {
-    console.log(`Closing election early: ${electionId}`);
+    console.log(`Starting election closure process for election: ${electionId}`);
     
     const now = new Date().toISOString();
     
-    const { data, error } = await supabase
+    // First, fetch the current election to verify it exists
+    const { data: currentElection, error: fetchError } = await supabase
+      .from('elections')
+      .select('id, title, status, end_date, closed_manually_at')
+      .eq('id', electionId)
+      .single();
+      
+    if (fetchError) {
+      console.error('Error fetching election before closure:', fetchError);
+      return false;
+    }
+    
+    if (!currentElection) {
+      console.error('Election not found:', electionId);
+      return false;
+    }
+    
+    console.log('Current election state before closure:', currentElection);
+    
+    // Update the election with proper closure fields
+    const { data: updatedElection, error: updateError } = await supabase
       .from('elections')
       .update({
         status: 'closed_manually',
         closed_manually_at: now,
-        end_date: now, // Set end_date to now
+        end_date: now,
         last_modified_by: performedBy,
         last_modified_at: now
       })
       .eq('id', electionId)
-      .select();
+      .select('id, title, status, end_date, closed_manually_at, last_modified_at');
 
-    if (error) {
-      console.error('Error closing election:', error);
+    if (updateError) {
+      console.error('Error updating election during closure:', updateError);
       return false;
     }
 
-    console.log('Election closed successfully:', data);
+    console.log('Election successfully updated:', updatedElection);
 
+    // Verify the update actually happened by fetching the election again
+    const { data: verificationData, error: verificationError } = await supabase
+      .from('elections')
+      .select('id, title, status, end_date, closed_manually_at, last_modified_at')
+      .eq('id', electionId)
+      .single();
+      
+    if (verificationError) {
+      console.error('Error verifying election closure:', verificationError);
+      return false;
+    }
+    
+    console.log('Verified election state after closure:', verificationData);
+    
+    // Check if the status was actually updated
+    if (verificationData.status !== 'closed_manually') {
+      console.error('Election status was not updated properly. Expected: closed_manually, Got:', verificationData.status);
+      return false;
+    }
+
+    // Log the action for audit trail
     await logElectionAuthorityAction(electionId, 'CLOSE_ELECTION', performedBy, {
       closed_at: now,
-      reason: 'Manual closure by election authority'
+      reason: 'Manual closure by election authority',
+      previous_status: currentElection.status,
+      new_status: 'closed_manually'
     });
 
+    console.log('Election closure completed successfully');
     return true;
   } catch (error) {
-    console.error('Error in closeElectionEarly:', error);
+    console.error('Unexpected error in closeElectionEarly:', error);
     return false;
   }
 }

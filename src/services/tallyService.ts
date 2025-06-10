@@ -221,9 +221,9 @@ export async function calculateFinalResults(electionId: string): Promise<{
   nullifiedVotes: number;
 } | null> {
   try {
-    console.log(`Calculating final results for election: ${electionId}`);
+    console.log(`Starting final results calculation for election: ${electionId}`);
     
-    // Get all votes for the election
+    // Get all votes for the election with detailed logging
     const { data: votes, error: votesError } = await supabase
       .from("votes")
       .select("voter, choice")
@@ -234,55 +234,76 @@ export async function calculateFinalResults(electionId: string): Promise<{
       return null;
     }
     
-    console.log(`Found ${votes?.length || 0} total votes`);
+    console.log(`Raw votes data from database:`, votes);
+    console.log(`Found ${votes?.length || 0} total votes in database`);
+    
+    if (!votes || votes.length === 0) {
+      console.log("No votes found in database");
+      return {
+        preliminaryResults: { option1: 0, option2: 0 },
+        finalResults: { option1: 0, option2: 0 },
+        nullifiedVotes: 0
+      };
+    }
     
     // Get tally results to see which votes are nullified
+    console.log("Fetching tally results for nullification check...");
     const tallyResults = await getElectionTallyResults(electionId);
+    console.log(`Found ${tallyResults.length} tally results:`, tallyResults);
+    
     const nullifiedUsers = new Set(
       tallyResults.filter(r => r.voteNullified).map(r => r.userId)
     );
     
-    console.log(`Found ${tallyResults.length} tally results, ${nullifiedUsers.size} nullified users`);
+    console.log(`Nullified users set:`, Array.from(nullifiedUsers));
     
     // Calculate preliminary results (all votes)
     const preliminaryResults = { option1: 0, option2: 0 };
     const finalResults = { option1: 0, option2: 0 };
     let nullifiedVotes = 0;
     
-    for (const vote of votes || []) {
-      console.log(`Processing vote from ${vote.voter} for ${vote.choice}`);
+    // Process each vote with detailed logging
+    for (const vote of votes) {
+      console.log(`Processing vote: voter=${vote.voter}, choice=${vote.choice}`);
       
       // Count in preliminary results
       if (vote.choice === 'option1') {
         preliminaryResults.option1++;
+        console.log(`Added to preliminary option1, new count: ${preliminaryResults.option1}`);
       } else if (vote.choice === 'option2') {
         preliminaryResults.option2++;
+        console.log(`Added to preliminary option2, new count: ${preliminaryResults.option2}`);
+      } else {
+        console.warn(`Unknown choice value: ${vote.choice}`);
       }
       
       // Count in final results only if not nullified
-      if (!nullifiedUsers.has(vote.voter)) {
+      const isNullified = nullifiedUsers.has(vote.voter);
+      console.log(`Vote from ${vote.voter} nullified: ${isNullified}`);
+      
+      if (!isNullified) {
         if (vote.choice === 'option1') {
           finalResults.option1++;
+          console.log(`Added to final option1, new count: ${finalResults.option1}`);
         } else if (vote.choice === 'option2') {
           finalResults.option2++;
+          console.log(`Added to final option2, new count: ${finalResults.option2}`);
         }
       } else {
         nullifiedVotes++;
-        console.log(`Vote from ${vote.voter} is nullified`);
+        console.log(`Vote nullified, total nullified votes: ${nullifiedVotes}`);
       }
     }
     
-    console.log('Final results calculated:', {
-      preliminaryResults,
-      finalResults,
-      nullifiedVotes
-    });
-    
-    return {
+    const results = {
       preliminaryResults,
       finalResults,
       nullifiedVotes
     };
+    
+    console.log('Final calculated results:', results);
+    
+    return results;
   } catch (error) {
     console.error("Error calculating final results:", error);
     return null;

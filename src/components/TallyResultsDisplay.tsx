@@ -40,7 +40,7 @@ const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({
     try {
       setLoading(true);
       
-      console.log('Fetching tally data for election:', electionId);
+      console.log('TallyResultsDisplay: Fetching tally data for election:', electionId);
       
       const [tallyData, resultsData, nullificationData] = await Promise.all([
         getElectionTallyResults(electionId),
@@ -48,7 +48,7 @@ const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({
         getNullificationsForElection(electionId)
       ]);
       
-      console.log('Tally data fetched:', {
+      console.log('TallyResultsDisplay: Data fetched:', {
         tallyResults: tallyData,
         finalResults: resultsData,
         totalNullifications: nullificationData.length
@@ -56,11 +56,10 @@ const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({
       
       setTallyResults(tallyData);
       setFinalResults(resultsData);
-      // Show only the total count of nullification entries in the database
       setTotalNullifications(nullificationData.length);
       setLastUpdated(new Date());
     } catch (error) {
-      console.error('Error fetching tally data:', error);
+      console.error('TallyResultsDisplay: Error fetching tally data:', error);
     } finally {
       setLoading(false);
     }
@@ -72,11 +71,11 @@ const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({
 
   const getChartData = () => {
     if (!finalResults) {
-      console.log('No final results for chart');
+      console.log('TallyResultsDisplay: No final results for chart');
       return [];
     }
     
-    console.log('Chart data calculation with final results:', finalResults);
+    console.log('TallyResultsDisplay: Generating chart data with final results:', finalResults);
     
     const chartData = [
       {
@@ -91,11 +90,12 @@ const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({
       }
     ];
     
-    console.log('Generated chart data:', chartData);
+    console.log('TallyResultsDisplay: Generated chart data:', chartData);
     return chartData;
   };
 
   const hasTallyData = tallyResults.length > 0;
+  const chartData = getChartData();
 
   if (loading) {
     return (
@@ -195,9 +195,9 @@ const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {finalResults && getChartData().length > 0 ? (
+              {finalResults && chartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={getChartData()}>
+                  <BarChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="name" />
                     <YAxis />
@@ -209,7 +209,7 @@ const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({
                 </ResponsiveContainer>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
-                  No tally data available yet
+                  {!finalResults ? "No vote data available yet" : "No votes to display"}
                 </div>
               )}
             </CardContent>
