@@ -20,9 +20,10 @@ import {
   isUserParticipant 
 } from "@/services/electionParticipantsService";
 import { getElectionAuthorityForElection, initializeDefaultElectionAuthority } from "@/services/electionAuthorityService";
-import { createNullificationEncryption, generateDeterministicR } from "@/services/elGamalService";
+import { createNullificationEncryption, generateDeterministicR, elgamalEncrypt, EdwardsPoint } from "@/services/elGamalService";
 import { storeNullification } from "@/services/nullificationService";
 import { generateNullificationProof } from "@/services/zkProofService";
+import NullificationDialog from "@/components/NullificationDialog";
 
 const ElectionDetail = () => {
   const { id } = useParams();
@@ -41,6 +42,7 @@ const ElectionDetail = () => {
   const [needsKeypair, setNeedsKeypair] = useState(false);
   const [participants, setParticipants] = useState<ElectionParticipant[]>([]);
   const [isParticipant, setIsParticipant] = useState(false);
+  const [showNullificationDialog, setShowNullificationDialog] = useState(false);
 
   useEffect(() => {
     fetchElectionData();
@@ -224,7 +226,7 @@ const ElectionDetail = () => {
     }
   };
 
-  const handleNullifyVote = async () => {
+  const performNullification = async (isActual: boolean) => {
     if (!userId || !election || !id || !keypair) return;
     
     if (!hasVoted) {
@@ -238,6 +240,7 @@ const ElectionDetail = () => {
     
     try {
       setNullifying(true);
+      setShowNullificationDialog(false);
       
       await ensureUserIsParticipant();
       
@@ -246,17 +249,29 @@ const ElectionDetail = () => {
         throw new Error("Failed to get election authority");
       }
       
-      const nullificationCiphertext = await createNullificationEncryption(
-        keypair,
-        { x: authority.public_key_x, y: authority.public_key_y }
-      );
-      
+      const authorityPoint = new EdwardsPoint(BigInt(authority.public_key_x), BigInt(authority.public_key_y));
       const userPublicKey = { x: BigInt(keypair.Ax), y: BigInt(keypair.Ay) };
-      const deterministicR = await generateDeterministicR(BigInt(keypair.k), userPublicKey);
+      const userPrivateKey = BigInt(keypair.k);
+      
+      let nullificationCiphertext;
+      let deterministicR;
+      
+      if (isActual) {
+        // Actual nullification - encrypt 1
+        nullificationCiphertext = await createNullificationEncryption(
+          keypair,
+          { x: authority.public_key_x, y: authority.public_key_y }
+        );
+        deterministicR = await generateDeterministicR(userPrivateKey, userPublicKey);
+      } else {
+        // Dummy nullification - encrypt 0
+        deterministicR = await generateDeterministicR(userPrivateKey, userPublicKey);
+        nullificationCiphertext = elgamalEncrypt(authorityPoint, 0, deterministicR);
+      }
       
       toast({
         title: "Generating Proof",
-        description: "Creating cryptographic proof for nullification. This may take a moment..."
+        description: `Creating cryptographic proof for ${isActual ? 'actual' : 'dummy'} nullification. This may take a moment...`
       });
       
       const zkProof = await generateNullificationProof(
@@ -273,8 +288,8 @@ const ElectionDetail = () => {
       }
       
       toast({
-        title: "Nullification Submitted",
-        description: "Your nullification with cryptographic proof has been successfully recorded."
+        title: `${isActual ? 'Actual' : 'Dummy'} Nullification Submitted`,
+        description: `Your ${isActual ? 'actual' : 'dummy'} nullification with cryptographic proof has been successfully recorded.`
       });
       
     } catch (error) {
@@ -286,6 +301,18 @@ const ElectionDetail = () => {
     } finally {
       setNullifying(false);
     }
+  };
+
+  const handleNullifyVote = async () => {
+    setShowNullificationDialog(true);
+  };
+
+  const handleActualNullification = () => {
+    performNullification(true);
+  };
+
+  const handleDummyNullification = () => {
+    performNullification(false);
   };
 
   if (loading) {
@@ -344,15 +371,15 @@ const ElectionDetail = () => {
       <Card className="max-w-2xl mx-auto">
         <CardHeader>
           <div className="flex justify-between items-center">
-            <CardTitle className="text-2xl">{election.title}</CardTitle>
-            <Badge variant={isExpired ? "destructive" : "default"}>
-              {isExpired ? "Expired" : "Active"}
+            <CardTitle className="text-2xl">{election?.title}</CardTitle>
+            <Badge variant={election && isPast(new Date(election.end_date)) ? "destructive" : "default"}>
+              {election && isPast(new Date(election.end_date)) ? "Expired" : "Active"}
             </Badge>
           </div>
           <CardDescription>
-            {isExpired 
-              ? `Ended ${formatDistanceToNow(endDate, { addSuffix: true })}` 
-              : `Ends ${formatDistanceToNow(endDate, { addSuffix: true })}`}
+            {election && (isPast(new Date(election.end_date))
+              ? `Ended ${formatDistanceToNow(new Date(election.end_date), { addSuffix: true })}` 
+              : `Ends ${formatDistanceToNow(new Date(election.end_date), { addSuffix: true })}`)}
           </CardDescription>
         </CardHeader>
         
@@ -375,36 +402,36 @@ const ElectionDetail = () => {
             </div>
           )}
           
-          {(isExpired || hasVoted) ? (
+          {(election && (isPast(new Date(election.end_date)) || hasVoted)) ? (
             <div className="space-y-4">
               <h3 className="text-lg font-medium">Results</h3>
               <div className="space-y-3">
                 <div>
                   <div className="flex justify-between mb-1">
                     <span>{election.option1}</span>
-                    <span>{voteCounts.option1} votes ({option1Percentage}%)</span>
+                    <span>{voteCounts.option1} votes ({voteCounts.option1 + voteCounts.option2 > 0 ? Math.round((voteCounts.option1 / (voteCounts.option1 + voteCounts.option2)) * 100) : 0}%)</span>
                   </div>
                   <div className="h-2 bg-muted rounded-full overflow-hidden">
                     <div 
                       className="h-full bg-primary" 
-                      style={{ width: `${option1Percentage}%` }}
+                      style={{ width: `${voteCounts.option1 + voteCounts.option2 > 0 ? Math.round((voteCounts.option1 / (voteCounts.option1 + voteCounts.option2)) * 100) : 0}%` }}
                     ></div>
                   </div>
                 </div>
                 <div>
                   <div className="flex justify-between mb-1">
                     <span>{election.option2}</span>
-                    <span>{voteCounts.option2} votes ({option2Percentage}%)</span>
+                    <span>{voteCounts.option2} votes ({voteCounts.option1 + voteCounts.option2 > 0 ? Math.round((voteCounts.option2 / (voteCounts.option1 + voteCounts.option2)) * 100) : 0}%)</span>
                   </div>
                   <div className="h-2 bg-muted rounded-full overflow-hidden">
                     <div 
                       className="h-full bg-destructive" 
-                      style={{ width: `${option2Percentage}%` }}
+                      style={{ width: `${voteCounts.option1 + voteCounts.option2 > 0 ? Math.round((voteCounts.option2 / (voteCounts.option1 + voteCounts.option2)) * 100) : 0}%` }}
                     ></div>
                   </div>
                 </div>
                 <div className="text-center text-sm text-muted-foreground pt-2">
-                  Total votes: {totalVotes}
+                  Total votes: {voteCounts.option1 + voteCounts.option2}
                 </div>
               </div>
               
@@ -414,7 +441,7 @@ const ElectionDetail = () => {
                     <CheckCircle className="h-5 w-5 mr-2 text-primary" />
                     <span className="text-sm font-medium">You have voted in this election</span>
                   </div>
-                  {!isExpired && (
+                  {!isPast(new Date(election.end_date)) && (
                     <Button 
                       variant="outline" 
                       size="sm"
@@ -450,7 +477,7 @@ const ElectionDetail = () => {
         </CardContent>
         
         <CardFooter>
-          {!isExpired && !hasVoted && (
+          {election && !isPast(new Date(election.end_date)) && !hasVoted && (
             <Button 
               className="w-full" 
               disabled={!selectedOption || submitting || !keypair}
@@ -462,6 +489,14 @@ const ElectionDetail = () => {
           )}
         </CardFooter>
       </Card>
+
+      <NullificationDialog
+        open={showNullificationDialog}
+        onOpenChange={setShowNullificationDialog}
+        onActualNullification={handleActualNullification}
+        onDummyNullification={handleDummyNullification}
+        isProcessing={nullifying}
+      />
     </div>
   );
 };
