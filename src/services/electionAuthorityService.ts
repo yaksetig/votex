@@ -131,57 +131,69 @@ export async function getElectionAuthorityForElection(electionId: string): Promi
   try {
     console.log(`Fetching election authority for election: ${electionId}`);
     
-    const { data, error } = await supabase
+    // First, fetch the election to get the authority_id
+    const { data: electionData, error: electionError } = await supabase
       .from("elections")
-      .select(`
-        authority_id,
-        election_authorities (*)
-      `)
+      .select("authority_id")
       .eq("id", electionId)
       .maybeSingle();
 
-    if (error) {
-      console.error("Error fetching election authority for election:", error);
+    if (electionError) {
+      console.error("Error fetching election:", electionError);
       return null;
     }
 
-    if (!data) {
+    if (!electionData) {
       console.error("Election not found:", electionId);
       return null;
     }
 
-    const authority = (data?.election_authorities as unknown) as ElectionAuthority;
-    
-    // If no specific authority is assigned, get the default one
-    if (!authority) {
-      console.log("No specific authority assigned, fetching default authority");
+    // If the election has a specific authority assigned, fetch it
+    if (electionData.authority_id) {
+      console.log(`Fetching authority by ID: ${electionData.authority_id}`);
       
-      // First ensure default authority exists
-      await initializeDefaultElectionAuthority();
-      
-      // Then fetch the default authority
-      const { data: defaultAuthority, error: defaultError } = await supabase
+      const { data: authorityData, error: authorityError } = await supabase
         .from("election_authorities")
         .select("*")
-        .eq("name", "Default Election Authority")
+        .eq("id", electionData.authority_id)
         .maybeSingle();
         
-      if (defaultError) {
-        console.error("Error fetching default election authority:", defaultError);
+      if (authorityError) {
+        console.error("Error fetching election authority by ID:", authorityError);
         return null;
       }
       
-      if (!defaultAuthority) {
-        console.error("Default election authority not found after initialization");
-        return null;
+      if (authorityData) {
+        console.log("Found election authority for election:", authorityData);
+        return authorityData;
       }
-      
-      console.log("Using default election authority:", defaultAuthority);
-      return defaultAuthority;
     }
     
-    console.log("Found election authority for election:", authority);
-    return authority || null;
+    // If no specific authority is assigned, get the default one
+    console.log("No specific authority assigned, fetching default authority");
+    
+    // First ensure default authority exists
+    await initializeDefaultElectionAuthority();
+    
+    // Then fetch the default authority
+    const { data: defaultAuthority, error: defaultError } = await supabase
+      .from("election_authorities")
+      .select("*")
+      .eq("name", "Default Election Authority")
+      .maybeSingle();
+      
+    if (defaultError) {
+      console.error("Error fetching default election authority:", defaultError);
+      return null;
+    }
+    
+    if (!defaultAuthority) {
+      console.error("Default election authority not found after initialization");
+      return null;
+    }
+    
+    console.log("Using default election authority:", defaultAuthority);
+    return defaultAuthority;
   } catch (error) {
     console.error("Error in getElectionAuthorityForElection:", error);
     return null;
