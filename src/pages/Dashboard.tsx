@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react"
 import { useWallet } from "@/contexts/WalletContext"
 import { useToast } from "@/hooks/use-toast"
@@ -8,7 +9,7 @@ import { verifyKeypairConsistency } from "@/services/elGamalService"
 import { StoredKeypair, KeypairResult } from "@/types/keypair"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Eye, EyeOff, Key, AlertTriangle } from "lucide-react"
+import { Eye, EyeOff, Key, AlertTriangle, RefreshCw } from "lucide-react"
 
 const Dashboard = () => {
   const { isWorldIDVerified, userId } = useWallet()
@@ -72,6 +73,12 @@ const Dashboard = () => {
       Ay: newKeypair.Ay.toString()
     }
     setKeypair(storedKeypair)
+    setKeypairValid(true) // New keypairs are always valid
+    
+    toast({
+      title: "New keypair generated",
+      description: "Your cryptographic keypair has been updated successfully.",
+    })
   }
 
   const truncateKey = (key: string, showFull: boolean = false) => {
@@ -144,12 +151,17 @@ const Dashboard = () => {
         {keypair ? (
           <Card>
             <CardHeader>
-              <div className="flex items-center gap-2">
-                <Key className="h-5 w-5 text-primary" />
-                <CardTitle>Your Cryptographic Keypair</CardTitle>
-                {keypairValid === false && (
-                  <AlertTriangle className="h-5 w-5 text-amber-500" />
-                )}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Key className="h-5 w-5 text-primary" />
+                  <CardTitle>Your Cryptographic Keypair</CardTitle>
+                  {keypairValid === false && (
+                    <AlertTriangle className="h-5 w-5 text-amber-500" />
+                  )}
+                </div>
+                <GenerateKeypairButton 
+                  onKeypairGenerated={handleKeypairGenerated}
+                />
               </div>
             </CardHeader>
             <CardContent className="space-y-4">

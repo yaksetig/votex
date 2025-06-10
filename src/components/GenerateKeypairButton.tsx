@@ -5,14 +5,15 @@ import { verifyKeypairConsistency } from "@/services/elGamalService";
 import { KeypairResult } from "@/types/keypair";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Lock } from "lucide-react";
+import { Lock, RefreshCw } from "lucide-react";
 import { registerKeypair } from "@/services/keypairService";
 
 interface Props {
   onKeypairGenerated: (keypair: KeypairResult) => void;
+  isRegenerating?: boolean;
 }
 
-const GenerateKeypairButton: React.FC<Props> = ({ onKeypairGenerated }) => {
+const GenerateKeypairButton: React.FC<Props> = ({ onKeypairGenerated, isRegenerating = false }) => {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -42,8 +43,10 @@ const GenerateKeypairButton: React.FC<Props> = ({ onKeypairGenerated }) => {
       
       if (isRegistered) {
         toast({
-          title: "Keypair registered",
-          description: "Your unique keypair has been created and registered successfully.",
+          title: isRegenerating ? "Keypair regenerated" : "Keypair registered",
+          description: isRegenerating 
+            ? "Your unique keypair has been regenerated successfully." 
+            : "Your unique keypair has been created and registered successfully.",
         });
       } else {
         toast({
@@ -67,10 +70,20 @@ const GenerateKeypairButton: React.FC<Props> = ({ onKeypairGenerated }) => {
     <Button 
       onClick={onClick} 
       disabled={loading}
-      className="w-full"
+      className={isRegenerating ? "w-auto" : "w-full"}
+      variant={isRegenerating ? "outline" : "default"}
     >
-      <Lock className="mr-2 h-4 w-4" />
-      {loading ? "Generating…" : "Generate Unique Keypair"}
+      {isRegenerating ? (
+        <RefreshCw className="mr-2 h-4 w-4" />
+      ) : (
+        <Lock className="mr-2 h-4 w-4" />
+      )}
+      {loading 
+        ? "Generating…" 
+        : isRegenerating 
+          ? "Generate New" 
+          : "Generate Unique Keypair"
+      }
     </Button>
   );
 };
