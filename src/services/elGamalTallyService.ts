@@ -1,5 +1,5 @@
 
-import { EdwardsPoint } from '@/services/babyJubjubService';
+import { EdwardsPoint } from '@/services/elGamalService';
 import { ElGamalCiphertext } from '@/services/elGamalService';
 
 // Generate a lookup table for discrete log solving
@@ -7,8 +7,8 @@ export function generateDiscreteLogTable(maxValue: number = 100): Map<string, nu
   const table = new Map<string, number>();
   
   // G is the base point
-  const G = EdwardsPoint.fromAffine(BigInt(1), BigInt(0));
-  let current = EdwardsPoint.fromAffine(BigInt(0), BigInt(1)); // Identity element (0*G)
+  const G = EdwardsPoint.base();
+  let current = EdwardsPoint.identity(); // Identity element (0*G)
   
   for (let n = 0; n <= maxValue; n++) {
     table.set(current.toString(), n);
@@ -43,7 +43,8 @@ export function addElGamalCiphertexts(ciphertexts: ElGamalCiphertext[]): ElGamal
   return {
     c1: resultC1,
     c2: resultC2,
-    ciphertext: [resultC1, resultC2] // For compatibility
+    r: BigInt(0), // Placeholder since r is lost in homomorphic addition
+    ciphertext: [resultC1.x, resultC1.y, resultC2.x, resultC2.y]
   };
 }
 
@@ -54,7 +55,7 @@ export function decryptElGamalInExponent(
   lookupTable: Map<string, number>
 ): number | null {
   // Decrypt: m*G = c2 - sk*c1
-  const skTimesC1 = ciphertext.c1.scalarMult(privateKey);
+  const skTimesC1 = ciphertext.c1.multiply(privateKey);
   const decryptedPoint = ciphertext.c2.subtract(skTimesC1);
   
   // Use lookup table to find the discrete log
@@ -71,11 +72,11 @@ export function decryptElGamalInExponent(
 
 // Helper function to convert stored ciphertext back to ElGamalCiphertext
 export function reconstructElGamalCiphertext(storedCiphertext: any): ElGamalCiphertext {
-  const c1 = EdwardsPoint.fromAffine(
+  const c1 = new EdwardsPoint(
     BigInt(storedCiphertext.c1.x),
     BigInt(storedCiphertext.c1.y)
   );
-  const c2 = EdwardsPoint.fromAffine(
+  const c2 = new EdwardsPoint(
     BigInt(storedCiphertext.c2.x),
     BigInt(storedCiphertext.c2.y)
   );
@@ -83,6 +84,7 @@ export function reconstructElGamalCiphertext(storedCiphertext: any): ElGamalCiph
   return {
     c1,
     c2,
-    ciphertext: [c1, c2]
+    r: BigInt(0), // Placeholder since r is not stored
+    ciphertext: [c1.x, c1.y, c2.x, c2.y]
   };
 }
