@@ -23,30 +23,48 @@ const Elections = () => {
       setLoading(true);
       console.log('Fetching elections...');
       
-      const { data, error } = await supabase
+      // Simplified query without joins to avoid relationship conflicts
+      const { data: electionsData, error: electionsError } = await supabase
         .from("elections")
-        .select(`
-          *,
-          election_authorities (
-            id,
-            name,
-            description
-          )
-        `)
+        .select("*")
         .order("created_at", { ascending: false });
 
-      if (error) {
-        console.error("Supabase error:", error);
+      if (electionsError) {
+        console.error("Supabase error:", electionsError);
         toast({
           variant: "destructive",
           title: "Error loading elections",
-          description: error.message
+          description: electionsError.message
         });
-        throw error;
+        throw electionsError;
       }
 
-      console.log('Elections fetched:', data);
-      setElections(data || []);
+      console.log('Elections fetched:', electionsData);
+      
+      // If we have elections and need authority data, fetch it separately
+      let enrichedElections = electionsData || [];
+      
+      if (electionsData && electionsData.length > 0) {
+        // Get unique authority IDs
+        const authorityIds = [...new Set(electionsData.map(e => e.authority_id).filter(Boolean))];
+        
+        if (authorityIds.length > 0) {
+          const { data: authoritiesData, error: authoritiesError } = await supabase
+            .from("election_authorities")
+            .select("*")
+            .in("id", authorityIds);
+            
+          if (!authoritiesError && authoritiesData) {
+            // Map authorities to elections
+            enrichedElections = electionsData.map(election => ({
+              ...election,
+              election_authorities: authoritiesData.find(auth => auth.id === election.authority_id) || null
+            }));
+          }
+        }
+      }
+      
+      setElections(enrichedElections);
     } catch (error) {
       console.error("Error fetching elections:", error);
       toast({
@@ -88,14 +106,7 @@ const Elections = () => {
           end_date: formData.endDate.toISOString(),
           authority_id: formData.authorityId,
         })
-        .select(`
-          *,
-          election_authorities (
-            id,
-            name,
-            description
-          )
-        `);
+        .select();
 
       if (error) {
         console.error("Error creating election:", error);
@@ -108,7 +119,9 @@ const Elections = () => {
       }
       
       console.log('Election created successfully:', data);
-      setElections([data[0], ...elections]);
+      
+      // Refresh the elections list to show the new election
+      await fetchElections();
       setShowForm(false);
       
       toast({
