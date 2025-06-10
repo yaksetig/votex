@@ -48,7 +48,7 @@ const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({
         getNullificationsForElection(electionId)
       ]);
       
-      console.log('TallyResultsDisplay: Data fetched:', {
+      console.log('TallyResultsDisplay: Raw data fetched:', {
         tallyResults: tallyData,
         finalResults: resultsData,
         totalNullifications: nullificationData.length
@@ -75,22 +75,30 @@ const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({
       return [];
     }
     
-    console.log('TallyResultsDisplay: Generating chart data with final results:', finalResults);
+    console.log('TallyResultsDisplay: Creating chart data from final results:', finalResults);
+    
+    // Ensure we have valid data structure
+    const preliminaryOption1 = finalResults.preliminaryResults?.option1 || 0;
+    const preliminaryOption2 = finalResults.preliminaryResults?.option2 || 0;
+    const finalOption1 = finalResults.finalResults?.option1 || 0;
+    const finalOption2 = finalResults.finalResults?.option2 || 0;
     
     const chartData = [
       {
         name: 'Preliminary Results',
-        [option1Name]: finalResults.preliminaryResults.option1,
-        [option2Name]: finalResults.preliminaryResults.option2,
+        [option1Name]: preliminaryOption1,
+        [option2Name]: preliminaryOption2,
       },
       {
         name: 'Final Results',
-        [option1Name]: finalResults.finalResults.option1,
-        [option2Name]: finalResults.finalResults.option2,
+        [option1Name]: finalOption1,
+        [option2Name]: finalOption2,
       }
     ];
     
     console.log('TallyResultsDisplay: Generated chart data:', chartData);
+    console.log('TallyResultsDisplay: Option names:', { option1Name, option2Name });
+    
     return chartData;
   };
 
@@ -135,7 +143,7 @@ const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({
               <div className="text-center">
                 <Vote className="h-8 w-8 mx-auto mb-2 text-blue-600" />
                 <div className="text-2xl font-bold text-blue-600">
-                  {finalResults.preliminaryResults.option1 + finalResults.preliminaryResults.option2}
+                  {(finalResults.preliminaryResults?.option1 || 0) + (finalResults.preliminaryResults?.option2 || 0)}
                 </div>
                 <div className="text-sm text-muted-foreground">Total Votes</div>
               </div>
@@ -147,7 +155,7 @@ const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({
               <div className="text-center">
                 <Shield className="h-8 w-8 mx-auto mb-2 text-green-600" />
                 <div className="text-2xl font-bold text-green-600">
-                  {finalResults.finalResults.option1 + finalResults.finalResults.option2}
+                  {(finalResults.finalResults?.option1 || 0) + (finalResults.finalResults?.option2 || 0)}
                 </div>
                 <div className="text-sm text-muted-foreground">Valid Votes</div>
               </div>
@@ -159,7 +167,7 @@ const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({
               <div className="text-center">
                 <Users className="h-8 w-8 mx-auto mb-2 text-red-600" />
                 <div className="text-2xl font-bold text-red-600">
-                  {finalResults.nullifiedVotes}
+                  {finalResults.nullifiedVotes || 0}
                 </div>
                 <div className="text-sm text-muted-foreground">Nullified Votes</div>
               </div>
@@ -196,20 +204,33 @@ const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({
             </CardHeader>
             <CardContent>
               {finalResults && chartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey={option1Name} fill="#3b82f6" />
-                    <Bar dataKey={option2Name} fill="#ef4444" />
-                  </BarChart>
-                </ResponsiveContainer>
+                <div>
+                  <div className="mb-4 text-sm text-muted-foreground">
+                    Debug: Chart data = {JSON.stringify(chartData, null, 2)}
+                  </div>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <Tooltip 
+                        formatter={(value, name) => [value, name]}
+                        labelFormatter={(label) => `Results: ${label}`}
+                      />
+                      <Legend />
+                      <Bar dataKey={option1Name} fill="#3b82f6" name={option1Name} />
+                      <Bar dataKey={option2Name} fill="#ef4444" name={option2Name} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
                   {!finalResults ? "No vote data available yet" : "No votes to display"}
+                  {finalResults && (
+                    <div className="mt-2 text-xs">
+                      Debug: finalResults = {JSON.stringify(finalResults, null, 2)}
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
@@ -224,7 +245,7 @@ const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({
                 <CardDescription>All votes before nullification processing</CardDescription>
               </CardHeader>
               <CardContent>
-                {finalResults ? (
+                {finalResults?.preliminaryResults ? (
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span>{option1Name}:</span>
@@ -247,7 +268,7 @@ const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({
                 <CardDescription>Results after nullification processing</CardDescription>
               </CardHeader>
               <CardContent>
-                {finalResults ? (
+                {finalResults?.finalResults ? (
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span>{option1Name}:</span>
