@@ -236,7 +236,7 @@ export async function calculateFinalResults(electionId: string): Promise<{
     
     console.log(`Found ${votes?.length || 0} total votes`);
     
-    // Get tally results
+    // Get tally results to see which votes are nullified
     const tallyResults = await getElectionTallyResults(electionId);
     const nullifiedUsers = new Set(
       tallyResults.filter(r => r.voteNullified).map(r => r.userId)
@@ -250,6 +250,8 @@ export async function calculateFinalResults(electionId: string): Promise<{
     let nullifiedVotes = 0;
     
     for (const vote of votes || []) {
+      console.log(`Processing vote from ${vote.voter} for ${vote.choice}`);
+      
       // Count in preliminary results
       if (vote.choice === 'option1') {
         preliminaryResults.option1++;
@@ -266,6 +268,7 @@ export async function calculateFinalResults(electionId: string): Promise<{
         }
       } else {
         nullifiedVotes++;
+        console.log(`Vote from ${vote.voter} is nullified`);
       }
     }
     

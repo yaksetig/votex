@@ -71,11 +71,14 @@ const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({
   }, [electionId]);
 
   const getChartData = () => {
-    if (!finalResults) return [];
+    if (!finalResults) {
+      console.log('No final results for chart');
+      return [];
+    }
     
-    console.log('Chart data calculation:', finalResults);
+    console.log('Chart data calculation with final results:', finalResults);
     
-    return [
+    const chartData = [
       {
         name: 'Preliminary Results',
         [option1Name]: finalResults.preliminaryResults.option1,
@@ -87,6 +90,9 @@ const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({
         [option2Name]: finalResults.finalResults.option2,
       }
     ];
+    
+    console.log('Generated chart data:', chartData);
+    return chartData;
   };
 
   const hasTallyData = tallyResults.length > 0;
@@ -189,7 +195,7 @@ const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {finalResults ? (
+              {finalResults && getChartData().length > 0 ? (
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={getChartData()}>
                     <CartesianGrid strokeDasharray="3 3" />

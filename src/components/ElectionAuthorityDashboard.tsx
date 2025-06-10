@@ -48,6 +48,8 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
     try {
       setLoading(true);
       
+      console.log('Fetching election data for:', electionId);
+      
       // First fetch the election data
       const { data: electionData, error: fetchError } = await supabase
         .from('elections')
@@ -55,12 +57,17 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
         .eq('id', electionId)
         .maybeSingle();
 
-      if (fetchError) throw fetchError;
+      if (fetchError) {
+        console.error('Error fetching election:', fetchError);
+        throw fetchError;
+      }
 
       if (!electionData) {
         setError('Election not found');
         return;
       }
+
+      console.log('Raw election data:', electionData);
 
       // Then fetch the election authority data separately if needed
       let enrichedElection = electionData;
@@ -80,7 +87,7 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
         }
       }
 
-      console.log('Election data fetched:', enrichedElection);
+      console.log('Enriched election data:', enrichedElection);
       setElection(enrichedElection);
     } catch (err) {
       console.error('Error fetching election:', err);
@@ -107,16 +114,26 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
 
     try {
       setIsClosing(true);
+      console.log('Attempting to close election:', electionId);
+      
       const success = await closeElectionEarly(electionId);
       
       if (success) {
+        console.log('Election closed successfully, refreshing data...');
+        
         toast({
           title: "Election closed",
           description: "The election has been closed early and voting is now disabled.",
         });
-        // Force a complete refresh of election data
-        await fetchElectionData();
-        await fetchAuditLog();
+        
+        // Force a complete refresh of all data
+        await Promise.all([
+          fetchElectionData(),
+          fetchAuditLog(),
+          checkEditSafety()
+        ]);
+        
+        console.log('Data refresh completed after closing election');
       } else {
         throw new Error("Failed to close election");
       }
@@ -164,7 +181,7 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
     );
   }
 
-  // Fix the election status logic - remove typo and improve detection
+  // Fixed election status logic
   const isManuallyClosed = election.status === 'closed_manually' || election.closed_manually_at;
   const isExpired = isPast(new Date(election.end_date));
   const isElectionEnded = isManuallyClosed || election.status === 'expired' || isExpired;
@@ -176,7 +193,8 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
     isManuallyClosed,
     isExpired,
     isElectionEnded,
-    canEdit
+    canEdit,
+    end_date: election.end_date
   });
 
   return (

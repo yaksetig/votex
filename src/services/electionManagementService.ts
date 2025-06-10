@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { EdwardsPoint } from '@/services/elGamalService';
 import { generateKeypair } from '@/services/babyJubjubService';
@@ -191,23 +192,29 @@ export async function closeElectionEarly(
   try {
     console.log(`Closing election early: ${electionId}`);
     
-    const { error } = await supabase
+    const now = new Date().toISOString();
+    
+    const { data, error } = await supabase
       .from('elections')
       .update({
         status: 'closed_manually',
-        closed_manually_at: new Date().toISOString(),
-        end_date: new Date().toISOString(), // Set end_date to now
-        last_modified_by: performedBy
+        closed_manually_at: now,
+        end_date: now, // Set end_date to now
+        last_modified_by: performedBy,
+        last_modified_at: now
       })
-      .eq('id', electionId);
+      .eq('id', electionId)
+      .select();
 
     if (error) {
       console.error('Error closing election:', error);
       return false;
     }
 
+    console.log('Election closed successfully:', data);
+
     await logElectionAuthorityAction(electionId, 'CLOSE_ELECTION', performedBy, {
-      closed_at: new Date().toISOString(),
+      closed_at: now,
       reason: 'Manual closure by election authority'
     });
 
