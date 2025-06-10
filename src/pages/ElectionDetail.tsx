@@ -255,9 +255,11 @@ const ElectionDetail = () => {
       
       let nullificationCiphertext;
       let deterministicR;
+      let message: number;
       
       if (isActual) {
         // Actual nullification - encrypt 1
+        message = 1;
         nullificationCiphertext = await createNullificationEncryption(
           keypair,
           { x: authority.public_key_x, y: authority.public_key_y }
@@ -265,6 +267,7 @@ const ElectionDetail = () => {
         deterministicR = await generateDeterministicR(userPrivateKey, userPublicKey);
       } else {
         // Dummy nullification - encrypt 0
+        message = 0;
         deterministicR = await generateDeterministicR(userPrivateKey, userPublicKey);
         nullificationCiphertext = elgamalEncrypt(authorityPoint, 0, deterministicR);
       }
@@ -278,7 +281,8 @@ const ElectionDetail = () => {
         keypair,
         { x: authority.public_key_x, y: authority.public_key_y },
         nullificationCiphertext,
-        deterministicR
+        deterministicR,
+        message  // Pass the correct message value
       );
       
       const stored = await storeNullification(id, userId, nullificationCiphertext, zkProof);

@@ -1,3 +1,4 @@
+
 import { initialize } from "zokrates-js";
 import { StoredKeypair } from "@/types/keypair";
 import { ElGamalCiphertext } from "@/services/elGamalService";
@@ -104,10 +105,11 @@ export async function generateNullificationProof(
   voterKeypair: StoredKeypair,
   authorityPublicKey: { x: string, y: string },
   ciphertext: ElGamalCiphertext,
-  deterministicR: bigint
+  deterministicR: bigint,
+  message: number = 1  // Add message parameter - 1 for actual nullification, 0 for dummy
 ): Promise<any> {
   try {
-    console.log("Generating ZK proof for nullification...");
+    console.log(`Generating ZK proof for ${message === 1 ? 'actual' : 'dummy'} nullification...`);
     
     // Initialize ZoKrates if not already done
     await initZokrates();
@@ -123,8 +125,8 @@ export async function generateNullificationProof(
       ],
       // Private: r (deterministic random value)
       deterministicR.toString(),
-      // Private: m (message = 1 for nullification)
-      "1",
+      // Private: m (message = 1 for actual nullification, 0 for dummy)
+      message.toString(),
       // Private: sk_voter (voter's secret key)
       voterKeypair.k,
       // Public: pk_voter (voter's public key - this proves they know the secret key)
@@ -147,7 +149,7 @@ export async function generateNullificationProof(
     console.log("Generating proof...");
     const proof = zokratesProvider.generateProof(artifacts.program, witness, keypair.pk);
     
-    console.log("ZK proof generated successfully:", proof);
+    console.log(`ZK proof generated successfully for ${message === 1 ? 'actual' : 'dummy'} nullification:`, proof);
     return proof;
     
   } catch (error) {
