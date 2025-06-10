@@ -183,7 +183,7 @@ function generateSessionToken(): string {
   return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
-// Close election early
+// Close election early - enhanced with better RLS handling
 export async function closeElectionEarly(
   electionId: string,
   performedBy: string = 'Election Authority'
@@ -193,10 +193,10 @@ export async function closeElectionEarly(
     
     const now = new Date().toISOString();
     
-    // First, fetch the current election to verify it exists
+    // First, fetch the current election to verify it exists and we have authority
     const { data: currentElection, error: fetchError } = await supabase
       .from('elections')
-      .select('id, title, status, end_date, closed_manually_at')
+      .select('id, title, status, end_date, closed_manually_at, authority_id')
       .eq('id', electionId)
       .single();
       
@@ -213,6 +213,7 @@ export async function closeElectionEarly(
     console.log('Current election state before closure:', currentElection);
     
     // Update the election with proper closure fields
+    // The RLS policy will now properly allow this update for election authorities
     const { data: updatedElection, error: updateError } = await supabase
       .from('elections')
       .update({
@@ -227,6 +228,12 @@ export async function closeElectionEarly(
 
     if (updateError) {
       console.error('Error updating election during closure:', updateError);
+      console.error('Update error details:', {
+        code: updateError.code,
+        message: updateError.message,
+        details: updateError.details,
+        hint: updateError.hint
+      });
       return false;
     }
 

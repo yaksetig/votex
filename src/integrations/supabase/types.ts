@@ -342,6 +342,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_election_authority_for_election: {
+        Args: { election_id_param: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
