@@ -13,6 +13,7 @@ import {
   TableRow 
 } from '@/components/ui/table';
 import { calculateFinalResults, getElectionTallyResults, TallyResult } from '@/services/tallyService';
+import { getNullificationsForElection } from '@/services/nullificationService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Vote, Shield, Users, TrendingUp, RefreshCw } from 'lucide-react';
 
@@ -31,6 +32,7 @@ const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({
 }) => {
   const [tallyResults, setTallyResults] = useState<TallyResult[]>([]);
   const [finalResults, setFinalResults] = useState<any>(null);
+  const [totalNullifications, setTotalNullifications] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
@@ -38,13 +40,16 @@ const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({
     try {
       setLoading(true);
       
-      const [tallyData, resultsData] = await Promise.all([
+      const [tallyData, resultsData, nullificationData] = await Promise.all([
         getElectionTallyResults(electionId),
-        calculateFinalResults(electionId)
+        calculateFinalResults(electionId),
+        getNullificationsForElection(electionId)
       ]);
       
       setTallyResults(tallyData);
       setFinalResults(resultsData);
+      // Set the actual count of nullification entries in the database
+      setTotalNullifications(nullificationData.length);
       setLastUpdated(new Date());
     } catch (error) {
       console.error('Error fetching tally data:', error);
@@ -150,7 +155,7 @@ const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({
               <div className="text-center">
                 <TrendingUp className="h-8 w-8 mx-auto mb-2 text-purple-600" />
                 <div className="text-2xl font-bold text-purple-600">
-                  {tallyResults.reduce((sum, r) => sum + r.nullificationCount, 0)}
+                  {totalNullifications}
                 </div>
                 <div className="text-sm text-muted-foreground">Total Nullifications</div>
               </div>

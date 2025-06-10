@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,7 +12,7 @@ import TallyResultsDisplay from '@/components/TallyResultsDisplay';
 import ElectionEditForm from '@/components/ElectionEditForm';
 import ElectionAuditLog from '@/components/ElectionAuditLog';
 import { 
-  Calendar, Users, Edit, AlertTriangle, CheckCircle, Clock, Activity
+  Calendar, Users, Edit, AlertTriangle, CheckCircle, Clock, Activity, Lock
 } from 'lucide-react';
 import { isPast } from 'date-fns';
 import { 
@@ -135,6 +136,12 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
     fetchAuditLog();
   };
 
+  const handleTallyComplete = () => {
+    fetchAuditLog();
+    // Force refresh of the results display
+    window.location.reload();
+  };
+
   if (loading) {
     return (
       <div className="container mx-auto py-8 px-4">
@@ -156,10 +163,11 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
     );
   }
 
-  const isElectionEnded = election.status === 'closed_manually' || 
-                         election.status === 'expired' || 
-                         isPast(new Date(election.end_date));
-  const isManuallyoClosed = election.status === 'closed_manually';
+  // Fix the election status logic
+  const isManuallyCloseds = election.status === 'closed_manually' || election.closed_manually_at;
+  const isExpired = isPast(new Date(election.end_date));
+  const isElectionEnded = isManuallyCloseds || election.status === 'expired' || isExpired;
+  const canEdit = !isElectionEnded; // Disable editing after any type of closure
 
   return (
     <div className="container mx-auto py-8 px-4 space-y-6">
@@ -173,7 +181,7 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
             </span>
             <div className="flex gap-2">
               <Badge variant={isElectionEnded ? "destructive" : "default"}>
-                {isManuallyoClosed ? "Manually Closed" : isElectionEnded ? "Ended" : "Active"}
+                {isManuallyCloseds ? "Manually Closed" : isExpired ? "Expired" : "Active"}
               </Badge>
               {!isElectionEnded && (
                 <Button 
@@ -251,7 +259,12 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
       <Tabs defaultValue="overview" className="w-full">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="edit">Edit Election</TabsTrigger>
+          <TabsTrigger value="edit" disabled={!canEdit}>
+            <div className="flex items-center gap-1">
+              Edit Election
+              {!canEdit && <Lock className="h-3 w-3" />}
+            </div>
+          </TabsTrigger>
           <TabsTrigger value="tally">Process Tally</TabsTrigger>
           <TabsTrigger value="audit">Audit Log</TabsTrigger>
         </TabsList>
@@ -266,19 +279,32 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
         </TabsContent>
         
         <TabsContent value="edit" className="space-y-4">
-          {!safeToEdit && (
-            <Alert variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
+          {!canEdit ? (
+            <Alert>
+              <Lock className="h-4 w-4" />
               <AlertDescription>
-                Warning: This election already has votes. Editing certain fields may affect the integrity of the results.
+                Editing is disabled because this election has been closed. 
+                {isManuallyCloseds && " The election was manually closed by an authority."}
+                {isExpired && !isManuallyCloseds && " The election has expired."}
               </AlertDescription>
             </Alert>
+          ) : (
+            <>
+              {!safeToEdit && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    Warning: This election already has votes. Editing certain fields may affect the integrity of the results.
+                  </AlertDescription>
+                </Alert>
+              )}
+              <ElectionEditForm
+                election={election}
+                safeToEdit={safeToEdit}
+                onElectionUpdated={handleElectionUpdated}
+              />
+            </>
           )}
-          <ElectionEditForm
-            election={election}
-            safeToEdit={safeToEdit}
-            onElectionUpdated={handleElectionUpdated}
-          />
         </TabsContent>
         
         <TabsContent value="tally" className="space-y-4">
@@ -293,7 +319,7 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
           <ElectionAuthorityInterface
             electionId={election.id}
             electionTitle={election.title}
-            onTallyComplete={() => fetchAuditLog()}
+            onTallyComplete={handleTallyComplete}
           />
         </TabsContent>
         
