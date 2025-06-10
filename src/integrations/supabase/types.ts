@@ -54,6 +54,33 @@ export type Database = {
         }
         Relationships: []
       }
+      election_authority_audit_log: {
+        Row: {
+          action: string
+          details: Json | null
+          election_id: string
+          id: string
+          performed_at: string
+          performed_by: string
+        }
+        Insert: {
+          action: string
+          details?: Json | null
+          election_id: string
+          id?: string
+          performed_at?: string
+          performed_by: string
+        }
+        Update: {
+          action?: string
+          details?: Json | null
+          election_id?: string
+          id?: string
+          performed_at?: string
+          performed_by?: string
+        }
+        Relationships: []
+      }
       election_participants: {
         Row: {
           election_id: string
@@ -130,35 +157,47 @@ export type Database = {
       elections: {
         Row: {
           authority_id: string | null
+          closed_manually_at: string | null
           created_at: string
           creator: string
           description: string
           end_date: string
           id: string
+          last_modified_at: string | null
+          last_modified_by: string | null
           option1: string
           option2: string
+          status: string | null
           title: string
         }
         Insert: {
           authority_id?: string | null
+          closed_manually_at?: string | null
           created_at?: string
           creator: string
           description: string
           end_date: string
           id?: string
+          last_modified_at?: string | null
+          last_modified_by?: string | null
           option1?: string
           option2?: string
+          status?: string | null
           title: string
         }
         Update: {
           authority_id?: string | null
+          closed_manually_at?: string | null
           created_at?: string
           creator?: string
           description?: string
           end_date?: string
           id?: string
+          last_modified_at?: string | null
+          last_modified_by?: string | null
           option1?: string
           option2?: string
+          status?: string | null
           title?: string
         }
         Relationships: [

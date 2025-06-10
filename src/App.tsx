@@ -34,6 +34,7 @@ const App: React.FC = () => (
                 <Route path="/elections" element={<Elections />} />
                 <Route path="/elections/:id" element={<ElectionDetail />} />
                 <Route path="/elections/:id/authority" element={<ElectionAuthority />} />
+                <Route path="/election_authority" element={<ElectionAuthority />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </main>
