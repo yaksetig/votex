@@ -221,6 +221,8 @@ export async function calculateFinalResults(electionId: string): Promise<{
   nullifiedVotes: number;
 } | null> {
   try {
+    console.log(`Calculating final results for election: ${electionId}`);
+    
     // Get all votes for the election
     const { data: votes, error: votesError } = await supabase
       .from("votes")
@@ -232,11 +234,15 @@ export async function calculateFinalResults(electionId: string): Promise<{
       return null;
     }
     
+    console.log(`Found ${votes?.length || 0} total votes`);
+    
     // Get tally results
     const tallyResults = await getElectionTallyResults(electionId);
     const nullifiedUsers = new Set(
       tallyResults.filter(r => r.voteNullified).map(r => r.userId)
     );
+    
+    console.log(`Found ${tallyResults.length} tally results, ${nullifiedUsers.size} nullified users`);
     
     // Calculate preliminary results (all votes)
     const preliminaryResults = { option1: 0, option2: 0 };
@@ -262,6 +268,12 @@ export async function calculateFinalResults(electionId: string): Promise<{
         nullifiedVotes++;
       }
     }
+    
+    console.log('Final results calculated:', {
+      preliminaryResults,
+      finalResults,
+      nullifiedVotes
+    });
     
     return {
       preliminaryResults,

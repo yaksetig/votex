@@ -40,15 +40,23 @@ const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({
     try {
       setLoading(true);
       
+      console.log('Fetching tally data for election:', electionId);
+      
       const [tallyData, resultsData, nullificationData] = await Promise.all([
         getElectionTallyResults(electionId),
         calculateFinalResults(electionId),
         getNullificationsForElection(electionId)
       ]);
       
+      console.log('Tally data fetched:', {
+        tallyResults: tallyData,
+        finalResults: resultsData,
+        totalNullifications: nullificationData.length
+      });
+      
       setTallyResults(tallyData);
       setFinalResults(resultsData);
-      // Set the actual count of nullification entries in the database
+      // Show only the total count of nullification entries in the database
       setTotalNullifications(nullificationData.length);
       setLastUpdated(new Date());
     } catch (error) {
@@ -64,6 +72,8 @@ const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({
 
   const getChartData = () => {
     if (!finalResults) return [];
+    
+    console.log('Chart data calculation:', finalResults);
     
     return [
       {
@@ -165,10 +175,9 @@ const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({
       )}
 
       <Tabs defaultValue="chart" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="chart">Results Chart</TabsTrigger>
           <TabsTrigger value="detailed">Detailed Results</TabsTrigger>
-          <TabsTrigger value="voters">Voter Details</TabsTrigger>
         </TabsList>
         
         <TabsContent value="chart" className="space-y-4">
@@ -249,54 +258,6 @@ const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
-        
-        <TabsContent value="voters" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Voter Nullification Details</CardTitle>
-              <CardDescription>
-                Individual voter nullification counts and final decisions
-                {!hasTallyData && " (Tally must be processed first)"}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {hasTallyData ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Voter ID</TableHead>
-                      <TableHead>Nullifications</TableHead>
-                      <TableHead>Vote Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {tallyResults.map((result) => (
-                      <TableRow key={result.userId}>
-                        <TableCell className="font-mono text-sm">
-                          {result.userId.substring(0, 8)}...
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">
-                            {result.nullificationCount}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={result.voteNullified ? "destructive" : "default"}>
-                            {result.voteNullified ? "Nullified" : "Valid"}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  Tally processing required to view voter details
-                </div>
-              )}
-            </CardContent>
-          </Card>
         </TabsContent>
       </Tabs>
       

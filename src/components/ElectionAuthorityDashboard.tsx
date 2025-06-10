@@ -80,6 +80,7 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
         }
       }
 
+      console.log('Election data fetched:', enrichedElection);
       setElection(enrichedElection);
     } catch (err) {
       console.error('Error fetching election:', err);
@@ -113,6 +114,7 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
           title: "Election closed",
           description: "The election has been closed early and voting is now disabled.",
         });
+        // Force a complete refresh of election data
         await fetchElectionData();
         await fetchAuditLog();
       } else {
@@ -138,8 +140,7 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
 
   const handleTallyComplete = () => {
     fetchAuditLog();
-    // Force refresh of the results display
-    window.location.reload();
+    fetchElectionData(); // Also refresh election data to update any cached values
   };
 
   if (loading) {
@@ -163,11 +164,20 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
     );
   }
 
-  // Fix the election status logic
-  const isManuallyCloseds = election.status === 'closed_manually' || election.closed_manually_at;
+  // Fix the election status logic - remove typo and improve detection
+  const isManuallyClosed = election.status === 'closed_manually' || election.closed_manually_at;
   const isExpired = isPast(new Date(election.end_date));
-  const isElectionEnded = isManuallyCloseds || election.status === 'expired' || isExpired;
+  const isElectionEnded = isManuallyClosed || election.status === 'expired' || isExpired;
   const canEdit = !isElectionEnded; // Disable editing after any type of closure
+
+  console.log('Election status check:', {
+    status: election.status,
+    closed_manually_at: election.closed_manually_at,
+    isManuallyClosed,
+    isExpired,
+    isElectionEnded,
+    canEdit
+  });
 
   return (
     <div className="container mx-auto py-8 px-4 space-y-6">
@@ -181,7 +191,7 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
             </span>
             <div className="flex gap-2">
               <Badge variant={isElectionEnded ? "destructive" : "default"}>
-                {isManuallyCloseds ? "Manually Closed" : isExpired ? "Expired" : "Active"}
+                {isManuallyClosed ? "Manually Closed" : isExpired ? "Expired" : "Active"}
               </Badge>
               {!isElectionEnded && (
                 <Button 
@@ -284,8 +294,8 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
               <Lock className="h-4 w-4" />
               <AlertDescription>
                 Editing is disabled because this election has been closed. 
-                {isManuallyCloseds && " The election was manually closed by an authority."}
-                {isExpired && !isManuallyCloseds && " The election has expired."}
+                {isManuallyClosed && " The election was manually closed by an authority."}
+                {isExpired && !isManuallyClosed && " The election has expired."}
               </AlertDescription>
             </Alert>
           ) : (
