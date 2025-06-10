@@ -9,6 +9,21 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      discrete_log_lookup: {
+        Row: {
+          discrete_log_value: number
+          point_string: string
+        }
+        Insert: {
+          discrete_log_value: number
+          point_string: string
+        }
+        Update: {
+          discrete_log_value?: number
+          point_string?: string
+        }
+        Relationships: []
+      }
       election_authorities: {
         Row: {
           created_at: string
@@ -258,6 +273,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      clear_discrete_log_table: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      get_discrete_log: {
+        Args: { point_str: string }
+        Returns: number
+      }
+      initialize_discrete_log_table: {
+        Args: { max_value?: number }
+        Returns: number
+      }
       insert_vote: {
         Args: {
           p_election_id: string

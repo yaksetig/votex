@@ -1,23 +1,11 @@
 
 import { EdwardsPoint } from '@/services/elGamalService';
 import { ElGamalCiphertext } from '@/services/elGamalService';
+import { getDiscreteLogFromDB, initializeDiscreteLogTable } from '@/services/discreteLogService';
 
-// Generate a lookup table for discrete log solving
-export function generateDiscreteLogTable(maxValue: number = 100): Map<string, number> {
-  const table = new Map<string, number>();
-  
-  // G is the base point
-  const G = EdwardsPoint.base();
-  let current = EdwardsPoint.identity(); // Identity element (0*G)
-  
-  for (let n = 0; n <= maxValue; n++) {
-    table.set(current.toString(), n);
-    if (n < maxValue) {
-      current = current.add(G);
-    }
-  }
-  
-  return table;
+// Generate and initialize discrete log lookup table in Supabase
+export async function ensureDiscreteLogTable(maxValue: number = 100): Promise<boolean> {
+  return await initializeDiscreteLogTable(maxValue);
 }
 
 // Add multiple ElGamal ciphertexts homomorphically
@@ -54,23 +42,22 @@ function negatePoint(point: EdwardsPoint): EdwardsPoint {
   return new EdwardsPoint(-point.x, point.y);
 }
 
-// Decrypt ElGamal ciphertext that encrypts a value "in the exponent"
-export function decryptElGamalInExponent(
+// Decrypt ElGamal ciphertext that encrypts a value "in the exponent" using Supabase lookup
+export async function decryptElGamalInExponent(
   ciphertext: ElGamalCiphertext, 
-  privateKey: bigint,
-  lookupTable: Map<string, number>
-): number | null {
+  privateKey: bigint
+): Promise<number | null> {
   // Decrypt: m*G = c2 - sk*c1
   // We implement subtraction as addition of the negated point
   const skTimesC1 = ciphertext.c1.multiply(privateKey);
   const negatedSkTimesC1 = negatePoint(skTimesC1);
   const decryptedPoint = ciphertext.c2.add(negatedSkTimesC1);
   
-  // Use lookup table to find the discrete log
+  // Use Supabase lookup table to find the discrete log
   const pointString = decryptedPoint.toString();
-  const result = lookupTable.get(pointString);
+  const result = await getDiscreteLogFromDB(pointString);
   
-  if (result === undefined) {
+  if (result === null) {
     console.warn("Could not find discrete log for point:", pointString);
     return null;
   }

@@ -1,11 +1,10 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { getNullificationsForElection } from "@/services/nullificationService";
 import { getElectionAuthorityForElection } from "@/services/electionAuthorityService";
 import { 
   addElGamalCiphertexts, 
   decryptElGamalInExponent, 
-  generateDiscreteLogTable,
+  ensureDiscreteLogTable,
   reconstructElGamalCiphertext 
 } from "@/services/elGamalTallyService";
 
@@ -76,6 +75,13 @@ export async function processElectionTally(
   try {
     console.log(`Processing election tally for election: ${electionId}`);
     
+    // Ensure discrete log table is initialized
+    const tableInitialized = await ensureDiscreteLogTable(100);
+    if (!tableInitialized) {
+      console.error("Failed to initialize discrete log table");
+      return null;
+    }
+    
     // Get all participants who have voted in this election
     const { data: votes, error: votesError } = await supabase
       .from("votes")
@@ -91,10 +97,7 @@ export async function processElectionTally(
     const uniqueVoters = [...new Set(votes?.map(v => v.voter) || [])];
     console.log(`Found ${uniqueVoters.length} unique voters`);
     
-    // Generate discrete log lookup table
-    const lookupTable = generateDiscreteLogTable(100);
     const privateKey = BigInt(authorityPrivateKey);
-    
     const results: TallyResult[] = [];
     
     // Process each voter's nullifications
@@ -108,11 +111,10 @@ export async function processElectionTally(
         // Reconstruct the aggregated ciphertext
         const aggregatedCiphertext = reconstructElGamalCiphertext(aggregation.aggregatedCiphertext);
         
-        // Decrypt to get the nullification count
-        const decryptedCount = decryptElGamalInExponent(
+        // Decrypt to get the nullification count using Supabase lookup
+        const decryptedCount = await decryptElGamalInExponent(
           aggregatedCiphertext, 
-          privateKey, 
-          lookupTable
+          privateKey
         );
         
         if (decryptedCount !== null) {
