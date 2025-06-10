@@ -145,6 +145,11 @@ export async function getElectionAuthorityForElection(electionId: string): Promi
       return null;
     }
 
+    if (!data) {
+      console.error("Election not found:", electionId);
+      return null;
+    }
+
     const authority = (data?.election_authorities as unknown) as ElectionAuthority;
     
     // If no specific authority is assigned, get the default one
@@ -163,6 +168,11 @@ export async function getElectionAuthorityForElection(electionId: string): Promi
         
       if (defaultError) {
         console.error("Error fetching default election authority:", defaultError);
+        return null;
+      }
+      
+      if (!defaultAuthority) {
+        console.error("Default election authority not found after initialization");
         return null;
       }
       

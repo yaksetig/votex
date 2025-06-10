@@ -7,7 +7,8 @@ import { getStoredKeypair } from "@/services/keypairService";
 import { 
   getElectionAuthorities, 
   createElectionAuthority, 
-  ElectionAuthority 
+  ElectionAuthority,
+  initializeDefaultElectionAuthority
 } from "@/services/electionAuthorityService";
 
 import { Button } from "@/components/ui/button";
@@ -48,8 +49,22 @@ const ElectionForm: React.FC<ElectionFormProps> = ({ onSubmit, onCancel }) => {
   const fetchAuthorities = async () => {
     try {
       setLoadingAuthorities(true);
+      
+      // Ensure default authority exists
+      await initializeDefaultElectionAuthority();
+      
       const authoritiesList = await getElectionAuthorities();
       setAuthorities(authoritiesList);
+      
+      // Auto-select the default authority if no authority is selected
+      if (authoritiesList.length > 0 && !selectedAuthorityId) {
+        const defaultAuthority = authoritiesList.find(
+          auth => auth.name === "Default Election Authority"
+        );
+        if (defaultAuthority) {
+          setValue("authorityId", defaultAuthority.id);
+        }
+      }
     } catch (error) {
       console.error("Error fetching authorities:", error);
       toast({
@@ -94,6 +109,16 @@ const ElectionForm: React.FC<ElectionFormProps> = ({ onSubmit, onCancel }) => {
         }
 
         finalAuthorityId = newAuthority.id;
+      }
+
+      // Ensure we have an authority ID (fallback to default)
+      if (!finalAuthorityId && authorities.length > 0) {
+        const defaultAuthority = authorities.find(
+          auth => auth.name === "Default Election Authority"
+        );
+        if (defaultAuthority) {
+          finalAuthorityId = defaultAuthority.id;
+        }
       }
 
       onSubmit({ ...data, authorityId: finalAuthorityId });
