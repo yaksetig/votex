@@ -4,6 +4,8 @@ import { IDKitWidget, ISuccessResult } from '@worldcoin/idkit';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from "@/hooks/use-toast";
 import { useWallet } from '@/contexts/WalletContext';
+import { Button } from '@/components/ui/button';
+import { Shield, Loader2 } from 'lucide-react';
 
 interface WorldIDVerifierProps {
   onVerificationSuccess?: () => void;
@@ -85,7 +87,10 @@ const WorldIDVerifier: React.FC<WorldIDVerifierProps> = ({
       )}
       
       {isVerifying ? (
-        <button disabled>Verifying…</button>
+        <Button disabled size="lg" className="min-w-[200px]">
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          Verifying...
+        </Button>
       ) : (
         <IDKitWidget
           app_id="app_e2fd2f8c99430ab200a093278e801c57"   // your real app_id
@@ -95,7 +100,15 @@ const WorldIDVerifier: React.FC<WorldIDVerifierProps> = ({
           autoClose
         >
           {({ open }) => (
-            <button onClick={open}>Verify with World ID</button>
+            <Button 
+              onClick={open} 
+              variant="gradient" 
+              size="lg" 
+              className="min-w-[200px]"
+            >
+              <Shield className="mr-2 h-4 w-4" />
+              Verify with World ID
+            </Button>
           )}
         </IDKitWidget>
       )}
