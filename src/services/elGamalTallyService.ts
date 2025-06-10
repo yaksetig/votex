@@ -48,6 +48,12 @@ export function addElGamalCiphertexts(ciphertexts: ElGamalCiphertext[]): ElGamal
   };
 }
 
+// Helper function to negate an Edwards point (for subtraction)
+function negatePoint(point: EdwardsPoint): EdwardsPoint {
+  // In Edwards curves, the negation of point (x, y) is (-x, y)
+  return new EdwardsPoint(-point.x, point.y);
+}
+
 // Decrypt ElGamal ciphertext that encrypts a value "in the exponent"
 export function decryptElGamalInExponent(
   ciphertext: ElGamalCiphertext, 
@@ -55,8 +61,10 @@ export function decryptElGamalInExponent(
   lookupTable: Map<string, number>
 ): number | null {
   // Decrypt: m*G = c2 - sk*c1
+  // We implement subtraction as addition of the negated point
   const skTimesC1 = ciphertext.c1.multiply(privateKey);
-  const decryptedPoint = ciphertext.c2.subtract(skTimesC1);
+  const negatedSkTimesC1 = negatePoint(skTimesC1);
+  const decryptedPoint = ciphertext.c2.add(negatedSkTimesC1);
   
   // Use lookup table to find the discrete log
   const pointString = decryptedPoint.toString();
