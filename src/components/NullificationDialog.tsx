@@ -28,7 +28,7 @@ const NullificationDialog: React.FC<NullificationDialogProps> = ({
 }) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-amber-500" />
@@ -56,17 +56,17 @@ const NullificationDialog: React.FC<NullificationDialogProps> = ({
               <h3 className="font-medium">Dummy Nullification</h3>
             </div>
             <p className="text-sm text-muted-foreground">
-              This will encrypt a dummy value (value = 0) and generate a ZK proof for testing purposes.
+              This will encrypt a dummy value (value = 0) and generate a ZK proof for privacy protection without revealing your actual vote.
             </p>
           </div>
         </div>
 
-        <DialogFooter className="flex flex-col sm:flex-row gap-2">
+        <DialogFooter className="flex flex-row gap-2 sm:justify-end">
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
             disabled={isProcessing}
-            className="w-full sm:w-auto"
+            size="sm"
           >
             Cancel
           </Button>
@@ -74,19 +74,20 @@ const NullificationDialog: React.FC<NullificationDialogProps> = ({
             variant="outline"
             onClick={onDummyNullification}
             disabled={isProcessing}
-            className="w-full sm:w-auto bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
+            size="sm"
+            className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
           >
             <Shield className="mr-2 h-4 w-4" />
-            Dummy Nullification
+            Dummy
           </Button>
           <Button
             variant="destructive"
             onClick={onActualNullification}
             disabled={isProcessing}
-            className="w-full sm:w-auto"
+            size="sm"
           >
             <X className="mr-2 h-4 w-4" />
-            Actual Nullification
+            Actual
           </Button>
         </DialogFooter>
       </DialogContent>
