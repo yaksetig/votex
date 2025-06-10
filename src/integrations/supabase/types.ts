@@ -74,6 +74,44 @@ export type Database = {
           },
         ]
       }
+      election_tallies: {
+        Row: {
+          election_id: string
+          id: string
+          nullification_count: number
+          processed_at: string
+          processed_by: string | null
+          user_id: string
+          vote_nullified: boolean
+        }
+        Insert: {
+          election_id: string
+          id?: string
+          nullification_count?: number
+          processed_at?: string
+          processed_by?: string | null
+          user_id: string
+          vote_nullified?: boolean
+        }
+        Update: {
+          election_id?: string
+          id?: string
+          nullification_count?: number
+          processed_at?: string
+          processed_by?: string | null
+          user_id?: string
+          vote_nullified?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_election_tallies_election_id"
+            columns: ["election_id"]
+            isOneToOne: false
+            referencedRelation: "elections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       elections: {
         Row: {
           authority_id: string | null

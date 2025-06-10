@@ -12,6 +12,7 @@ import Dashboard from "@/pages/Dashboard"
 import Success from "@/pages/Success"
 import Elections from "@/pages/Elections"
 import ElectionDetail from "@/pages/ElectionDetail"
+import ElectionAuthority from "@/pages/ElectionAuthority"
 import NotFound from "@/pages/NotFound"
 
 const queryClient = new QueryClient()
@@ -32,6 +33,7 @@ const App: React.FC = () => (
                 <Route path="/success" element={<Success />} />
                 <Route path="/elections" element={<Elections />} />
                 <Route path="/elections/:id" element={<ElectionDetail />} />
+                <Route path="/elections/:id/authority" element={<ElectionAuthority />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </main>
