@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -47,26 +46,40 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
   const fetchElectionData = async () => {
     try {
       setLoading(true);
-      const { data, error: fetchError } = await supabase
+      
+      // First fetch the election data
+      const { data: electionData, error: fetchError } = await supabase
         .from('elections')
-        .select(`
-          *,
-          election_authorities (
-            id,
-            name,
-            description
-          )
-        `)
+        .select('*')
         .eq('id', electionId)
         .maybeSingle();
 
       if (fetchError) throw fetchError;
 
-      if (!data) {
+      if (!electionData) {
         setError('Election not found');
-      } else {
-        setElection(data);
+        return;
       }
+
+      // Then fetch the election authority data separately if needed
+      let enrichedElection = electionData;
+      
+      if (electionData.authority_id) {
+        const { data: authorityData, error: authorityError } = await supabase
+          .from('election_authorities')
+          .select('*')
+          .eq('id', electionData.authority_id)
+          .maybeSingle();
+          
+        if (!authorityError && authorityData) {
+          enrichedElection = {
+            ...electionData,
+            election_authorities: authorityData
+          };
+        }
+      }
+
+      setElection(enrichedElection);
     } catch (err) {
       console.error('Error fetching election:', err);
       setError(err instanceof Error ? err.message : 'Unknown error occurred');
