@@ -1,7 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { EdwardsPoint } from '@/services/elGamalService';
-import { generateKeypair } from '@/services/keypairService';
+import { generateKeypair } from '@/services/babyJubjubService';
 
 export interface ElectionManagementSession {
   electionId: string;
@@ -46,7 +46,7 @@ export async function authenticateElectionAuthority(
 
     // Derive public key from provided private key
     const privateKeyBigInt = BigInt(privateKey);
-    const derivedPublicKey = EdwardsPoint.generator().multiply(privateKeyBigInt);
+    const derivedPublicKey = EdwardsPoint.base().multiply(privateKeyBigInt);
     
     // Compare with stored public key
     const storedPublicKeyX = BigInt(election.election_authorities.public_key_x);
