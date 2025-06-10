@@ -208,6 +208,13 @@ export type Database = {
             referencedRelation: "election_authorities"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_elections_authority"
+            columns: ["authority_id"]
+            isOneToOne: false
+            referencedRelation: "election_authorities"
+            referencedColumns: ["id"]
+          },
         ]
       }
       keypairs: {

@@ -8,16 +8,15 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { Shield, Lock, AlertTriangle } from 'lucide-react';
 import { 
-  authenticateElectionAuthority, 
+  authenticateElectionAuthorityByKey, 
   createElectionAuthoritySession 
 } from '@/services/electionManagementService';
 
 interface ElectionAuthorityLoginProps {
-  onLoginSuccess: (electionId: string) => void;
+  onLoginSuccess: (authorityId: string, authorityName: string) => void;
 }
 
 const ElectionAuthorityLogin: React.FC<ElectionAuthorityLoginProps> = ({ onLoginSuccess }) => {
-  const [electionId, setElectionId] = useState('');
   const [privateKey, setPrivateKey] = useState('');
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,8 +25,8 @@ const ElectionAuthorityLogin: React.FC<ElectionAuthorityLoginProps> = ({ onLogin
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!electionId.trim() || !privateKey.trim()) {
-      setError('Please provide both Election ID and Private Key');
+    if (!privateKey.trim()) {
+      setError('Please provide your Election Authority Private Key');
       return;
     }
 
@@ -37,30 +36,27 @@ const ElectionAuthorityLogin: React.FC<ElectionAuthorityLoginProps> = ({ onLogin
 
       console.log('Attempting election authority authentication...');
       
-      const isAuthenticated = await authenticateElectionAuthority(
-        electionId.trim(),
-        privateKey.trim()
-      );
+      const authResult = await authenticateElectionAuthorityByKey(privateKey.trim());
 
-      if (isAuthenticated) {
+      if (authResult.success && authResult.authorityId) {
         // Create secure session
-        createElectionAuthoritySession(electionId.trim());
+        createElectionAuthoritySession(authResult.authorityId);
         
         toast({
           title: "Authentication successful",
-          description: "You have been authenticated as the election authority.",
+          description: `Welcome back, ${authResult.authorityName}!`,
         });
         
         // Clear sensitive data
         setPrivateKey('');
         
-        onLoginSuccess(electionId.trim());
+        onLoginSuccess(authResult.authorityId, authResult.authorityName || 'Election Authority');
       } else {
-        setError('Authentication failed. Please check your credentials.');
+        setError('Authentication failed. Invalid private key.');
         toast({
           variant: "destructive",
           title: "Authentication failed",
-          description: "Invalid election ID or private key.",
+          description: "Invalid private key or no elections found for this authority.",
         });
       }
     } catch (err) {
@@ -87,7 +83,7 @@ const ElectionAuthorityLogin: React.FC<ElectionAuthorityLoginProps> = ({ onLogin
             Election Authority Access
           </h2>
           <p className="mt-2 text-sm text-gray-600">
-            Secure access for election management and tally processing
+            Secure access for election management and oversight
           </p>
         </div>
 
@@ -98,7 +94,7 @@ const ElectionAuthorityLogin: React.FC<ElectionAuthorityLoginProps> = ({ onLogin
               Authentication Required
             </CardTitle>
             <CardDescription>
-              Enter your election ID and private key to access the election authority dashboard
+              Enter your private key to access all elections under your authority
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -107,22 +103,9 @@ const ElectionAuthorityLogin: React.FC<ElectionAuthorityLoginProps> = ({ onLogin
                 <Shield className="h-4 w-4" />
                 <AlertDescription>
                   This area is restricted to authorized election authorities only. 
-                  Your private key will be verified against the stored public key for this election.
+                  Your private key will be verified and you'll gain access to all elections under your management.
                 </AlertDescription>
               </Alert>
-
-              <div className="space-y-2">
-                <Label htmlFor="electionId">Election ID</Label>
-                <Input
-                  id="electionId"
-                  type="text"
-                  value={electionId}
-                  onChange={(e) => setElectionId(e.target.value)}
-                  placeholder="Enter the election ID..."
-                  disabled={isAuthenticating}
-                  required
-                />
-              </div>
 
               <div className="space-y-2">
                 <Label htmlFor="privateKey">Election Authority Private Key</Label>
@@ -149,7 +132,7 @@ const ElectionAuthorityLogin: React.FC<ElectionAuthorityLoginProps> = ({ onLogin
 
               <Button 
                 type="submit"
-                disabled={isAuthenticating || !electionId.trim() || !privateKey.trim()}
+                disabled={isAuthenticating || !privateKey.trim()}
                 className="w-full"
                 size="lg"
               >
@@ -161,7 +144,7 @@ const ElectionAuthorityLogin: React.FC<ElectionAuthorityLoginProps> = ({ onLogin
                 ) : (
                   <>
                     <Shield className="mr-2 h-4 w-4" />
-                    Authenticate & Access Dashboard
+                    Access Election Dashboard
                   </>
                 )}
               </Button>

@@ -12,12 +12,10 @@ import TallyResultsDisplay from '@/components/TallyResultsDisplay';
 import ElectionEditForm from '@/components/ElectionEditForm';
 import ElectionAuditLog from '@/components/ElectionAuditLog';
 import { 
-  Shield, LogOut, Calendar, Users, Edit, Settings, 
-  AlertTriangle, CheckCircle, Clock, Activity
+  Calendar, Users, Edit, AlertTriangle, CheckCircle, Clock, Activity
 } from 'lucide-react';
 import { isPast } from 'date-fns';
 import { 
-  clearElectionAuthoritySession,
   closeElectionEarly,
   isElectionSafeToEdit,
   getElectionAuditLog
@@ -87,15 +85,6 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
     setAuditLog(log);
   };
 
-  const handleLogout = () => {
-    clearElectionAuthoritySession();
-    toast({
-      title: "Logged out",
-      description: "You have been securely logged out.",
-    });
-    onLogout();
-  };
-
   const handleCloseElection = async () => {
     if (!window.confirm('Are you sure you want to close this election early? This action cannot be undone.')) {
       return;
@@ -150,10 +139,6 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>{error || 'Election not found'}</AlertDescription>
         </Alert>
-        <Button onClick={handleLogout} className="mt-4">
-          <LogOut className="mr-2 h-4 w-4" />
-          Back to Login
-        </Button>
       </div>
     );
   }
@@ -165,21 +150,6 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
 
   return (
     <div className="container mx-auto py-8 px-4 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Shield className="h-8 w-8 text-blue-600" />
-          <div>
-            <h1 className="text-3xl font-bold">Election Authority Dashboard</h1>
-            <p className="text-muted-foreground">Secure management interface</p>
-          </div>
-        </div>
-        <Button onClick={handleLogout} variant="outline">
-          <LogOut className="mr-2 h-4 w-4" />
-          Logout
-        </Button>
-      </div>
-
       {/* Election Status Card */}
       <Card>
         <CardHeader>
@@ -247,7 +217,7 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
             
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                <Shield className="h-4 w-4" />
+                <Activity className="h-4 w-4" />
                 Authority
               </div>
               <div>

@@ -1,13 +1,25 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { EdwardsPoint } from '@/services/elGamalService';
 import { generateKeypair } from '@/services/babyJubjubService';
 
 export interface ElectionManagementSession {
-  electionId: string;
+  authorityId: string;
   sessionToken: string;
   authenticatedAt: string;
   expiresAt: string;
+}
+
+export interface AuthorityElection {
+  id: string;
+  title: string;
+  description: string;
+  status: string;
+  created_at: string;
+  end_date: string;
+  closed_manually_at?: string;
+  option1: string;
+  option2: string;
+  vote_count?: number;
 }
 
 export interface AuditLogEntry {
@@ -16,98 +28,146 @@ export interface AuditLogEntry {
   details?: any;
 }
 
-// Verify private key against stored public key for election authority
-export async function authenticateElectionAuthority(
-  electionId: string,
+// Authenticate election authority by private key only
+export async function authenticateElectionAuthorityByKey(
   privateKey: string
-): Promise<boolean> {
+): Promise<{ success: boolean; authorityId?: string; authorityName?: string }> {
   try {
-    console.log(`Authenticating election authority for election: ${electionId}`);
+    console.log('Authenticating election authority by private key...');
     
-    // Get the election and its authority
-    const { data: election, error } = await supabase
-      .from('elections')
-      .select(`
-        *,
-        election_authorities (
-          id,
-          name,
-          public_key_x,
-          public_key_y
-        )
-      `)
-      .eq('id', electionId)
-      .maybeSingle();
-
-    if (error || !election || !election.election_authorities) {
-      console.error('Election or authority not found:', error);
-      return false;
-    }
-
     // Derive public key from provided private key
     const privateKeyBigInt = BigInt(privateKey);
     const derivedPublicKey = EdwardsPoint.base().multiply(privateKeyBigInt);
     
-    // Compare with stored public key
-    const storedPublicKeyX = BigInt(election.election_authorities.public_key_x);
-    const storedPublicKeyY = BigInt(election.election_authorities.public_key_y);
-    
-    const isValid = derivedPublicKey.x === storedPublicKeyX && derivedPublicKey.y === storedPublicKeyY;
-    
-    if (isValid) {
+    // Find matching election authority
+    const { data: authorities, error } = await supabase
+      .from('election_authorities')
+      .select('*');
+
+    if (error) {
+      console.error('Error fetching election authorities:', error);
+      return { success: false };
+    }
+
+    // Find authority with matching public key
+    const matchingAuthority = authorities?.find(auth => {
+      const storedPublicKeyX = BigInt(auth.public_key_x);
+      const storedPublicKeyY = BigInt(auth.public_key_y);
+      return derivedPublicKey.x === storedPublicKeyX && derivedPublicKey.y === storedPublicKeyY;
+    });
+
+    if (matchingAuthority) {
       console.log('Election authority authentication successful');
       // Log the authentication
-      await logElectionAuthorityAction(electionId, 'AUTHENTICATION', 'Election Authority', {
+      await logElectionAuthorityAction('GLOBAL', 'AUTHENTICATION', matchingAuthority.name, {
+        authority_id: matchingAuthority.id,
         timestamp: new Date().toISOString()
       });
+      
+      return { 
+        success: true, 
+        authorityId: matchingAuthority.id,
+        authorityName: matchingAuthority.name
+      };
     } else {
-      console.log('Election authority authentication failed');
+      console.log('Election authority authentication failed - no matching public key');
+      return { success: false };
     }
-    
-    return isValid;
   } catch (error) {
     console.error('Error during election authority authentication:', error);
-    return false;
+    return { success: false };
+  }
+}
+
+// Get all elections for an election authority
+export async function getElectionsForAuthority(authorityId: string): Promise<AuthorityElection[]> {
+  try {
+    console.log(`Fetching elections for authority: ${authorityId}`);
+    
+    const { data: elections, error } = await supabase
+      .from('elections')
+      .select(`
+        *,
+        votes!inner(id)
+      `)
+      .eq('authority_id', authorityId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching elections:', error);
+      return [];
+    }
+
+    // Process elections to add vote counts and determine status
+    const processedElections: AuthorityElection[] = elections?.map(election => {
+      const now = new Date();
+      const endDate = new Date(election.end_date);
+      
+      let status = election.status || 'active';
+      if (election.closed_manually_at) {
+        status = 'closed_manually';
+      } else if (now > endDate) {
+        status = 'expired';
+      }
+
+      return {
+        id: election.id,
+        title: election.title,
+        description: election.description,
+        status,
+        created_at: election.created_at,
+        end_date: election.end_date,
+        closed_manually_at: election.closed_manually_at,
+        option1: election.option1,
+        option2: election.option2,
+        vote_count: election.votes?.length || 0
+      };
+    }) || [];
+
+    console.log(`Found ${processedElections.length} elections for authority`);
+    return processedElections;
+  } catch (error) {
+    console.error('Error in getElectionsForAuthority:', error);
+    return [];
   }
 }
 
 // Create a secure session for authenticated election authority
-export function createElectionAuthoritySession(electionId: string): ElectionManagementSession {
+export function createElectionAuthoritySession(authorityId: string): ElectionManagementSession {
   const sessionToken = generateSessionToken();
   const authenticatedAt = new Date().toISOString();
   const expiresAt = new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(); // 4 hours
   
   const session = {
-    electionId,
+    authorityId,
     sessionToken,
     authenticatedAt,
     expiresAt
   };
   
-  // Store session in localStorage (could be enhanced with more secure storage)
+  // Store session in localStorage
   localStorage.setItem('election_authority_session', JSON.stringify(session));
   
   return session;
 }
 
 // Validate existing session
-export function validateElectionAuthoritySession(electionId: string): boolean {
+export function validateElectionAuthoritySession(): { valid: boolean; authorityId?: string } {
   try {
     const sessionData = localStorage.getItem('election_authority_session');
-    if (!sessionData) return false;
+    if (!sessionData) return { valid: false };
     
     const session: ElectionManagementSession = JSON.parse(sessionData);
     
-    // Check if session is for the correct election and not expired
-    if (session.electionId !== electionId) return false;
+    // Check if session is not expired
     if (new Date() > new Date(session.expiresAt)) {
       clearElectionAuthoritySession();
-      return false;
+      return { valid: false };
     }
     
-    return true;
+    return { valid: true, authorityId: session.authorityId };
   } catch {
-    return false;
+    return { valid: false };
   }
 }
 
