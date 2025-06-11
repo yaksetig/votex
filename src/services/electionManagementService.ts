@@ -8,8 +8,10 @@ export {
 } from './electionAuthorityAuthService';
 
 // Re-export session management functionality
+export type {
+  ElectionManagementSession
+} from './electionAuthoritySessionService';
 export {
-  ElectionManagementSession,
   createElectionAuthoritySession,
   validateElectionAuthoritySession,
   clearElectionAuthoritySession
@@ -23,14 +25,18 @@ export {
 } from './electionOperationsService';
 
 // Re-export audit functionality
+export type {
+  AuditLogEntry
+} from './electionAuditService';
 export {
-  AuditLogEntry,
   logElectionAuthorityAction,
   getElectionAuditLog
 } from './electionAuditService';
 
 // Re-export data fetching functionality
+export type {
+  AuthorityElection
+} from './electionDataService';
 export {
-  AuthorityElection,
   getElectionsForAuthority
 } from './electionDataService';
