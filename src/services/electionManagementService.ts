@@ -88,7 +88,7 @@ export async function getElectionsForAuthority(authorityId: string): Promise<Aut
       .from('elections')
       .select(`
         *,
-        votes!inner(id)
+        votes(id)
       `)
       .eq('authority_id', authorityId)
       .order('created_at', { ascending: false });
