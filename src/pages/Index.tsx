@@ -1,3 +1,4 @@
+
 import React from 'react';
 import WorldIDVerifier from '@/components/WorldIDVerifier';
 import { useWallet } from '@/contexts/WalletContext';
@@ -7,9 +8,9 @@ import { Button } from '@/components/ui/button';
 const Index = () => {
   const { isWorldIDVerified } = useWallet();
 
-  // If already verified, redirect to success page
+  // If already verified, redirect directly to elections page
   if (isWorldIDVerified) {
-    return <Navigate to="/success" />;
+    return <Navigate to="/elections" replace />;
   }
 
   return (

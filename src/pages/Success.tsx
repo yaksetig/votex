@@ -11,24 +11,25 @@ const Success: React.FC = () => {
   const navigate = useNavigate();
   const { isWorldIDVerified, userId, justVerified, setJustVerified } = useWallet();
 
-  // Redirect to home if not verified OR not just verified
+  // Redirect to elections if not verified OR not just verified
   useEffect(() => {
     if (!isWorldIDVerified || !userId || !justVerified) {
-      console.log('User not freshly verified, redirecting to home');
-      navigate("/", { replace: true });
+      console.log('User not freshly verified, redirecting to elections');
+      navigate("/elections", { replace: true });
     }
   }, [isWorldIDVerified, userId, justVerified, navigate]);
 
-  // Clear the justVerified flag after showing success (so they can't refresh to see it again)
+  // Auto-redirect to elections after showing success message
   useEffect(() => {
     if (justVerified) {
       const timer = setTimeout(() => {
         setJustVerified(false);
-      }, 5000); // Increased to 5 seconds to give enough time to see the page
+        navigate("/elections", { replace: true });
+      }, 5000); // Show success for 5 seconds, then redirect to elections
       
       return () => clearTimeout(timer);
     }
-  }, [justVerified, setJustVerified]);
+  }, [justVerified, setJustVerified, navigate]);
 
   // Don't render anything if not verified (while redirecting)
   if (!isWorldIDVerified || !userId || !justVerified) {
@@ -58,6 +59,9 @@ const Success: React.FC = () => {
               <CheckCircle className="h-4 w-4" /> One Person = One Vote
             </span>
           </div>
+          <p className="text-sm text-muted-foreground mt-4">
+            Redirecting to elections in a few seconds...
+          </p>
         </CardContent>
         
         <CardFooter className="flex flex-col gap-3">
@@ -66,7 +70,7 @@ const Success: React.FC = () => {
             onClick={() => navigate("/elections")}
           >
             <VoteIcon className="mr-2 h-4 w-4" />
-            Go to Elections
+            Go to Elections Now
           </Button>
           <Button 
             variant="outline"
