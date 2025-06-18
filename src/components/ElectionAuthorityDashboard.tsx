@@ -10,15 +10,13 @@ import { useToast } from '@/hooks/use-toast';
 import ElectionAuthorityInterface from '@/components/ElectionAuthorityInterface';
 import TallyResultsDisplay from '@/components/TallyResultsDisplay';
 import ElectionEditForm from '@/components/ElectionEditForm';
-import ElectionAuditLog from '@/components/ElectionAuditLog';
 import { 
   Calendar, Users, Edit, AlertTriangle, CheckCircle, Clock, Activity, Lock
 } from 'lucide-react';
 import { isPast } from 'date-fns';
 import { 
   closeElectionEarly,
-  isElectionSafeToEdit,
-  getElectionAuditLog
+  isElectionSafeToEdit
 } from '@/services/electionManagementService';
 
 interface ElectionAuthorityDashboardProps {
@@ -34,7 +32,8 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [safeToEdit, setSafeToEdit] = useState(false);
-  const [auditLog, setAuditLog] = useState<any[]>([]);
+  const [tallyProcessed, setTallyProcessed] = useState(false);
+  const [tallyStats, setTallyStats] = useState<any>(null);
   const [isClosing, setIsClosing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const { toast } = useToast();
@@ -42,7 +41,7 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
   useEffect(() => {
     fetchElectionData();
     checkEditSafety();
-    fetchAuditLog();
+    checkTallyStatus();
   }, [electionId, refreshKey]);
 
   const fetchElectionData = async () => {
@@ -104,9 +103,46 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
     setSafeToEdit(safe);
   };
 
-  const fetchAuditLog = async () => {
-    const log = await getElectionAuditLog(electionId);
-    setAuditLog(log);
+  const checkTallyStatus = async () => {
+    try {
+      console.log('Checking tally status for election:', electionId);
+      
+      const { data: tallyData, error } = await supabase
+        .from('election_tallies')
+        .select('*')
+        .eq('election_id', electionId)
+        .limit(1);
+
+      if (error) {
+        console.error('Error checking tally status:', error);
+        return;
+      }
+
+      if (tallyData && tallyData.length > 0) {
+        setTallyProcessed(true);
+        
+        // Calculate stats
+        const totalVoters = tallyData.length;
+        const nullifiedVotes = tallyData.filter(t => t.vote_nullified).length;
+        const processedAt = tallyData[0].processed_at;
+        const processedBy = tallyData[0].processed_by;
+        
+        setTallyStats({
+          totalVoters,
+          nullifiedVotes,
+          processedAt,
+          processedBy
+        });
+        
+        console.log('Tally already processed:', { totalVoters, nullifiedVotes, processedAt });
+      } else {
+        setTallyProcessed(false);
+        setTallyStats(null);
+        console.log('Tally not yet processed');
+      }
+    } catch (error) {
+      console.error('Error in checkTallyStatus:', error);
+    }
   };
 
   const handleCloseElection = async () => {
@@ -185,13 +221,13 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
   });
 
   const isManuallyClosed = election.status === 'closed_manually' || !!election.closed_manually_at;
-  const isExpired = !isManuallyClosed && isPast(new Date(election.end_date));
-  const isElectionEnded = isManuallyClosed || isExpired;
+  const isNaturallyClosed = !isManuallyClosed && isPast(new Date(election.end_date));
+  const isElectionEnded = isManuallyClosed || isNaturallyClosed;
   const canEdit = !isElectionEnded;
 
   console.log('Election status determination:', {
     isManuallyClosed,
-    isExpired,
+    isNaturallyClosed,
     isElectionEnded,
     canEdit
   });
@@ -208,7 +244,7 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
             </span>
             <div className="flex gap-2">
               <Badge variant={isElectionEnded ? "destructive" : "default"}>
-                {isManuallyClosed ? "Manually Closed" : isExpired ? "Expired" : "Active"}
+                {isManuallyClosed ? "Manually Closed" : isNaturallyClosed ? "Closed" : "Active"}
               </Badge>
               {!isElectionEnded && (
                 <Button 
@@ -254,7 +290,7 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
               </div>
               <div>
                 <div className="text-sm">Created: {new Date(election.created_at).toLocaleDateString()}</div>
-                <div className="text-sm">End Date: {new Date(election.end_date).toLocaleDateString()}</div>
+                <div className="text-sm">Original End Date: {new Date(election.end_date).toLocaleDateString()}</div>
                 {election.closed_manually_at && (
                   <div className="text-sm text-red-600">
                     Closed Early: {new Date(election.closed_manually_at).toLocaleDateString()}
@@ -284,7 +320,7 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
 
       {/* Management Tabs */}
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="edit" disabled={!canEdit}>
             <div className="flex items-center gap-1">
@@ -293,7 +329,6 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
             </div>
           </TabsTrigger>
           <TabsTrigger value="tally">Process Tally</TabsTrigger>
-          <TabsTrigger value="audit">Audit Log</TabsTrigger>
         </TabsList>
         
         <TabsContent value="overview" className="space-y-4">
@@ -313,7 +348,7 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
               <AlertDescription>
                 Editing is disabled because this election has been closed. 
                 {isManuallyClosed && " The election was manually closed by an authority."}
-                {isExpired && !isManuallyClosed && " The election has expired."}
+                {isNaturallyClosed && !isManuallyClosed && " The election has ended."}
               </AlertDescription>
             </Alert>
           ) : (
@@ -344,15 +379,55 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
               </AlertDescription>
             </Alert>
           )}
-          <ElectionAuthorityInterface
-            electionId={election.id}
-            electionTitle={election.title}
-            onTallyComplete={handleTallyComplete}
-          />
-        </TabsContent>
-        
-        <TabsContent value="audit" className="space-y-4">
-          <ElectionAuditLog auditLog={auditLog} />
+          
+          {tallyProcessed && tallyStats ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                  Tally Already Processed
+                </CardTitle>
+                <CardDescription>
+                  The tally for this election has already been processed and cannot be run again.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Alert>
+                  <CheckCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    Tally processing completed on {new Date(tallyStats.processedAt).toLocaleString()}
+                    {tallyStats.processedBy && ` by ${tallyStats.processedBy}`}
+                  </AlertDescription>
+                </Alert>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <Card>
+                    <CardContent className="pt-4">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-blue-600">{tallyStats.totalVoters}</div>
+                        <div className="text-sm text-muted-foreground">Total Voters</div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardContent className="pt-4">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-red-600">{tallyStats.nullifiedVotes}</div>
+                        <div className="text-sm text-muted-foreground">Nullified Votes</div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <ElectionAuthorityInterface
+              electionId={election.id}
+              electionTitle={election.title}
+              onTallyComplete={handleTallyComplete}
+            />
+          )}
         </TabsContent>
       </Tabs>
     </div>

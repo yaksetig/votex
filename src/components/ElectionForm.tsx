@@ -3,11 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
-import { getStoredKeypair } from "@/services/keypairService";
 import { 
-  getElectionAuthorities, 
-  createElectionAuthority, 
-  ElectionAuthority,
   initializeDefaultElectionAuthority
 } from "@/services/electionAuthorityService";
 
@@ -16,21 +12,17 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 
 import ElectionBasicDetails from "@/components/ElectionForm/ElectionBasicDetails";
 import ElectionDatePicker from "@/components/ElectionForm/ElectionDatePicker";
-import ElectionAuthoritySelector from "@/components/ElectionForm/ElectionAuthoritySelector";
 import { formSchema, FormData, ElectionFormProps } from "@/components/ElectionForm/types";
 
 const ElectionForm: React.FC<ElectionFormProps> = ({ onSubmit, onCancel }) => {
   const { toast } = useToast();
   const [date, setDate] = useState<Date>();
-  const [authorities, setAuthorities] = useState<ElectionAuthority[]>([]);
-  const [createNewAuthority, setCreateNewAuthority] = useState(false);
-  const [loadingAuthorities, setLoadingAuthorities] = useState(true);
+  const [defaultAuthorityId, setDefaultAuthorityId] = useState<string>('');
 
   const {
     register,
     handleSubmit,
     setValue,
-    watch,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -40,88 +32,38 @@ const ElectionForm: React.FC<ElectionFormProps> = ({ onSubmit, onCancel }) => {
     },
   });
 
-  const selectedAuthorityId = watch("authorityId");
-
   useEffect(() => {
-    fetchAuthorities();
+    initializeDefaultAuthority();
   }, []);
 
-  const fetchAuthorities = async () => {
+  const initializeDefaultAuthority = async () => {
     try {
-      setLoadingAuthorities(true);
+      // Ensure default authority exists and get its ID
+      const defaultAuthority = await initializeDefaultElectionAuthority();
       
-      // Ensure default authority exists
-      await initializeDefaultElectionAuthority();
-      
-      const authoritiesList = await getElectionAuthorities();
-      setAuthorities(authoritiesList);
-      
-      // Auto-select the default authority if no authority is selected
-      if (authoritiesList.length > 0 && !selectedAuthorityId) {
-        const defaultAuthority = authoritiesList.find(
-          auth => auth.name === "Default Election Authority"
-        );
-        if (defaultAuthority) {
-          setValue("authorityId", defaultAuthority.id);
-        }
+      if (defaultAuthority) {
+        setDefaultAuthorityId(defaultAuthority.id);
+        setValue("authorityId", defaultAuthority.id);
       }
     } catch (error) {
-      console.error("Error fetching authorities:", error);
+      console.error("Error initializing default authority:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to load election authorities."
+        description: "Failed to initialize default election authority."
       });
-    } finally {
-      setLoadingAuthorities(false);
     }
   };
 
   const onSubmitForm = async (data: FormData) => {
     try {
-      let finalAuthorityId = data.authorityId;
+      // Always use the default authority
+      const finalData = {
+        ...data,
+        authorityId: defaultAuthorityId
+      };
 
-      // If creating new authority, create it first
-      if (createNewAuthority && data.newAuthorityName) {
-        const keypair = getStoredKeypair();
-        if (!keypair) {
-          toast({
-            variant: "destructive",
-            title: "Keypair Required",
-            description: "Please generate a cryptographic keypair first."
-          });
-          return;
-        }
-
-        const newAuthority = await createElectionAuthority(
-          data.newAuthorityName,
-          data.newAuthorityDescription || "",
-          keypair
-        );
-
-        if (!newAuthority) {
-          toast({
-            variant: "destructive",
-            title: "Error",
-            description: "Failed to create election authority."
-          });
-          return;
-        }
-
-        finalAuthorityId = newAuthority.id;
-      }
-
-      // Ensure we have an authority ID (fallback to default)
-      if (!finalAuthorityId && authorities.length > 0) {
-        const defaultAuthority = authorities.find(
-          auth => auth.name === "Default Election Authority"
-        );
-        if (defaultAuthority) {
-          finalAuthorityId = defaultAuthority.id;
-        }
-      }
-
-      onSubmit({ ...data, authorityId: finalAuthorityId });
+      onSubmit(finalData);
       
       toast({
         title: "Election created",
@@ -147,15 +89,6 @@ const ElectionForm: React.FC<ElectionFormProps> = ({ onSubmit, onCancel }) => {
             setDate={setDate} 
             setValue={setValue} 
             errors={errors} 
-          />
-
-          <ElectionAuthoritySelector
-            authorities={authorities}
-            loadingAuthorities={loadingAuthorities}
-            createNewAuthority={createNewAuthority}
-            setCreateNewAuthority={setCreateNewAuthority}
-            register={register}
-            setValue={setValue}
           />
         </CardContent>
 
