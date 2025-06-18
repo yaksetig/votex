@@ -4,10 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Calendar, Users, Clock, Edit3, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Calendar, Users, Clock, Edit3, AlertTriangle, CheckCircle, FileCheck, FileX } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { getElectionsForAuthority } from '@/services/electionManagementService';
-import type { AuthorityElection } from '@/services/electionManagementService';
+import { getElectionsForAuthority } from '@/services/electionDataService';
+import type { AuthorityElection } from '@/services/electionDataService';
 
 interface AuthorityElectionsListProps {
   authorityId: string;
@@ -63,6 +63,24 @@ const AuthorityElectionsList: React.FC<AuthorityElectionsListProps> = ({
         return <Badge variant="destructive">Closed</Badge>;
       default:
         return <Badge variant="outline">{election.status}</Badge>;
+    }
+  };
+
+  const getTallyBadge = (election: AuthorityElection) => {
+    if (election.tally_processed) {
+      return (
+        <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-300">
+          <FileCheck className="mr-1 h-3 w-3" />
+          Tallied
+        </Badge>
+      );
+    } else {
+      return (
+        <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 border-yellow-300">
+          <FileX className="mr-1 h-3 w-3" />
+          Pending Tally
+        </Badge>
+      );
     }
   };
 
@@ -136,6 +154,7 @@ const AuthorityElectionsList: React.FC<AuthorityElectionsListProps> = ({
                   </div>
                   <div className="flex items-center gap-2">
                     {getStatusBadge(election)}
+                    {getTallyBadge(election)}
                     <Button
                       onClick={() => onElectionSelect(election.id)}
                       variant="outline"
@@ -173,10 +192,10 @@ const AuthorityElectionsList: React.FC<AuthorityElectionsListProps> = ({
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                       <Clock className="h-4 w-4" />
-                      End Date
+                      Timeline
                     </div>
                     <div className="text-sm">
-                      {new Date(election.end_date).toLocaleDateString()}
+                      <div>End Date: {new Date(election.end_date).toLocaleDateString()}</div>
                       {election.closed_manually_at && (
                         <div className="text-xs text-red-600 mt-1">
                           Closed early: {new Date(election.closed_manually_at).toLocaleDateString()}

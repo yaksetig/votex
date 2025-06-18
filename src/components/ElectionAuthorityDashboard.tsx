@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,7 +10,7 @@ import ElectionAuthorityInterface from '@/components/ElectionAuthorityInterface'
 import TallyResultsDisplay from '@/components/TallyResultsDisplay';
 import ElectionEditForm from '@/components/ElectionEditForm';
 import { 
-  Calendar, Users, Edit, AlertTriangle, CheckCircle, Clock, Activity, Lock
+  Calendar, Users, Edit, AlertTriangle, CheckCircle, Clock, Activity, Lock, FileCheck, FileX
 } from 'lucide-react';
 import { isPast } from 'date-fns';
 import { 
@@ -191,6 +190,24 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
     setRefreshKey(prev => prev + 1);
   };
 
+  const getTallyBadge = (processed: boolean) => {
+    if (processed) {
+      return (
+        <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-300">
+          <FileCheck className="mr-1 h-3 w-3" />
+          Tallied
+        </Badge>
+      );
+    } else {
+      return (
+        <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 border-yellow-300">
+          <FileX className="mr-1 h-3 w-3" />
+          Pending Tally
+        </Badge>
+      );
+    }
+  };
+
   if (loading) {
     return (
       <div className="container mx-auto py-8 px-4">
@@ -246,6 +263,7 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
               <Badge variant={isElectionEnded ? "destructive" : "default"}>
                 {isManuallyClosed ? "Manually Closed" : isNaturallyClosed ? "Closed" : "Active"}
               </Badge>
+              {getTallyBadge(tallyProcessed)}
               {!isElectionEnded && (
                 <Button 
                   onClick={handleCloseElection}

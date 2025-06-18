@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { logElectionAuthorityAction } from '@/services/electionAuditService';
 
@@ -31,14 +30,13 @@ export async function closeElectionEarly(
     
     console.log('Current election state before closure:', currentElection);
     
-    // Update the election with proper closure fields
+    // Update the election with proper closure fields - PRESERVE the original end_date
     // The RLS policy will now properly allow this update for election authorities
     const { data: updatedElection, error: updateError } = await supabase
       .from('elections')
       .update({
         status: 'closed_manually',
         closed_manually_at: now,
-        end_date: now,
         last_modified_by: performedBy,
         last_modified_at: now
       })
