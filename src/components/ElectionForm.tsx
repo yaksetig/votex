@@ -4,7 +4,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
 import { 
-  initializeDefaultElectionAuthority
+  initializeDefaultElectionAuthority,
+  getElectionAuthorities
 } from "@/services/electionAuthorityService";
 
 import { Button } from "@/components/ui/button";
@@ -38,8 +39,12 @@ const ElectionForm: React.FC<ElectionFormProps> = ({ onSubmit, onCancel }) => {
 
   const initializeDefaultAuthority = async () => {
     try {
-      // Ensure default authority exists and get its ID
-      const defaultAuthority = await initializeDefaultElectionAuthority();
+      // Ensure default authority exists
+      await initializeDefaultElectionAuthority();
+      
+      // Get all authorities and find the default one
+      const authorities = await getElectionAuthorities();
+      const defaultAuthority = authorities.find(auth => auth.name === "Default Election Authority");
       
       if (defaultAuthority) {
         setDefaultAuthorityId(defaultAuthority.id);
