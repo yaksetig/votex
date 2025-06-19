@@ -96,8 +96,69 @@ const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({
     return chartData;
   };
 
+  const getYAxisConfig = () => {
+    if (!voteData) return { domain: [0, 10], tickCount: 6 };
+    
+    const maxVotes = Math.max(
+      voteData.totalYesVotes,
+      voteData.totalNoVotes,
+      voteData.validYesVotes,
+      voteData.validNoVotes,
+      1 // Minimum of 1 to avoid zero domain
+    );
+    
+    // Calculate appropriate tick interval and count
+    let tickCount;
+    let interval;
+    
+    if (maxVotes <= 10) {
+      // For small numbers, show every integer
+      tickCount = maxVotes + 1;
+      interval = 1;
+    } else if (maxVotes <= 50) {
+      // For medium numbers, show every 5
+      interval = 5;
+      tickCount = Math.ceil(maxVotes / 5) + 1;
+    } else if (maxVotes <= 100) {
+      // Show every 10
+      interval = 10;
+      tickCount = Math.ceil(maxVotes / 10) + 1;
+    } else if (maxVotes <= 1000) {
+      // Show every 100
+      interval = 100;
+      tickCount = Math.ceil(maxVotes / 100) + 1;
+    } else {
+      // For very large numbers, calculate dynamic interval
+      const magnitude = Math.pow(10, Math.floor(Math.log10(maxVotes)));
+      interval = magnitude;
+      tickCount = Math.ceil(maxVotes / magnitude) + 1;
+    }
+    
+    // Ensure we don't have too many ticks (max 10)
+    if (tickCount > 10) {
+      interval = Math.ceil(maxVotes / 8);
+      tickCount = Math.ceil(maxVotes / interval) + 1;
+    }
+    
+    return {
+      domain: [0, Math.ceil(maxVotes * 1.1)], // Add 10% padding at top
+      tickCount: Math.min(tickCount, 10),
+      interval
+    };
+  };
+
+  const formatYAxisTick = (value: number) => {
+    if (value >= 1000000) {
+      return `${(value / 1000000).toFixed(value % 1000000 === 0 ? 0 : 1)}M`;
+    } else if (value >= 1000) {
+      return `${(value / 1000).toFixed(value % 1000 === 0 ? 0 : 1)}K`;
+    }
+    return value.toString();
+  };
+
   const hasTallyData = tallyResults.length > 0;
   const chartData = getChartData();
+  const yAxisConfig = getYAxisConfig();
 
   if (loading) {
     return (
@@ -202,7 +263,13 @@ const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({
                   <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="name" />
-                    <YAxis />
+                    <YAxis 
+                      allowDecimals={false}
+                      domain={yAxisConfig.domain}
+                      tickCount={yAxisConfig.tickCount}
+                      interval={0}
+                      tickFormatter={formatYAxisTick}
+                    />
                     <Tooltip 
                       formatter={(value, name) => [value, name]}
                       labelFormatter={(label) => `Results: ${label}`}
