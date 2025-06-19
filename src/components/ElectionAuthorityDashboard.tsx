@@ -390,10 +390,10 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
         
         <TabsContent value="tally" className="space-y-4">
           {!isElectionEnded && (
-            <Alert>
-              <Clock className="h-4 w-4" />
+            <Alert variant="destructive">
+              <Lock className="h-4 w-4" />
               <AlertDescription>
-                This election is still active. Tally processing is recommended after the election ends.
+                Tally processing is disabled while the election is still active. The election must be closed or expired before tallying can be performed.
               </AlertDescription>
             </Alert>
           )}
@@ -439,12 +439,33 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
                 </div>
               </CardContent>
             </Card>
-          ) : (
+          ) : isElectionEnded ? (
             <ElectionAuthorityInterface
               electionId={election.id}
               electionTitle={election.title}
               onTallyComplete={handleTallyComplete}
             />
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Lock className="h-5 w-5 text-gray-400" />
+                  Tally Processing Unavailable
+                </CardTitle>
+                <CardDescription>
+                  Tally processing will become available once the election is closed
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Alert>
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    The election is currently active and accepting votes. Tally processing is disabled to maintain election integrity. 
+                    {!isManuallyClosed && !isNaturallyClosed && " You can close the election early using the 'Close Early' button above."}
+                  </AlertDescription>
+                </Alert>
+              </CardContent>
+            </Card>
           )}
         </TabsContent>
       </Tabs>
