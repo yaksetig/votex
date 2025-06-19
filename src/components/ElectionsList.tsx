@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { 
   Card, 
@@ -8,7 +9,6 @@ import {
   CardTitle 
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { formatDistanceToNow, isPast } from "date-fns";
 import { EyeIcon, CheckCircle, XCircle, TrendingUp, Users, Calendar, Clock, Vote } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -194,11 +194,21 @@ const ElectionsList: React.FC<ElectionsListProps> = ({ elections, loading }) => 
                     <span>{voteData.option1} votes ({voteData.option1Percentage}%)</span>
                     <span>{voteData.option2} votes ({voteData.option2Percentage}%)</span>
                   </div>
-                  <div className="relative">
-                    <Progress value={voteData.option1Percentage} className="h-3 bg-slate-700" />
-                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full" 
-                         style={{ width: `${voteData.option1Percentage}%` }}></div>
+                  
+                  {/* Dual-color progress bar */}
+                  <div className="relative h-3 bg-slate-700 rounded-full overflow-hidden">
+                    {/* Option1 (blue) portion */}
+                    <div 
+                      className="absolute left-0 top-0 h-full bg-gradient-to-r from-blue-500 to-indigo-600 transition-all duration-500"
+                      style={{ width: `${voteData.option1Percentage}%` }}
+                    ></div>
+                    {/* Option2 (purple) portion */}
+                    <div 
+                      className="absolute right-0 top-0 h-full bg-gradient-to-r from-purple-500 to-pink-600 transition-all duration-500"
+                      style={{ width: `${voteData.option2Percentage}%` }}
+                    ></div>
                   </div>
+                  
                   <div className="flex items-center justify-center gap-2 text-xs text-slate-400 bg-slate-700/50 rounded-lg py-2">
                     <Users className="h-3 w-3" />
                     <span className="font-medium">{voteData.total} total vote{voteData.total !== 1 ? 's' : ''}</span>
