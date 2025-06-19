@@ -96,14 +96,14 @@ const ElectionsList: React.FC<ElectionsListProps> = ({ elections, loading }) => 
     return (
       <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
         {[...Array(6)].map((_, i) => (
-          <Card key={i} className="border-0 shadow-lg rounded-3xl overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 animate-pulse">
+          <Card key={i} className="border-slate-700 bg-slate-800 shadow-lg rounded-3xl overflow-hidden animate-pulse">
             <CardHeader className="p-8">
-              <div className="h-6 bg-gray-300 rounded-lg mb-4"></div>
-              <div className="h-4 bg-gray-200 rounded-lg"></div>
+              <div className="h-6 bg-slate-700 rounded-lg mb-4"></div>
+              <div className="h-4 bg-slate-600 rounded-lg"></div>
             </CardHeader>
             <CardContent className="px-8 pb-8">
-              <div className="h-20 bg-gray-200 rounded-lg mb-4"></div>
-              <div className="h-8 bg-gray-200 rounded-lg"></div>
+              <div className="h-20 bg-slate-600 rounded-lg mb-4"></div>
+              <div className="h-8 bg-slate-600 rounded-lg"></div>
             </CardContent>
           </Card>
         ))}
@@ -115,11 +115,11 @@ const ElectionsList: React.FC<ElectionsListProps> = ({ elections, loading }) => 
     return (
       <div className="text-center py-20">
         <div className="max-w-md mx-auto">
-          <div className="w-24 h-24 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Vote className="h-12 w-12 text-indigo-500" />
+          <div className="w-24 h-24 bg-gradient-to-br from-slate-700 to-slate-600 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Vote className="h-12 w-12 text-purple-400" />
           </div>
-          <h3 className="text-2xl font-bold text-gray-900 mb-4">No Elections Available</h3>
-          <p className="text-gray-600 text-lg leading-relaxed">
+          <h3 className="text-2xl font-bold text-white mb-4">No Elections Available</h3>
+          <p className="text-slate-300 text-lg leading-relaxed">
             Be the first to create an election and start the democratic process!
           </p>
         </div>
@@ -139,22 +139,22 @@ const ElectionsList: React.FC<ElectionsListProps> = ({ elections, loading }) => 
         const voteData = voteCounts[election.id];
 
         return (
-          <Card key={election.id} className="group border-0 shadow-lg hover:shadow-2xl transition-all duration-500 rounded-3xl overflow-hidden bg-gradient-to-br from-white to-gray-50 hover:from-indigo-50 hover:to-purple-50 transform hover:-translate-y-2">
+          <Card key={election.id} className="group border-slate-700 bg-slate-800 hover:bg-slate-750 shadow-lg hover:shadow-2xl transition-all duration-500 rounded-3xl overflow-hidden transform hover:-translate-y-2">
             <CardHeader className="p-8 pb-6">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
-                  <CardTitle className="text-xl font-bold text-gray-900 mb-3 line-clamp-2 group-hover:text-indigo-700 transition-colors">
+                  <CardTitle className="text-xl font-bold text-white mb-3 line-clamp-2 group-hover:text-purple-400 transition-colors">
                     {election.title}
                   </CardTitle>
                   <div className="flex items-center gap-2 mb-2">
                     {isExpired ? (
-                      <div className="flex items-center gap-2 px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-medium">
+                      <div className="flex items-center gap-2 px-3 py-1 bg-red-900/50 text-red-300 rounded-full text-sm font-medium border border-red-800">
                         <XCircle className="h-4 w-4" />
                         Completed
                       </div>
                     ) : (
-                      <div className="flex items-center gap-2 px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
-                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                      <div className="flex items-center gap-2 px-3 py-1 bg-green-900/50 text-green-300 rounded-full text-sm font-medium border border-green-800">
+                        <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
                         Active
                       </div>
                     )}
@@ -162,7 +162,7 @@ const ElectionsList: React.FC<ElectionsListProps> = ({ elections, loading }) => 
                 </div>
               </div>
               
-              <div className="flex items-center gap-2 text-sm text-gray-600">
+              <div className="flex items-center gap-2 text-sm text-slate-400">
                 <Clock className="h-4 w-4" />
                 {isExpired 
                   ? `Ended ${formatDistanceToNow(endDate, { addSuffix: true })}` 
@@ -171,45 +171,45 @@ const ElectionsList: React.FC<ElectionsListProps> = ({ elections, loading }) => 
             </CardHeader>
             
             <CardContent className="px-8 pb-6">
-              <p className="text-gray-700 text-sm line-clamp-3 mb-6 leading-relaxed">
+              <p className="text-slate-300 text-sm line-clamp-3 mb-6 leading-relaxed">
                 {election.description}
               </p>
               
               {/* Voting Options Preview */}
               <div className="space-y-3 mb-6">
-                <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
-                  <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                  <span className="text-sm font-medium text-blue-900">{election.option1}</span>
+                <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-blue-900/30 to-indigo-900/30 rounded-xl border border-blue-800/50">
+                  <div className="w-3 h-3 bg-blue-400 rounded-full"></div>
+                  <span className="text-sm font-medium text-blue-200">{election.option1}</span>
                 </div>
-                <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-100">
-                  <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
-                  <span className="text-sm font-medium text-purple-900">{election.option2}</span>
+                <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-purple-900/30 to-pink-900/30 rounded-xl border border-purple-800/50">
+                  <div className="w-3 h-3 bg-purple-400 rounded-full"></div>
+                  <span className="text-sm font-medium text-purple-200">{election.option2}</span>
                 </div>
               </div>
               
               {/* Vote Distribution */}
               {voteData && voteData.total > 0 ? (
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between text-xs text-gray-600">
+                  <div className="flex items-center justify-between text-xs text-slate-400">
                     <span>{voteData.option1} votes ({voteData.option1Percentage}%)</span>
                     <span>{voteData.option2} votes ({voteData.option2Percentage}%)</span>
                   </div>
                   <div className="relative">
-                    <Progress value={voteData.option1Percentage} className="h-3 bg-gray-200" />
+                    <Progress value={voteData.option1Percentage} className="h-3 bg-slate-700" />
                     <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full" 
                          style={{ width: `${voteData.option1Percentage}%` }}></div>
                   </div>
-                  <div className="flex items-center justify-center gap-2 text-xs text-gray-600 bg-gray-50 rounded-lg py-2">
+                  <div className="flex items-center justify-center gap-2 text-xs text-slate-400 bg-slate-700/50 rounded-lg py-2">
                     <Users className="h-3 w-3" />
                     <span className="font-medium">{voteData.total} total vote{voteData.total !== 1 ? 's' : ''}</span>
                   </div>
                 </div>
               ) : (
                 <div className="text-center py-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mx-auto mb-2">
-                    <TrendingUp className="h-6 w-6 text-gray-400" />
+                  <div className="w-12 h-12 bg-gradient-to-br from-slate-700 to-slate-600 rounded-full flex items-center justify-center mx-auto mb-2">
+                    <TrendingUp className="h-6 w-6 text-slate-400" />
                   </div>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-slate-400">
                     {votesLoading ? "Loading votes..." : "No votes yet"}
                   </p>
                 </div>
@@ -219,7 +219,7 @@ const ElectionsList: React.FC<ElectionsListProps> = ({ elections, loading }) => 
             <CardFooter className="p-8 pt-0">
               <Button 
                 onClick={() => viewElection(election.id)}
-                className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-2xl py-3 font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-2xl py-3 font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
               >
                 <EyeIcon className="h-4 w-4 mr-2" />
                 {isExpired ? "View Results" : "Vote Now"}
