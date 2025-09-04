@@ -90,6 +90,33 @@ const Elections = () => {
     initializeAndFetch();
   }, [fetchElections]);
 
+  // Set up real-time subscription for election updates
+  useEffect(() => {
+    console.log('Setting up real-time subscription for elections...');
+    
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'elections'
+        },
+        (payload) => {
+          console.log('Election updated:', payload);
+          // Refresh elections data when any election is updated
+          fetchElections();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log('Cleaning up real-time subscription...');
+      supabase.removeChannel(channel);
+    };
+  }, [fetchElections]);
+
   const handleFormSubmit = async (formData: any) => {
     try {
       console.log('Creating new election with data:', formData);
