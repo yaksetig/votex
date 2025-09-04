@@ -74,10 +74,10 @@ const ElectionAuthority = () => {
   if (!selectedElectionId) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-700 shadow-lg border-b">
+        <div className="bg-white shadow-sm border-b">
           <div className="container mx-auto py-4 px-4 flex justify-between items-center">
-            <div className="text-lg font-semibold text-white">Election Authority Portal</div>
-            <Button onClick={handleLogout} variant="secondary" size="sm" className="bg-white text-blue-600 hover:bg-blue-50">
+            <div className="text-lg font-semibold">Election Authority Portal</div>
+            <Button onClick={handleLogout} variant="outline" size="sm">
               <LogOut className="mr-2 h-4 w-4" />
               Logout
             </Button>
@@ -95,13 +95,13 @@ const ElectionAuthority = () => {
   // If election selected, show election management dashboard
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 shadow-lg border-b">
+      <div className="bg-white shadow-sm border-b">
         <div className="container mx-auto py-4 px-4 flex justify-between items-center">
-          <Button onClick={handleBackToElectionsList} variant="secondary" size="sm" className="bg-white text-blue-600 hover:bg-blue-50">
+          <Button onClick={handleBackToElectionsList} variant="outline" size="sm">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Elections List
           </Button>
-          <Button onClick={handleLogout} variant="secondary" size="sm" className="bg-white text-blue-600 hover:bg-blue-50">
+          <Button onClick={handleLogout} variant="outline" size="sm">
             <LogOut className="mr-2 h-4 w-4" />
             Logout
           </Button>
