@@ -190,14 +190,14 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
   const getTallyBadge = (processed: boolean) => {
     if (processed) {
       return (
-        <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200">
+        <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
           <FileCheck className="mr-1 h-3 w-3" />
           Tallied
         </Badge>
       );
     } else {
       return (
-        <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100">
+        <Badge variant="outline" className="text-muted-foreground">
           <FileX className="mr-1 h-3 w-3" />
           Pending Tally
         </Badge>
@@ -208,21 +208,21 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
   const getStatusBadge = (isManuallyClosed: boolean, isNaturallyClosed: boolean, isElectionEnded: boolean) => {
     if (isManuallyClosed) {
       return (
-        <Badge variant="destructive" className="bg-red-100 text-red-800 border-red-300">
+        <Badge variant="destructive">
           <Lock className="mr-1 h-3 w-3" />
           Manually Closed
         </Badge>
       );
     } else if (isNaturallyClosed) {
       return (
-        <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-300">
+        <Badge variant="outline" className="text-muted-foreground">
           <Clock className="mr-1 h-3 w-3" />
           Closed
         </Badge>
       );
     } else {
       return (
-        <Badge className="bg-green-100 text-green-800 border-green-300">
+        <Badge variant="default">
           <Activity className="mr-1 h-3 w-3" />
           Active
         </Badge>
@@ -232,19 +232,19 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+      <div className="min-h-screen bg-background">
         <div className="container mx-auto py-12 px-6">
           <div className="flex items-center justify-center min-h-[500px]">
             <div className="text-center space-y-6">
               <div className="relative">
-                <div className="w-16 h-16 mx-auto bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
-                  <Shield className="h-8 w-8 text-white animate-pulse" />
+                <div className="w-16 h-16 mx-auto bg-primary/20 rounded-2xl flex items-center justify-center shadow-lg">
+                  <Shield className="h-8 w-8 text-primary animate-pulse" />
                 </div>
-                <div className="absolute inset-0 w-16 h-16 mx-auto bg-blue-400 rounded-2xl animate-ping opacity-20"></div>
+                <div className="absolute inset-0 w-16 h-16 mx-auto bg-primary/10 rounded-2xl animate-ping opacity-20"></div>
               </div>
               <div className="space-y-2">
-                <div className="text-xl font-semibold text-gray-900">Loading Dashboard</div>
-                <div className="text-sm text-gray-600">Fetching election data and permissions</div>
+                <div className="text-xl font-semibold text-foreground">Loading Dashboard</div>
+                <div className="text-sm text-muted-foreground">Fetching election data and permissions</div>
               </div>
             </div>
           </div>
@@ -255,12 +255,12 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
 
   if (error || !election) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-red-50 to-pink-100">
+      <div className="min-h-screen bg-background">
         <div className="container mx-auto py-12 px-6">
           <div className="max-w-2xl mx-auto">
-            <Alert variant="destructive" className="border-red-200 bg-red-50">
+            <Alert variant="destructive">
               <AlertTriangle className="h-4 w-4" />
-              <AlertDescription className="text-red-800">
+              <AlertDescription>
                 {error || 'Election not found'}
               </AlertDescription>
             </Alert>
@@ -290,21 +290,21 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
   });
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-background">
       <div className="container mx-auto py-8 px-6 space-y-8">
         
         {/* Header Section */}
-        <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
-          <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-700 px-8 py-8">
-            <div className="flex items-center justify-between text-white">
+        <Card className="rounded-3xl shadow-xl overflow-hidden">
+          <div className="bg-primary px-8 py-8">
+            <div className="flex items-center justify-between text-primary-foreground">
               <div className="space-y-2">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
+                  <div className="w-12 h-12 bg-primary-foreground/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
                     <Shield className="h-6 w-6" />
                   </div>
                   <div>
                     <h1 className="text-3xl font-bold">{election.title}</h1>
-                    <p className="text-blue-100 text-lg">{election.description}</p>
+                    <p className="text-primary-foreground/80 text-lg">{election.description}</p>
                   </div>
                 </div>
               </div>
@@ -317,7 +317,7 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
                     disabled={isClosing}
                     variant="destructive"
                     size="sm"
-                    className="bg-red-500 hover:bg-red-600 border-0 shadow-lg"
+                    className="shadow-lg"
                   >
                     {isClosing ? (
                       <>
@@ -339,21 +339,21 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
           {/* Stats Cards */}
           <div className="p-8">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card className="border-0 bg-gradient-to-br from-blue-50 to-indigo-100 shadow-lg hover:shadow-xl transition-all duration-300">
+              <Card className="border-0 bg-card/50 shadow-lg hover:shadow-xl transition-all duration-300">
                 <CardContent className="p-6">
                   <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
-                      <Target className="h-7 w-7 text-white" />
+                    <div className="w-14 h-14 bg-primary/20 rounded-2xl flex items-center justify-center shadow-lg">
+                      <Target className="h-7 w-7 text-primary" />
                     </div>
                     <div className="flex-1">
-                      <div className="text-sm font-medium text-gray-600 mb-2">Voting Options</div>
+                      <div className="text-sm font-medium text-muted-foreground mb-2">Voting Options</div>
                       <div className="space-y-1">
-                        <div className="text-sm font-semibold text-gray-900 flex items-center">
-                          <Award className="h-3 w-3 mr-1 text-blue-600" />
+                        <div className="text-sm font-semibold text-foreground flex items-center">
+                          <Award className="h-3 w-3 mr-1 text-primary" />
                           {election.option1}
                         </div>
-                        <div className="text-sm font-semibold text-gray-900 flex items-center">
-                          <Award className="h-3 w-3 mr-1 text-indigo-600" />
+                        <div className="text-sm font-semibold text-foreground flex items-center">
+                          <Award className="h-3 w-3 mr-1 text-primary" />
                           {election.option2}
                         </div>
                       </div>
@@ -362,23 +362,23 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
                 </CardContent>
               </Card>
               
-              <Card className="border-0 bg-gradient-to-br from-emerald-50 to-green-100 shadow-lg hover:shadow-xl transition-all duration-300">
+              <Card className="border-0 bg-card/50 shadow-lg hover:shadow-xl transition-all duration-300">
                 <CardContent className="p-6">
                   <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 bg-gradient-to-r from-emerald-500 to-green-600 rounded-2xl flex items-center justify-center shadow-lg">
-                      <Calendar className="h-7 w-7 text-white" />
+                    <div className="w-14 h-14 bg-primary/20 rounded-2xl flex items-center justify-center shadow-lg">
+                      <Calendar className="h-7 w-7 text-primary" />
                     </div>
                     <div className="flex-1">
-                      <div className="text-sm font-medium text-gray-600 mb-2">Timeline</div>
+                      <div className="text-sm font-medium text-muted-foreground mb-2">Timeline</div>
                       <div className="space-y-1">
-                        <div className="text-sm text-gray-900">
+                        <div className="text-sm text-foreground">
                           <span className="font-medium">Created:</span> {new Date(election.created_at).toLocaleDateString()}
                         </div>
-                        <div className="text-sm text-gray-900">
+                        <div className="text-sm text-foreground">
                           <span className="font-medium">Ends:</span> {new Date(election.end_date).toLocaleDateString()}
                         </div>
                         {election.closed_manually_at && (
-                          <div className="text-sm text-red-600 font-medium">
+                          <div className="text-sm text-destructive font-medium">
                             Closed: {new Date(election.closed_manually_at).toLocaleDateString()}
                           </div>
                         )}
@@ -388,19 +388,19 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
                 </CardContent>
               </Card>
               
-              <Card className="border-0 bg-gradient-to-br from-purple-50 to-violet-100 shadow-lg hover:shadow-xl transition-all duration-300">
+              <Card className="border-0 bg-card/50 shadow-lg hover:shadow-xl transition-all duration-300">
                 <CardContent className="p-6">
                   <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 bg-gradient-to-r from-purple-500 to-violet-600 rounded-2xl flex items-center justify-center shadow-lg">
-                      <Shield className="h-7 w-7 text-white" />
+                    <div className="w-14 h-14 bg-primary/20 rounded-2xl flex items-center justify-center shadow-lg">
+                      <Shield className="h-7 w-7 text-primary" />
                     </div>
                     <div className="flex-1">
-                      <div className="text-sm font-medium text-gray-600 mb-2">Authority</div>
+                      <div className="text-sm font-medium text-muted-foreground mb-2">Authority</div>
                       <div className="space-y-1">
-                        <div className="text-sm font-semibold text-gray-900">
+                        <div className="text-sm font-semibold text-foreground">
                           {election.election_authorities?.name || 'Default Authority'}
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-muted-foreground">
                           Modified: {election.last_modified_at ? 
                             new Date(election.last_modified_at).toLocaleString() : 'Never'}
                         </div>
@@ -411,16 +411,16 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
               </Card>
             </div>
           </div>
-        </div>
+        </Card>
 
         {/* Management Tabs */}
-        <Card className="border-0 shadow-xl bg-white rounded-3xl overflow-hidden">
+        <Card className="border-0 shadow-xl rounded-3xl overflow-hidden">
           <Tabs defaultValue="overview" className="w-full">
-            <div className="border-b border-gray-100 bg-gradient-to-r from-gray-50 to-slate-50">
+            <div className="border-b bg-card/50">
               <TabsList className="h-auto p-3 bg-transparent w-full justify-start gap-2">
                 <TabsTrigger 
                   value="overview" 
-                  className="flex items-center gap-2 px-6 py-3 rounded-2xl data-[state=active]:bg-white data-[state=active]:shadow-md transition-all duration-300"
+                  className="flex items-center gap-2 px-6 py-3 rounded-2xl data-[state=active]:bg-card data-[state=active]:shadow-md transition-all duration-300"
                 >
                   <BarChart3 className="h-4 w-4" />
                   Overview & Results
@@ -428,7 +428,7 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
                 <TabsTrigger 
                   value="edit" 
                   disabled={!canEdit}
-                  className="flex items-center gap-2 px-6 py-3 rounded-2xl data-[state=active]:bg-white data-[state=active]:shadow-md disabled:opacity-50 transition-all duration-300"
+                  className="flex items-center gap-2 px-6 py-3 rounded-2xl data-[state=active]:bg-card data-[state=active]:shadow-md disabled:opacity-50 transition-all duration-300"
                 >
                   <Settings className="h-4 w-4" />
                   Edit Election
@@ -436,7 +436,7 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
                 </TabsTrigger>
                 <TabsTrigger 
                   value="tally"
-                  className="flex items-center gap-2 px-6 py-3 rounded-2xl data-[state=active]:bg-white data-[state=active]:shadow-md transition-all duration-300"
+                  className="flex items-center gap-2 px-6 py-3 rounded-2xl data-[state=active]:bg-card data-[state=active]:shadow-md transition-all duration-300"
                 >
                   <TrendingUp className="h-4 w-4" />
                   Process Tally
@@ -456,9 +456,9 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
             
             <TabsContent value="edit" className="p-8 space-y-6">
               {!canEdit ? (
-                <Alert className="border-amber-200 bg-amber-50 rounded-2xl">
-                  <Lock className="h-4 w-4 text-amber-600" />
-                  <AlertDescription className="text-amber-800">
+                <Alert className="rounded-2xl">
+                  <Lock className="h-4 w-4" />
+                  <AlertDescription>
                     Editing is disabled because this election has been closed. 
                     {isManuallyClosed && " The election was manually closed by an authority."}
                     {isNaturallyClosed && !isManuallyClosed && " The election has ended."}
@@ -467,9 +467,9 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
               ) : (
                 <>
                   {!safeToEdit && (
-                    <Alert variant="destructive" className="border-red-200 bg-red-50 rounded-2xl">
-                      <AlertTriangle className="h-4 w-4 text-red-600" />
-                      <AlertDescription className="text-red-800">
+                    <Alert variant="destructive" className="rounded-2xl">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>
                         Warning: This election already has votes. Editing certain fields may affect the integrity of the results.
                       </AlertDescription>
                     </Alert>
@@ -485,49 +485,49 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
             
             <TabsContent value="tally" className="p-8 space-y-6">
               {!isElectionEnded && (
-                <Alert variant="destructive" className="border-red-200 bg-red-50 rounded-2xl">
-                  <Lock className="h-4 w-4 text-red-600" />
-                  <AlertDescription className="text-red-800">
+                <Alert variant="destructive" className="rounded-2xl">
+                  <Lock className="h-4 w-4" />
+                  <AlertDescription>
                     Tally processing is disabled while the election is still active. The election must be closed or expired before tallying can be performed.
                   </AlertDescription>
                 </Alert>
               )}
               
               {tallyProcessed && tallyStats ? (
-                <Card className="border-emerald-200 bg-emerald-50 rounded-2xl">
+                <Card className="border-primary/20 bg-primary/5 rounded-2xl">
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-emerald-800">
+                    <CardTitle className="flex items-center gap-2 text-primary">
                       <CheckCircle className="h-5 w-5" />
                       Tally Already Processed
                     </CardTitle>
-                    <CardDescription className="text-emerald-700">
+                    <CardDescription className="text-muted-foreground">
                       The tally for this election has already been processed and cannot be run again.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <Alert className="border-emerald-300 bg-emerald-100 rounded-xl">
-                      <CheckCircle className="h-4 w-4 text-emerald-600" />
-                      <AlertDescription className="text-emerald-800">
+                    <Alert className="bg-primary/10 rounded-xl">
+                      <CheckCircle className="h-4 w-4 text-primary" />
+                      <AlertDescription>
                         Tally processing completed on {new Date(tallyStats.processedAt).toLocaleString()}
                         {tallyStats.processedBy && ` by ${tallyStats.processedBy}`}
                       </AlertDescription>
                     </Alert>
                     
                     <div className="grid grid-cols-2 gap-4">
-                      <Card className="border-0 bg-white/70 rounded-xl">
+                      <Card className="border-0 bg-card/50 rounded-xl">
                         <CardContent className="pt-6">
                           <div className="text-center">
-                            <div className="text-2xl font-bold text-blue-600">{tallyStats.totalVoters}</div>
-                            <div className="text-sm text-gray-600">Total Voters</div>
+                            <div className="text-2xl font-bold text-primary">{tallyStats.totalVoters}</div>
+                            <div className="text-sm text-muted-foreground">Total Voters</div>
                           </div>
                         </CardContent>
                       </Card>
                       
-                      <Card className="border-0 bg-white/70 rounded-xl">
+                      <Card className="border-0 bg-card/50 rounded-xl">
                         <CardContent className="pt-6">
                           <div className="text-center">
-                            <div className="text-2xl font-bold text-red-600">{tallyStats.nullifiedVotes}</div>
-                            <div className="text-sm text-gray-600">Nullified Votes</div>
+                            <div className="text-2xl font-bold text-destructive">{tallyStats.nullifiedVotes}</div>
+                            <div className="text-sm text-muted-foreground">Nullified Votes</div>
                           </div>
                         </CardContent>
                       </Card>
@@ -541,20 +541,20 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
                   onTallyComplete={handleTallyComplete}
                 />
               ) : (
-                <Card className="border-gray-200 bg-gray-50 rounded-2xl">
+                <Card className="border-border bg-card/50 rounded-2xl">
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-gray-700">
+                    <CardTitle className="flex items-center gap-2 text-foreground">
                       <Lock className="h-5 w-5" />
                       Tally Processing Unavailable
                     </CardTitle>
-                    <CardDescription className="text-gray-600">
+                    <CardDescription className="text-muted-foreground">
                       Tally processing will become available once the election is closed
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <Alert className="border-amber-200 bg-amber-50 rounded-xl">
-                      <AlertTriangle className="h-4 w-4 text-amber-600" />
-                      <AlertDescription className="text-amber-800">
+                    <Alert className="rounded-xl">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>
                         The election is currently active and accepting votes. Tally processing is disabled to maintain election integrity. 
                         {!isManuallyClosed && !isNaturallyClosed && " You can close the election early using the 'Close Early' button above."}
                       </AlertDescription>
