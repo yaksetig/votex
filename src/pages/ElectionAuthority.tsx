@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import ElectionAuthorityLogin from '@/components/ElectionAuthorityLogin';
-import ElectionAuthorityDashboard from '@/components/ElectionAuthorityDashboard';
+import ElectionAuthorityInterface from '@/components/ElectionAuthorityInterface';
 import AuthorityElectionsList from '@/components/AuthorityElectionsList';
 import { validateElectionAuthoritySession, clearElectionAuthoritySession } from '@/services/electionManagementService';
 import { Button } from '@/components/ui/button';
@@ -107,10 +107,12 @@ const ElectionAuthority = () => {
           </Button>
         </div>
       </div>
-      <ElectionAuthorityDashboard
-        electionId={selectedElectionId!}
-        onLogout={handleLogout}
-      />
+      <div className="p-8">
+        <ElectionAuthorityInterface
+          electionId={selectedElectionId!}
+          electionTitle="Election Management"
+        />
+      </div>
     </div>
   );
 };
