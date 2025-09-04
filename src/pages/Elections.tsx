@@ -7,8 +7,8 @@ import ElectionsList from "@/components/ElectionsList";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Vote, TrendingUp, Users, Clock } from "lucide-react";
-import { isPast } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { getElectionStatus } from "@/utils/electionStatus";
 
 const Elections = () => {
   const { userId } = useWallet();
@@ -159,26 +159,14 @@ const Elections = () => {
     }
   };
 
-  // Separate elections into ongoing and expired using comprehensive status check
-  const ongoingElections = elections.filter(election => {
-    const endDate = new Date(election.end_date);
-    const isNaturallyExpired = isPast(endDate);
-    const isManuallyClosed = election.closed_manually_at != null;
-    const hasClosedStatus = election.status === 'closed_manually';
-    
-    // Election is active if it's not naturally expired AND not manually closed
-    return !isNaturallyExpired && !isManuallyClosed && !hasClosedStatus;
-  });
-  
-  const expiredElections = elections.filter(election => {
-    const endDate = new Date(election.end_date);
-    const isNaturallyExpired = isPast(endDate);
-    const isManuallyClosed = election.closed_manually_at != null;
-    const hasClosedStatus = election.status === 'closed_manually';
-    
-    // Election is expired/completed if it's naturally expired OR manually closed
-    return isNaturallyExpired || isManuallyClosed || hasClosedStatus;
-  });
+  // Separate elections into ongoing and expired using shared status utility
+  const ongoingElections = elections.filter(
+    election => getElectionStatus(election).isActive
+  );
+
+  const expiredElections = elections.filter(
+    election => !getElectionStatus(election).isActive
+  );
 
   return (
     <div className="min-h-screen bg-slate-900">
