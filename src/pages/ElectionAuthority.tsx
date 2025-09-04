@@ -74,7 +74,7 @@ const ElectionAuthority = () => {
   if (!selectedElectionId) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <div className="bg-white shadow-sm border-b">
+        <div className="bg-background shadow-sm border-b border-border">
           <div className="container mx-auto py-4 px-4">
             <div className="text-lg font-semibold">Election Authority Portal</div>
           </div>
@@ -91,7 +91,7 @@ const ElectionAuthority = () => {
   // If election selected, show election management dashboard
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="bg-white shadow-sm border-b">
+      <div className="bg-background shadow-sm border-b border-border">
         <div className="container mx-auto py-4 px-4 flex justify-between items-center">
           <Button onClick={handleBackToElectionsList} variant="outline" size="sm">
             <ArrowLeft className="mr-2 h-4 w-4" />
