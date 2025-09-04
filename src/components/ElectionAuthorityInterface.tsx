@@ -7,11 +7,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { processElectionTally, ElectionTallyResult } from '@/services/tallyService';
 import { supabase } from '@/integrations/supabase/client';
-import { Shield, Lock, Calculator, CheckCircle, AlertTriangle, Calendar, XCircle, Users, BarChart3, Settings, StopCircle } from 'lucide-react';
+import { isElectionSafeToEdit } from '@/services/electionManagementService';
+import { Shield, Lock, Calculator, CheckCircle, AlertTriangle, Calendar, XCircle, Users, BarChart3, Settings, StopCircle, Activity, PieChart, TrendingUp } from 'lucide-react';
 import { formatDistanceToNow, isPast } from 'date-fns';
+import ElectionEditForm from '@/components/ElectionEditForm';
+import ElectionAuditLog from '@/components/ElectionAuditLog';
+
+interface AuditLogEntry {
+  id: string;
+  action: string;
+  performed_by: string;
+  details?: any;
+  performed_at: string;
+}
 
 interface ElectionAuthorityInterfaceProps {
   electionId: string;
@@ -52,6 +64,11 @@ const ElectionAuthorityInterface: React.FC<ElectionAuthorityInterfaceProps> = ({
   const [election, setElection] = useState<Election | null>(null);
   const [stats, setStats] = useState<ElectionStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [analyticsDialogOpen, setAnalyticsDialogOpen] = useState(false);
+  const [auditDialogOpen, setAuditDialogOpen] = useState(false);
+  const [safeToEdit, setSafeToEdit] = useState(true);
+  const [auditLog, setAuditLog] = useState<AuditLogEntry[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -88,6 +105,21 @@ const ElectionAuthorityInterface: React.FC<ElectionAuthorityInterfaceProps> = ({
         option1Percentage: totalVotes > 0 ? Math.round((option1Votes / totalVotes) * 100) : 0,
         option2Percentage: totalVotes > 0 ? Math.round((option2Votes / totalVotes) * 100) : 0,
       });
+
+      // Check if election is safe to edit
+      const safe = await isElectionSafeToEdit(electionId);
+      setSafeToEdit(safe);
+
+      // Fetch audit log directly to get proper fields
+      const { data: auditData, error: auditError } = await supabase
+        .from('election_authority_audit_log')
+        .select('*')
+        .eq('election_id', electionId)
+        .order('performed_at', { ascending: false });
+
+      if (!auditError && auditData) {
+        setAuditLog(auditData);
+      }
     } catch (error) {
       console.error('Error fetching election:', error);
       toast({
@@ -239,14 +271,98 @@ const ElectionAuthorityInterface: React.FC<ElectionAuthorityInterfaceProps> = ({
               </div>
             </div>
             <div className="flex gap-2">
-              <Button size="sm" variant="outline" className="flex items-center gap-1">
-                <BarChart3 className="h-4 w-4" />
-                View Analytics
-              </Button>
-              <Button size="sm" variant="outline" className="flex items-center gap-1">
-                <Settings className="h-4 w-4" />
-                Edit Details
-              </Button>
+              <Dialog open={analyticsDialogOpen} onOpenChange={setAnalyticsDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" variant="outline" className="flex items-center gap-1">
+                    <BarChart3 className="h-4 w-4" />
+                    View Analytics
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-4xl">
+                  <DialogHeader>
+                    <DialogTitle>Election Analytics - {election.title}</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <Card>
+                        <CardContent className="pt-4">
+                          <div className="text-center">
+                            <div className="text-3xl font-bold text-blue-600">{stats?.totalVotes || 0}</div>
+                            <div className="text-sm text-muted-foreground">Total Votes</div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="pt-4">
+                          <div className="text-center">
+                            <div className="text-3xl font-bold text-green-600">{stats?.option1Percentage || 0}%</div>
+                            <div className="text-sm text-muted-foreground">{election.option1}</div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="pt-4">
+                          <div className="text-center">
+                            <div className="text-3xl font-bold text-purple-600">{stats?.option2Percentage || 0}%</div>
+                            <div className="text-sm text-muted-foreground">{election.option2}</div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold">Vote Distribution</h3>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setAuditDialogOpen(true)}
+                        className="flex items-center gap-1"
+                      >
+                        <Activity className="h-4 w-4" />
+                        View Audit Log
+                      </Button>
+                    </div>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium">{election.option1}</span>
+                          <span className="text-sm text-muted-foreground">{stats?.option1Votes || 0} votes</span>
+                        </div>
+                        <Progress value={stats?.option1Percentage || 0} className="h-3" />
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium">{election.option2}</span>
+                          <span className="text-sm text-muted-foreground">{stats?.option2Votes || 0} votes</span>
+                        </div>
+                        <Progress value={stats?.option2Percentage || 0} className="h-3" />
+                      </div>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+
+              <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" variant="outline" className="flex items-center gap-1">
+                    <Settings className="h-4 w-4" />
+                    Edit Details
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl">
+                  <DialogHeader>
+                    <DialogTitle>Edit Election Details</DialogTitle>
+                  </DialogHeader>
+                  <ElectionEditForm
+                    election={election}
+                    safeToEdit={safeToEdit}
+                    onElectionUpdated={() => {
+                      setEditDialogOpen(false);
+                      fetchElection();
+                    }}
+                  />
+                </DialogContent>
+              </Dialog>
+
               {isActive && (
                 <Button size="sm" variant="destructive" onClick={handleCloseElection} className="flex items-center gap-1">
                   <StopCircle className="h-4 w-4" />
@@ -417,6 +533,16 @@ const ElectionAuthorityInterface: React.FC<ElectionAuthorityInterfaceProps> = ({
           )}
         </CardContent>
       </Card>
+
+      {/* Audit Log Dialog */}
+      <Dialog open={auditDialogOpen} onOpenChange={setAuditDialogOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Election Audit Log</DialogTitle>
+          </DialogHeader>
+          <ElectionAuditLog auditLog={auditLog} />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -253,7 +253,12 @@ const AuthorityElectionsList: React.FC<AuthorityElectionsListProps> = ({
                             <Edit3 className="mr-2 h-4 w-4" />
                             Manage
                           </Button>
-                          <Button variant="outline" size="sm" className="border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white"
+                            onClick={() => window.open(`/elections/${election.id}`, '_blank')}
+                          >
                             <Eye className="h-4 w-4" />
                           </Button>
                         </div>
@@ -339,7 +344,12 @@ const AuthorityElectionsList: React.FC<AuthorityElectionsListProps> = ({
                             <Edit3 className="mr-2 h-4 w-4" />
                             View Results
                           </Button>
-                          <Button variant="outline" size="sm" className="border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white"
+                            onClick={() => window.open(`/elections/${election.id}`, '_blank')}
+                          >
                             <Eye className="h-4 w-4" />
                           </Button>
                         </div>
