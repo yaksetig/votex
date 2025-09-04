@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import ElectionAuthorityLogin from '@/components/ElectionAuthorityLogin';
-import ElectionAuthorityDashboard from '@/components/ElectionAuthorityDashboard';
 import AuthorityElectionsList from '@/components/AuthorityElectionsList';
+import ElectionManagement from '@/components/ElectionManagement';
 import { validateElectionAuthoritySession, clearElectionAuthoritySession } from '@/services/electionManagementService';
 import { Button } from '@/components/ui/button';
 import { LogOut, ArrowLeft } from 'lucide-react';
@@ -107,9 +107,9 @@ const ElectionAuthority = () => {
           </Button>
         </div>
       </div>
-      <ElectionAuthorityDashboard
+      <ElectionManagement
         electionId={selectedElectionId}
-        onLogout={handleLogout}
+        authorityId={authorityId}
       />
     </div>
   );
