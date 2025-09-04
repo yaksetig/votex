@@ -119,7 +119,7 @@ const AuthorityElectionsList: React.FC<AuthorityElectionsListProps> = ({
   }
 
   return (
-    <div className="container mx-auto py-8 px-4 space-y-6">
+    <div className="container mx-auto py-8 px-4 space-y-6 bg-background">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Elections Management</h1>
