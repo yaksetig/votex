@@ -9,9 +9,10 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatDistanceToNow, isPast } from "date-fns";
-import { EyeIcon, CheckCircle, XCircle, TrendingUp, Users, Calendar, Clock, Vote } from "lucide-react";
+import { EyeIcon, CheckCircle, XCircle, TrendingUp, Users, Calendar, Clock, Vote, AlertTriangle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { getElectionStatus } from "@/utils/electionStatus";
 
 interface Election {
   id: string;
@@ -21,6 +22,8 @@ interface Election {
   option2: string;
   end_date: string;
   created_at: string;
+  closed_manually_at?: string | null;
+  status?: string;
 }
 
 interface ElectionsListProps {
@@ -134,7 +137,7 @@ const ElectionsList: React.FC<ElectionsListProps> = ({ elections, loading }) => 
     <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
       {elections.map((election) => {
         const endDate = new Date(election.end_date);
-        const isExpired = isPast(endDate);
+        const electionStatus = getElectionStatus(election);
         const voteData = voteCounts[election.id];
 
         return (
@@ -146,15 +149,20 @@ const ElectionsList: React.FC<ElectionsListProps> = ({ elections, loading }) => 
                     {election.title}
                   </CardTitle>
                   <div className="flex items-center gap-2 mb-2">
-                    {isExpired ? (
-                      <div className="flex items-center gap-2 px-3 py-1 bg-red-900/50 text-red-300 rounded-full text-sm font-medium border border-red-800">
-                        <XCircle className="h-4 w-4" />
-                        Completed
-                      </div>
-                    ) : (
+                    {electionStatus.statusType === 'active' ? (
                       <div className="flex items-center gap-2 px-3 py-1 bg-green-900/50 text-green-300 rounded-full text-sm font-medium border border-green-800">
                         <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                        Active
+                        {electionStatus.statusLabel}
+                      </div>
+                    ) : electionStatus.statusType === 'closed_early' ? (
+                      <div className="flex items-center gap-2 px-3 py-1 bg-orange-900/50 text-orange-300 rounded-full text-sm font-medium border border-orange-800">
+                        <AlertTriangle className="h-4 w-4" />
+                        {electionStatus.statusLabel}
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 px-3 py-1 bg-red-900/50 text-red-300 rounded-full text-sm font-medium border border-red-800">
+                        <XCircle className="h-4 w-4" />
+                        {electionStatus.statusLabel}
                       </div>
                     )}
                   </div>
@@ -163,9 +171,11 @@ const ElectionsList: React.FC<ElectionsListProps> = ({ elections, loading }) => 
               
               <div className="flex items-center gap-2 text-sm text-slate-400">
                 <Clock className="h-4 w-4" />
-                {isExpired 
-                  ? `Ended ${formatDistanceToNow(endDate, { addSuffix: true })}` 
-                  : `Ends ${formatDistanceToNow(endDate, { addSuffix: true })}`}
+                {electionStatus.statusType === 'closed_early' 
+                  ? `Closed early ${election.closed_manually_at ? formatDistanceToNow(new Date(election.closed_manually_at), { addSuffix: true }) : 'by authority'}`
+                  : electionStatus.isActive 
+                    ? `Ends ${formatDistanceToNow(endDate, { addSuffix: true })}`
+                    : `Ended ${formatDistanceToNow(endDate, { addSuffix: true })}`}
               </div>
             </CardHeader>
             
@@ -231,7 +241,7 @@ const ElectionsList: React.FC<ElectionsListProps> = ({ elections, loading }) => 
                 className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-2xl py-3 font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
               >
                 <EyeIcon className="h-4 w-4 mr-2" />
-                {isExpired ? "View Results" : "Vote Now"}
+                {electionStatus.isActive ? "Vote Now" : "View Results"}
               </Button>
             </CardFooter>
           </Card>

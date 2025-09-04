@@ -132,9 +132,26 @@ const Elections = () => {
     }
   };
 
-  // Separate elections into ongoing and expired
-  const ongoingElections = elections.filter(election => !isPast(new Date(election.end_date)));
-  const expiredElections = elections.filter(election => isPast(new Date(election.end_date)));
+  // Separate elections into ongoing and expired using comprehensive status check
+  const ongoingElections = elections.filter(election => {
+    const endDate = new Date(election.end_date);
+    const isNaturallyExpired = isPast(endDate);
+    const isManuallyClosed = election.closed_manually_at != null;
+    const hasClosedStatus = election.status === 'closed_manually';
+    
+    // Election is active if it's not naturally expired AND not manually closed
+    return !isNaturallyExpired && !isManuallyClosed && !hasClosedStatus;
+  });
+  
+  const expiredElections = elections.filter(election => {
+    const endDate = new Date(election.end_date);
+    const isNaturallyExpired = isPast(endDate);
+    const isManuallyClosed = election.closed_manually_at != null;
+    const hasClosedStatus = election.status === 'closed_manually';
+    
+    // Election is expired/completed if it's naturally expired OR manually closed
+    return isNaturallyExpired || isManuallyClosed || hasClosedStatus;
+  });
 
   return (
     <div className="min-h-screen bg-slate-900">
