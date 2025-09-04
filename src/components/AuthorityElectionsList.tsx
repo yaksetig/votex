@@ -69,14 +69,14 @@ const AuthorityElectionsList: React.FC<AuthorityElectionsListProps> = ({
   const getTallyBadge = (election: AuthorityElection) => {
     if (election.tally_processed) {
       return (
-        <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-300">
+        <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
           <FileCheck className="mr-1 h-3 w-3" />
           Tallied
         </Badge>
       );
     } else {
       return (
-        <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 border-yellow-300">
+        <Badge variant="outline" className="text-muted-foreground">
           <FileX className="mr-1 h-3 w-3" />
           Pending Tally
         </Badge>
@@ -87,13 +87,13 @@ const AuthorityElectionsList: React.FC<AuthorityElectionsListProps> = ({
   const getStatusIcon = (election: AuthorityElection) => {
     switch (election.status) {
       case 'closed_manually':
-        return <AlertTriangle className="h-4 w-4 text-red-600" />;
+        return <AlertTriangle className="h-4 w-4 text-destructive" />;
       case 'active':
-        return <CheckCircle className="h-4 w-4 text-green-600" />;
+        return <CheckCircle className="h-4 w-4 text-primary" />;
       case 'expired':
-        return <Clock className="h-4 w-4 text-gray-600" />;
+        return <Clock className="h-4 w-4 text-muted-foreground" />;
       default:
-        return <Clock className="h-4 w-4 text-gray-600" />;
+        return <Clock className="h-4 w-4 text-muted-foreground" />;
     }
   };
 
@@ -197,7 +197,7 @@ const AuthorityElectionsList: React.FC<AuthorityElectionsListProps> = ({
                     <div className="text-sm">
                       <div>End Date: {new Date(election.end_date).toLocaleDateString()}</div>
                       {election.closed_manually_at && (
-                        <div className="text-xs text-red-600 mt-1">
+                        <div className="text-xs text-destructive mt-1">
                           Closed early: {new Date(election.closed_manually_at).toLocaleDateString()}
                         </div>
                       )}
