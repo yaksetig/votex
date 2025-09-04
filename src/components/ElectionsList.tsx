@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { 
   Card, 
@@ -190,8 +191,8 @@ const ElectionsList: React.FC<ElectionsListProps> = ({ elections, loading }) => 
               {voteData && voteData.total > 0 ? (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between text-xs text-slate-400">
-                    <span>{election.option1}: {voteData.option1} votes ({voteData.option1Percentage}%)</span>
-                    <span>{election.option2}: {voteData.option2} votes ({voteData.option2Percentage}%)</span>
+                    <span>{voteData.option1} votes ({voteData.option1Percentage}%)</span>
+                    <span>{voteData.option2} votes ({voteData.option2Percentage}%)</span>
                   </div>
                   
                   {/* Dual-color progress bar */}
