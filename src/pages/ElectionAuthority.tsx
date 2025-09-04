@@ -75,12 +75,8 @@ const ElectionAuthority = () => {
     return (
       <div className="min-h-screen bg-gray-50">
         <div className="bg-white shadow-sm border-b">
-          <div className="container mx-auto py-4 px-4 flex justify-between items-center">
+          <div className="container mx-auto py-4 px-4">
             <div className="text-lg font-semibold">Election Authority Portal</div>
-            <Button onClick={handleLogout} variant="outline" size="sm">
-              <LogOut className="mr-2 h-4 w-4" />
-              Logout
-            </Button>
           </div>
         </div>
         <AuthorityElectionsList
@@ -100,10 +96,6 @@ const ElectionAuthority = () => {
           <Button onClick={handleBackToElectionsList} variant="outline" size="sm">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Elections List
-          </Button>
-          <Button onClick={handleLogout} variant="outline" size="sm">
-            <LogOut className="mr-2 h-4 w-4" />
-            Logout
           </Button>
         </div>
       </div>
