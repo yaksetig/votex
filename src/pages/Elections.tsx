@@ -137,21 +137,21 @@ const Elections = () => {
   const expiredElections = elections.filter(election => isPast(new Date(election.end_date)));
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+    <div className="min-h-screen bg-slate-900">
       {/* Hero Section */}
       <div className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-indigo-600/10 to-purple-600/10"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-800/50 to-slate-700/50"></div>
         <div className="relative container mx-auto py-16 px-6">
           <div className="text-center max-w-4xl mx-auto">
-            <div className="inline-flex items-center gap-3 bg-white/80 backdrop-blur-sm px-6 py-3 rounded-full border border-indigo-200 mb-8">
-              <Vote className="h-6 w-6 text-indigo-600" />
-              <span className="text-indigo-900 font-semibold">Democratic Voting Platform</span>
+            <div className="inline-flex items-center gap-3 bg-slate-800/80 backdrop-blur-sm px-6 py-3 rounded-full border border-slate-600 mb-8">
+              <Vote className="h-6 w-6 text-purple-400" />
+              <span className="text-white font-semibold">Democratic Voting Platform</span>
             </div>
             
-            <h1 className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-6">
+            <h1 className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-purple-400 via-indigo-400 to-pink-400 bg-clip-text text-transparent mb-6">
               Shape the Future
             </h1>
-            <p className="text-xl text-gray-600 mb-8 leading-relaxed">
+            <p className="text-xl text-slate-300 mb-8 leading-relaxed">
               Participate in secure, transparent elections that matter. Your voice, your vote, your impact.
             </p>
             
@@ -159,19 +159,19 @@ const Elections = () => {
               <Button 
                 onClick={() => setShowForm(!showForm)} 
                 size="lg"
-                className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-8 py-4 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
+                className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-8 py-4 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
               >
                 <Plus className="mr-3 h-5 w-5" />
                 {showForm ? "Cancel Creation" : "Create New Election"}
               </Button>
               
-              <div className="flex items-center gap-6 text-sm text-gray-600">
+              <div className="flex items-center gap-6 text-sm text-slate-400">
                 <div className="flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-green-500" />
+                  <TrendingUp className="h-4 w-4 text-green-400" />
                   <span>{ongoingElections.length} Active</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-gray-500" />
+                  <Clock className="h-4 w-4 text-slate-400" />
                   <span>{expiredElections.length} Completed</span>
                 </div>
               </div>
@@ -184,10 +184,10 @@ const Elections = () => {
       {showForm && (
         <div className="container mx-auto px-6 mb-12">
           <div className="max-w-4xl mx-auto">
-            <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
-              <div className="bg-gradient-to-r from-indigo-500 to-purple-600 px-8 py-6">
+            <div className="bg-slate-800 rounded-3xl shadow-2xl border border-slate-700 overflow-hidden">
+              <div className="bg-gradient-to-r from-purple-600 to-indigo-600 px-8 py-6">
                 <h2 className="text-2xl font-bold text-white">Create New Election</h2>
-                <p className="text-indigo-100 mt-1">Set up a new democratic process</p>
+                <p className="text-purple-100 mt-1">Set up a new democratic process</p>
               </div>
               <div className="p-8">
                 <ElectionForm onSubmit={handleFormSubmit} onCancel={() => setShowForm(false)} />
@@ -202,10 +202,10 @@ const Elections = () => {
         <div className="max-w-7xl mx-auto">
           <Tabs defaultValue="ongoing" className="w-full">
             <div className="flex justify-center mb-8">
-              <TabsList className="bg-white/70 backdrop-blur-sm border border-gray-200 rounded-2xl p-2 shadow-lg">
+              <TabsList className="bg-slate-800/70 backdrop-blur-sm border border-slate-700 rounded-2xl p-2 shadow-lg">
                 <TabsTrigger 
                   value="ongoing" 
-                  className="px-8 py-3 rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300"
+                  className="px-8 py-3 rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-600 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300 text-slate-300 data-[state=inactive]:hover:text-white"
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-2 h-2 bg-current rounded-full animate-pulse"></div>
@@ -217,7 +217,7 @@ const Elections = () => {
                 </TabsTrigger>
                 <TabsTrigger 
                   value="expired"
-                  className="px-8 py-3 rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-gray-500 data-[state=active]:to-slate-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300"
+                  className="px-8 py-3 rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-600 data-[state=active]:to-slate-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300 text-slate-300 data-[state=inactive]:hover:text-white"
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-2 h-2 bg-current rounded-full"></div>
@@ -232,16 +232,16 @@ const Elections = () => {
             
             <TabsContent value="ongoing" className="space-y-8">
               <div className="text-center">
-                <h2 className="text-3xl font-bold text-gray-900 mb-3">Live Elections</h2>
-                <p className="text-gray-600 text-lg">Cast your vote and make your voice heard</p>
+                <h2 className="text-3xl font-bold text-white mb-3">Live Elections</h2>
+                <p className="text-slate-300 text-lg">Cast your vote and make your voice heard</p>
               </div>
               <ElectionsList elections={ongoingElections} loading={loading} />
             </TabsContent>
             
             <TabsContent value="expired" className="space-y-8">
               <div className="text-center">
-                <h2 className="text-3xl font-bold text-gray-900 mb-3">Election Archive</h2>
-                <p className="text-gray-600 text-lg">Review past elections and their results</p>
+                <h2 className="text-3xl font-bold text-white mb-3">Election Archive</h2>
+                <p className="text-slate-300 text-lg">Review past elections and their results</p>
               </div>
               <ElectionsList elections={expiredElections} loading={loading} />
             </TabsContent>
