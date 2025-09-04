@@ -59,8 +59,8 @@ const ElectionAuthority = () => {
 
   if (isCheckingSession) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg">Checking session...</div>
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="text-lg text-white">Checking session...</div>
       </div>
     );
   }
@@ -73,11 +73,11 @@ const ElectionAuthority = () => {
   // If authenticated but no election selected, show elections list
   if (!selectedElectionId) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="bg-white shadow-sm border-b">
+      <div className="min-h-screen bg-slate-900">
+        <div className="bg-gradient-to-r from-slate-800 to-slate-700 shadow-lg border-b border-slate-600">
           <div className="container mx-auto py-4 px-4 flex justify-between items-center">
-            <div className="text-lg font-semibold">Election Authority Portal</div>
-            <Button onClick={handleLogout} variant="outline" size="sm">
+            <div className="text-lg font-semibold text-white">Election Authority Portal</div>
+            <Button onClick={handleLogout} variant="secondary" size="sm" className="bg-slate-600 text-white hover:bg-slate-500 border-slate-500">
               <LogOut className="mr-2 h-4 w-4" />
               Logout
             </Button>
@@ -94,14 +94,14 @@ const ElectionAuthority = () => {
 
   // If election selected, show election management dashboard
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white shadow-sm border-b">
+    <div className="min-h-screen bg-slate-900">
+      <div className="bg-gradient-to-r from-slate-800 to-slate-700 shadow-lg border-b border-slate-600">
         <div className="container mx-auto py-4 px-4 flex justify-between items-center">
-          <Button onClick={handleBackToElectionsList} variant="outline" size="sm">
+          <Button onClick={handleBackToElectionsList} variant="secondary" size="sm" className="bg-slate-600 text-white hover:bg-slate-500 border-slate-500">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Elections List
           </Button>
-          <Button onClick={handleLogout} variant="outline" size="sm">
+          <Button onClick={handleLogout} variant="secondary" size="sm" className="bg-slate-600 text-white hover:bg-slate-500 border-slate-500">
             <LogOut className="mr-2 h-4 w-4" />
             Logout
           </Button>
