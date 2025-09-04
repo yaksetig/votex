@@ -108,7 +108,7 @@ const ElectionAuthority = () => {
         </div>
       </div>
       <ElectionAuthorityDashboard
-        electionId={selectedElectionId}
+        electionId={selectedElectionId!}
         onLogout={handleLogout}
       />
     </div>
