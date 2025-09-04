@@ -29,6 +29,7 @@ import { formatDistanceToNow, isPast } from 'date-fns';
 
 interface ElectionAuthorityDashboardProps {
   electionId?: string;
+  authorityId: string;
   onLogout: () => void;
 }
 
@@ -56,31 +57,40 @@ interface ElectionStats {
   option2Percentage: number;
 }
 
-const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({ 
-  electionId, 
-  onLogout 
+const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
+  electionId,
+  authorityId,
+  onLogout
 }) => {
   const [elections, setElections] = useState<Election[]>([]);
   const [voteStats, setVoteStats] = useState<Record<string, ElectionStats>>({});
   const [loading, setLoading] = useState(true);
   const [selectedTab, setSelectedTab] = useState('overview');
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
     fetchElections();
-  }, []);
+  }, [authorityId, electionId]);
 
   const fetchElections = async () => {
     try {
       setLoading(true);
-      
-      // Fetch all elections
+      setError(null);
+
+      // Fetch elections for this authority
       const { data: electionsData, error: electionsError } = await supabase
         .from('elections')
         .select('*')
+        .eq('authority_id', authorityId)
         .order('created_at', { ascending: false });
 
       if (electionsError) throw electionsError;
+
+      if (electionId && electionsData && !electionsData.some(e => e.id === electionId)) {
+        setError('You do not have access to this election.');
+        return;
+      }
 
       setElections(electionsData || []);
 
@@ -100,7 +110,7 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
           const option1Votes = electionVotes.filter(vote => vote.choice === election.option1).length;
           const option2Votes = electionVotes.filter(vote => vote.choice === election.option2).length;
           const totalVotes = option1Votes + option2Votes;
-          
+
           stats[election.id] = {
             totalVotes,
             option1Votes,
@@ -109,7 +119,7 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
             option2Percentage: totalVotes > 0 ? Math.round((option2Votes / totalVotes) * 100) : 0,
           };
         });
-        
+
         setVoteStats(stats);
       }
     } catch (error) {
@@ -268,6 +278,14 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
             ))}
           </div>
         </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="text-red-500 text-lg">{error}</div>
       </div>
     );
   }
