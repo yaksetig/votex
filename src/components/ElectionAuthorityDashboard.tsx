@@ -1,431 +1,569 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
+import ElectionAuthorityInterface from '@/components/ElectionAuthorityInterface';
+import TallyResultsDisplay from '@/components/TallyResultsDisplay';
+import ElectionEditForm from '@/components/ElectionEditForm';
 import { 
-  Settings, 
-  Users, 
-  BarChart3, 
-  Clock, 
-  CheckCircle, 
-  XCircle, 
-  TrendingUp,
-  Calendar,
-  Vote,
-  Eye,
-  Edit,
-  Trash2,
-  Plus,
-  Activity,
-  Shield,
-  AlertTriangle
+  Calendar, Users, Edit, AlertTriangle, CheckCircle, Clock, Activity, Lock, FileCheck, FileX, BarChart3, Settings, Shield, TrendingUp, Award, Target
 } from 'lucide-react';
-import { formatDistanceToNow, isPast } from 'date-fns';
+import { isPast } from 'date-fns';
+import { 
+  closeElectionEarly,
+  isElectionSafeToEdit
+} from '@/services/electionManagementService';
 
 interface ElectionAuthorityDashboardProps {
-  electionId?: string;
+  electionId: string;
   onLogout: () => void;
 }
 
-interface Election {
-  id: string;
-  title: string;
-  description: string;
-  option1: string;
-  option2: string;
-  end_date: string;
-  created_at: string;
-  creator: string;
-}
-
-interface VoteData {
-  election_id: string;
-  choice: string;
-}
-
-interface ElectionStats {
-  totalVotes: number;
-  option1Votes: number;
-  option2Votes: number;
-  option1Percentage: number;
-  option2Percentage: number;
-}
-
-const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({ 
-  electionId, 
-  onLogout 
+const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
+  electionId,
+  onLogout
 }) => {
-  const [elections, setElections] = useState<Election[]>([]);
-  const [voteStats, setVoteStats] = useState<Record<string, ElectionStats>>({});
+  const [election, setElection] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedTab, setSelectedTab] = useState('overview');
+  const [error, setError] = useState<string | null>(null);
+  const [safeToEdit, setSafeToEdit] = useState(false);
+  const [tallyProcessed, setTallyProcessed] = useState(false);
+  const [tallyStats, setTallyStats] = useState<any>(null);
+  const [isClosing, setIsClosing] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchElections();
-  }, []);
+    fetchElectionData();
+    checkEditSafety();
+    checkTallyStatus();
+  }, [electionId, refreshKey]);
 
-  const fetchElections = async () => {
+  const fetchElectionData = async () => {
     try {
       setLoading(true);
+      setError(null);
       
-      // Fetch all elections
-      const { data: electionsData, error: electionsError } = await supabase
+      console.log('Fetching election data for:', electionId);
+      
+      const { data: electionData, error: fetchError } = await supabase
         .from('elections')
         .select('*')
-        .order('created_at', { ascending: false });
+        .eq('id', electionId)
+        .single();
 
-      if (electionsError) throw electionsError;
-
-      setElections(electionsData || []);
-
-      // Fetch vote statistics for all elections
-      if (electionsData && electionsData.length > 0) {
-        const { data: votesData, error: votesError } = await supabase
-          .from('votes')
-          .select('election_id, choice')
-          .in('election_id', electionsData.map(e => e.id));
-
-        if (votesError) throw votesError;
-
-        // Calculate statistics
-        const stats: Record<string, ElectionStats> = {};
-        electionsData.forEach(election => {
-          const electionVotes = votesData?.filter(vote => vote.election_id === election.id) || [];
-          const option1Votes = electionVotes.filter(vote => vote.choice === election.option1).length;
-          const option2Votes = electionVotes.filter(vote => vote.choice === election.option2).length;
-          const totalVotes = option1Votes + option2Votes;
-          
-          stats[election.id] = {
-            totalVotes,
-            option1Votes,
-            option2Votes,
-            option1Percentage: totalVotes > 0 ? Math.round((option1Votes / totalVotes) * 100) : 0,
-            option2Percentage: totalVotes > 0 ? Math.round((option2Votes / totalVotes) * 100) : 0,
-          };
-        });
-        
-        setVoteStats(stats);
+      if (fetchError) {
+        console.error('Error fetching election:', fetchError);
+        throw fetchError;
       }
-    } catch (error) {
-      console.error('Error fetching elections:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to fetch elections data'
-      });
+
+      if (!electionData) {
+        setError('Election not found');
+        return;
+      }
+
+      console.log('Fetched election data:', electionData);
+
+      let enrichedElection = electionData;
+      
+      if (electionData.authority_id) {
+        const { data: authorityData, error: authorityError } = await supabase
+          .from('election_authorities')
+          .select('*')
+          .eq('id', electionData.authority_id)
+          .single();
+          
+        if (!authorityError && authorityData) {
+          enrichedElection = {
+            ...electionData,
+            election_authorities: authorityData
+          };
+        }
+      }
+
+      console.log('Final enriched election data:', enrichedElection);
+      setElection(enrichedElection);
+    } catch (err) {
+      console.error('Error fetching election:', err);
+      setError(err instanceof Error ? err.message : 'Unknown error occurred');
     } finally {
       setLoading(false);
     }
   };
 
-  const activeElections = elections.filter(election => !isPast(new Date(election.end_date)));
-  const completedElections = elections.filter(election => isPast(new Date(election.end_date)));
-  const totalVotes = Object.values(voteStats).reduce((sum, stats) => sum + stats.totalVotes, 0);
+  const checkEditSafety = async () => {
+    const safe = await isElectionSafeToEdit(electionId);
+    setSafeToEdit(safe);
+  };
 
-  const StatCard = ({ title, value, icon: Icon, description, trend }: {
-    title: string;
-    value: string | number;
-    icon: any;
-    description: string;
-    trend?: 'up' | 'down' | 'neutral';
-  }) => (
-    <Card className="border-0 shadow-lg bg-gradient-to-br from-white to-gray-50 hover:shadow-xl transition-all duration-300">
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-gray-600 mb-1">{title}</p>
-            <p className="text-3xl font-bold text-gray-900">{value}</p>
-            <p className="text-sm text-gray-500 mt-1">{description}</p>
-          </div>
-          <div className={`p-3 rounded-2xl ${
-            trend === 'up' ? 'bg-green-100' : 
-            trend === 'down' ? 'bg-red-100' : 
-            'bg-blue-100'
-          }`}>
-            <Icon className={`h-8 w-8 ${
-              trend === 'up' ? 'text-green-600' : 
-              trend === 'down' ? 'text-red-600' : 
-              'text-blue-600'
-            }`} />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
+  const checkTallyStatus = async () => {
+    try {
+      console.log('Checking tally status for election:', electionId);
+      
+      const { data: tallyData, error } = await supabase
+        .from('election_tallies')
+        .select('*')
+        .eq('election_id', electionId)
+        .limit(1);
 
-  const ElectionCard = ({ election }: { election: Election }) => {
-    const isExpired = isPast(new Date(election.end_date));
-    const stats = voteStats[election.id];
-    
-    return (
-      <Card className="group border-0 shadow-lg hover:shadow-2xl transition-all duration-500 rounded-2xl overflow-hidden bg-gradient-to-br from-white to-gray-50 hover:from-blue-50 hover:to-indigo-50">
-        <CardHeader className="p-6 pb-4">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <CardTitle className="text-lg font-bold text-gray-900 mb-2 group-hover:text-blue-700 transition-colors">
-                {election.title}
-              </CardTitle>
-              <div className="flex items-center gap-2 mb-3">
-                {isExpired ? (
-                  <Badge variant="secondary" className="bg-gray-100 text-gray-700 border-gray-200">
-                    <XCircle className="h-3 w-3 mr-1" />
-                    Completed
-                  </Badge>
-                ) : (
-                  <Badge variant="secondary" className="bg-green-100 text-green-700 border-green-200">
-                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse mr-1"></div>
-                    Active
-                  </Badge>
-                )}
-                <Badge variant="outline" className="text-xs">
-                  {stats?.totalVotes || 0} votes
-                </Badge>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 hover:bg-blue-100">
-                <Eye className="h-4 w-4 text-blue-600" />
-              </Button>
-              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 hover:bg-gray-100">
-                <Edit className="h-4 w-4 text-gray-600" />
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
+      if (error) {
+        console.error('Error checking tally status:', error);
+        return;
+      }
+
+      if (tallyData && tallyData.length > 0) {
+        setTallyProcessed(true);
         
-        <CardContent className="px-6 pb-4">
-          <p className="text-sm text-gray-600 mb-4 line-clamp-2">{election.description}</p>
-          
-          {/* Voting Options */}
-          <div className="space-y-3 mb-4">
-            <div className="flex items-center justify-between p-3 bg-blue-50 rounded-xl border border-blue-100">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                <span className="text-sm font-medium text-blue-900">{election.option1}</span>
-              </div>
-              <span className="text-sm font-bold text-blue-700">
-                {stats?.option1Percentage || 0}%
-              </span>
-            </div>
-            <div className="flex items-center justify-between p-3 bg-purple-50 rounded-xl border border-purple-100">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
-                <span className="text-sm font-medium text-purple-900">{election.option2}</span>
-              </div>
-              <span className="text-sm font-bold text-purple-700">
-                {stats?.option2Percentage || 0}%
-              </span>
-            </div>
-          </div>
+        const totalVoters = tallyData.length;
+        const nullifiedVotes = tallyData.filter(t => t.vote_nullified).length;
+        const processedAt = tallyData[0].processed_at;
+        const processedBy = tallyData[0].processed_by;
+        
+        setTallyStats({
+          totalVoters,
+          nullifiedVotes,
+          processedAt,
+          processedBy
+        });
+        
+        console.log('Tally already processed:', { totalVoters, nullifiedVotes, processedAt });
+      } else {
+        setTallyProcessed(false);
+        setTallyStats(null);
+        console.log('Tally not yet processed');
+      }
+    } catch (error) {
+      console.error('Error in checkTallyStatus:', error);
+    }
+  };
 
-          {/* Progress Bar */}
-          {stats && stats.totalVotes > 0 && (
-            <div className="space-y-2">
-              <div className="relative">
-                <Progress value={stats.option1Percentage} className="h-2 bg-gray-200" />
-                <div 
-                  className="absolute inset-0 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full transition-all duration-500" 
-                  style={{ width: `${stats.option1Percentage}%` }}
-                ></div>
-              </div>
-            </div>
-          )}
-          
-          <div className="flex items-center gap-4 mt-4 text-xs text-gray-500">
-            <div className="flex items-center gap-1">
-              <Calendar className="h-3 w-3" />
-              <span>
-                {isExpired 
-                  ? `Ended ${formatDistanceToNow(new Date(election.end_date), { addSuffix: true })}` 
-                  : `Ends ${formatDistanceToNow(new Date(election.end_date), { addSuffix: true })}`}
-              </span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
+  const handleCloseElection = async () => {
+    if (!window.confirm('Are you sure you want to close this election early? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      setIsClosing(true);
+      console.log('Starting election closure process...');
+      
+      const success = await closeElectionEarly(electionId);
+      
+      if (success) {
+        console.log('Election closed successfully, triggering data refresh...');
+        
+        toast({
+          title: "Election closed",
+          description: "The election has been closed early and voting is now disabled.",
+        });
+        
+        setRefreshKey(prev => prev + 1);
+        
+        console.log('Data refresh triggered');
+      } else {
+        throw new Error("Failed to close election - check console for details");
+      }
+    } catch (error) {
+      console.error('Error closing election:', error);
+      toast({
+        variant: "destructive",
+        title: "Error closing election",
+        description: error instanceof Error ? error.message : "Unknown error occurred",
+      });
+    } finally {
+      setIsClosing(false);
+    }
+  };
+
+  const handleElectionUpdated = () => {
+    setRefreshKey(prev => prev + 1);
+  };
+
+  const handleTallyComplete = () => {
+    setRefreshKey(prev => prev + 1);
+  };
+
+  const getTallyBadge = (processed: boolean) => {
+    if (processed) {
+      return (
+        <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200">
+          <FileCheck className="mr-1 h-3 w-3" />
+          Tallied
+        </Badge>
+      );
+    } else {
+      return (
+        <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100">
+          <FileX className="mr-1 h-3 w-3" />
+          Pending Tally
+        </Badge>
+      );
+    }
+  };
+
+  const getStatusBadge = (isManuallyClosed: boolean, isNaturallyClosed: boolean, isElectionEnded: boolean) => {
+    if (isManuallyClosed) {
+      return (
+        <Badge variant="destructive" className="bg-red-100 text-red-800 border-red-300">
+          <Lock className="mr-1 h-3 w-3" />
+          Manually Closed
+        </Badge>
+      );
+    } else if (isNaturallyClosed) {
+      return (
+        <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-300">
+          <Clock className="mr-1 h-3 w-3" />
+          Closed
+        </Badge>
+      );
+    } else {
+      return (
+        <Badge className="bg-green-100 text-green-800 border-green-300">
+          <Activity className="mr-1 h-3 w-3" />
+          Active
+        </Badge>
+      );
+    }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-        <div className="container mx-auto p-8">
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
-            {[...Array(4)].map((_, i) => (
-              <Card key={i} className="border-0 shadow-lg animate-pulse">
-                <CardContent className="p-6">
-                  <div className="h-4 bg-gray-200 rounded mb-4"></div>
-                  <div className="h-8 bg-gray-200 rounded mb-2"></div>
-                  <div className="h-3 bg-gray-200 rounded"></div>
-                </CardContent>
-              </Card>
-            ))}
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+        <div className="container mx-auto py-12 px-6">
+          <div className="flex items-center justify-center min-h-[500px]">
+            <div className="text-center space-y-6">
+              <div className="relative">
+                <div className="w-16 h-16 mx-auto bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
+                  <Shield className="h-8 w-8 text-white animate-pulse" />
+                </div>
+                <div className="absolute inset-0 w-16 h-16 mx-auto bg-blue-400 rounded-2xl animate-ping opacity-20"></div>
+              </div>
+              <div className="space-y-2">
+                <div className="text-xl font-semibold text-gray-900">Loading Dashboard</div>
+                <div className="text-sm text-gray-600">Fetching election data and permissions</div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-100 shadow-sm">
-        <div className="container mx-auto px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                Election Authority Dashboard
-              </h1>
-              <p className="text-gray-600 mt-1">Monitor and manage all elections</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                <Shield className="h-3 w-3 mr-1" />
-                Authority Access
-              </Badge>
-            </div>
+  if (error || !election) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-red-50 to-pink-100">
+        <div className="container mx-auto py-12 px-6">
+          <div className="max-w-2xl mx-auto">
+            <Alert variant="destructive" className="border-red-200 bg-red-50">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription className="text-red-800">
+                {error || 'Election not found'}
+              </AlertDescription>
+            </Alert>
           </div>
         </div>
       </div>
+    );
+  }
 
-      <div className="container mx-auto p-8">
-        {/* Statistics Overview */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
-          <StatCard
-            title="Total Elections"
-            value={elections.length}
-            icon={Vote}
-            description="All time elections"
-            trend="neutral"
-          />
-          <StatCard
-            title="Active Elections"
-            value={activeElections.length}
-            icon={Activity}
-            description="Currently running"
-            trend="up"
-          />
-          <StatCard
-            title="Total Votes Cast"
-            value={totalVotes.toLocaleString()}
-            icon={Users}
-            description="Across all elections"
-            trend="up"
-          />
-          <StatCard
-            title="Completion Rate"
-            value={`${elections.length > 0 ? Math.round((completedElections.length / elections.length) * 100) : 0}%`}
-            icon={TrendingUp}
-            description="Elections completed"
-            trend="neutral"
-          />
+  console.log('Determining election status:', {
+    status: election.status,
+    closed_manually_at: election.closed_manually_at,
+    end_date: election.end_date,
+    current_time: new Date().toISOString()
+  });
+
+  const isManuallyClosed = election.status === 'closed_manually' || !!election.closed_manually_at;
+  const isNaturallyClosed = !isManuallyClosed && isPast(new Date(election.end_date));
+  const isElectionEnded = isManuallyClosed || isNaturallyClosed;
+  const canEdit = !isElectionEnded;
+
+  console.log('Election status determination:', {
+    isManuallyClosed,
+    isNaturallyClosed,
+    isElectionEnded,
+    canEdit
+  });
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+      <div className="container mx-auto py-8 px-6 space-y-8">
+        
+        {/* Header Section */}
+        <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
+          <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-700 px-8 py-8">
+            <div className="flex items-center justify-between text-white">
+              <div className="space-y-2">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
+                    <Shield className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h1 className="text-3xl font-bold">{election.title}</h1>
+                    <p className="text-blue-100 text-lg">{election.description}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                {getTallyBadge(tallyProcessed)}
+                {getStatusBadge(isManuallyClosed, isNaturallyClosed, isElectionEnded)}
+                {!isElectionEnded && (
+                  <Button 
+                    onClick={handleCloseElection}
+                    disabled={isClosing}
+                    variant="destructive"
+                    size="sm"
+                    className="bg-red-500 hover:bg-red-600 border-0 shadow-lg"
+                  >
+                    {isClosing ? (
+                      <>
+                        <Clock className="mr-2 h-4 w-4 animate-spin" />
+                        Closing...
+                      </>
+                    ) : (
+                      <>
+                        <AlertTriangle className="mr-2 h-4 w-4" />
+                        Close Early
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+          
+          {/* Stats Cards */}
+          <div className="p-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card className="border-0 bg-gradient-to-br from-blue-50 to-indigo-100 shadow-lg hover:shadow-xl transition-all duration-300">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
+                      <Target className="h-7 w-7 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-sm font-medium text-gray-600 mb-2">Voting Options</div>
+                      <div className="space-y-1">
+                        <div className="text-sm font-semibold text-gray-900 flex items-center">
+                          <Award className="h-3 w-3 mr-1 text-blue-600" />
+                          {election.option1}
+                        </div>
+                        <div className="text-sm font-semibold text-gray-900 flex items-center">
+                          <Award className="h-3 w-3 mr-1 text-indigo-600" />
+                          {election.option2}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card className="border-0 bg-gradient-to-br from-emerald-50 to-green-100 shadow-lg hover:shadow-xl transition-all duration-300">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 bg-gradient-to-r from-emerald-500 to-green-600 rounded-2xl flex items-center justify-center shadow-lg">
+                      <Calendar className="h-7 w-7 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-sm font-medium text-gray-600 mb-2">Timeline</div>
+                      <div className="space-y-1">
+                        <div className="text-sm text-gray-900">
+                          <span className="font-medium">Created:</span> {new Date(election.created_at).toLocaleDateString()}
+                        </div>
+                        <div className="text-sm text-gray-900">
+                          <span className="font-medium">Ends:</span> {new Date(election.end_date).toLocaleDateString()}
+                        </div>
+                        {election.closed_manually_at && (
+                          <div className="text-sm text-red-600 font-medium">
+                            Closed: {new Date(election.closed_manually_at).toLocaleDateString()}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card className="border-0 bg-gradient-to-br from-purple-50 to-violet-100 shadow-lg hover:shadow-xl transition-all duration-300">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 bg-gradient-to-r from-purple-500 to-violet-600 rounded-2xl flex items-center justify-center shadow-lg">
+                      <Shield className="h-7 w-7 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-sm font-medium text-gray-600 mb-2">Authority</div>
+                      <div className="space-y-1">
+                        <div className="text-sm font-semibold text-gray-900">
+                          {election.election_authorities?.name || 'Default Authority'}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          Modified: {election.last_modified_at ? 
+                            new Date(election.last_modified_at).toLocaleString() : 'Never'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </div>
 
-        {/* Elections Management */}
+        {/* Management Tabs */}
         <Card className="border-0 shadow-xl bg-white rounded-3xl overflow-hidden">
-          <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-8">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-2xl font-bold mb-2">Elections Management</CardTitle>
-                <CardDescription className="text-blue-100">
-                  Monitor, analyze, and manage all elections in the system
-                </CardDescription>
-              </div>
-              <Button variant="secondary" className="bg-white text-blue-600 hover:bg-blue-50">
-                <Plus className="h-4 w-4 mr-2" />
-                New Election
-              </Button>
+          <Tabs defaultValue="overview" className="w-full">
+            <div className="border-b border-gray-100 bg-gradient-to-r from-gray-50 to-slate-50">
+              <TabsList className="h-auto p-3 bg-transparent w-full justify-start gap-2">
+                <TabsTrigger 
+                  value="overview" 
+                  className="flex items-center gap-2 px-6 py-3 rounded-2xl data-[state=active]:bg-white data-[state=active]:shadow-md transition-all duration-300"
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  Overview & Results
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="edit" 
+                  disabled={!canEdit}
+                  className="flex items-center gap-2 px-6 py-3 rounded-2xl data-[state=active]:bg-white data-[state=active]:shadow-md disabled:opacity-50 transition-all duration-300"
+                >
+                  <Settings className="h-4 w-4" />
+                  Edit Election
+                  {!canEdit && <Lock className="h-3 w-3" />}
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="tally"
+                  className="flex items-center gap-2 px-6 py-3 rounded-2xl data-[state=active]:bg-white data-[state=active]:shadow-md transition-all duration-300"
+                >
+                  <TrendingUp className="h-4 w-4" />
+                  Process Tally
+                </TabsTrigger>
+              </TabsList>
             </div>
-          </CardHeader>
-          
-          <CardContent className="p-0">
-            <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
-              <div className="border-b border-gray-100 px-8 pt-6">
-                <TabsList className="bg-gray-50 border border-gray-200 rounded-xl p-1">
-                  <TabsTrigger 
-                    value="overview" 
-                    className="px-6 py-2 rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-blue-600 font-medium"
-                  >
-                    <Activity className="h-4 w-4 mr-2" />
-                    Overview
-                  </TabsTrigger>
-                  <TabsTrigger 
-                    value="active"
-                    className="px-6 py-2 rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-green-600 font-medium"
-                  >
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Active ({activeElections.length})
-                  </TabsTrigger>
-                  <TabsTrigger 
-                    value="completed"
-                    className="px-6 py-2 rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-600 font-medium"
-                  >
-                    <Clock className="h-4 w-4 mr-2" />
-                    Completed ({completedElections.length})
-                  </TabsTrigger>
-                </TabsList>
-              </div>
+            
+            <TabsContent value="overview" className="p-8 space-y-6">
+              <TallyResultsDisplay
+                key={refreshKey}
+                electionId={election.id}
+                electionTitle={election.title}
+                option1Name={election.option1}
+                option2Name={election.option2}
+              />
+            </TabsContent>
+            
+            <TabsContent value="edit" className="p-8 space-y-6">
+              {!canEdit ? (
+                <Alert className="border-amber-200 bg-amber-50 rounded-2xl">
+                  <Lock className="h-4 w-4 text-amber-600" />
+                  <AlertDescription className="text-amber-800">
+                    Editing is disabled because this election has been closed. 
+                    {isManuallyClosed && " The election was manually closed by an authority."}
+                    {isNaturallyClosed && !isManuallyClosed && " The election has ended."}
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <>
+                  {!safeToEdit && (
+                    <Alert variant="destructive" className="border-red-200 bg-red-50 rounded-2xl">
+                      <AlertTriangle className="h-4 w-4 text-red-600" />
+                      <AlertDescription className="text-red-800">
+                        Warning: This election already has votes. Editing certain fields may affect the integrity of the results.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  <ElectionEditForm
+                    election={election}
+                    safeToEdit={safeToEdit}
+                    onElectionUpdated={handleElectionUpdated}
+                  />
+                </>
+              )}
+            </TabsContent>
+            
+            <TabsContent value="tally" className="p-8 space-y-6">
+              {!isElectionEnded && (
+                <Alert variant="destructive" className="border-red-200 bg-red-50 rounded-2xl">
+                  <Lock className="h-4 w-4 text-red-600" />
+                  <AlertDescription className="text-red-800">
+                    Tally processing is disabled while the election is still active. The election must be closed or expired before tallying can be performed.
+                  </AlertDescription>
+                </Alert>
+              )}
               
-              <div className="p-8">
-                <TabsContent value="overview" className="mt-0">
-                  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    {elections.map((election) => (
-                      <ElectionCard key={election.id} election={election} />
-                    ))}
-                  </div>
-                  {elections.length === 0 && (
-                    <div className="text-center py-12">
-                      <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Vote className="h-10 w-10 text-blue-500" />
-                      </div>
-                      <h3 className="text-xl font-semibold text-gray-900 mb-2">No Elections Found</h3>
-                      <p className="text-gray-600">Start by creating your first election to manage democratic processes.</p>
+              {tallyProcessed && tallyStats ? (
+                <Card className="border-emerald-200 bg-emerald-50 rounded-2xl">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-emerald-800">
+                      <CheckCircle className="h-5 w-5" />
+                      Tally Already Processed
+                    </CardTitle>
+                    <CardDescription className="text-emerald-700">
+                      The tally for this election has already been processed and cannot be run again.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <Alert className="border-emerald-300 bg-emerald-100 rounded-xl">
+                      <CheckCircle className="h-4 w-4 text-emerald-600" />
+                      <AlertDescription className="text-emerald-800">
+                        Tally processing completed on {new Date(tallyStats.processedAt).toLocaleString()}
+                        {tallyStats.processedBy && ` by ${tallyStats.processedBy}`}
+                      </AlertDescription>
+                    </Alert>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <Card className="border-0 bg-white/70 rounded-xl">
+                        <CardContent className="pt-6">
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-blue-600">{tallyStats.totalVoters}</div>
+                            <div className="text-sm text-gray-600">Total Voters</div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      
+                      <Card className="border-0 bg-white/70 rounded-xl">
+                        <CardContent className="pt-6">
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-red-600">{tallyStats.nullifiedVotes}</div>
+                            <div className="text-sm text-gray-600">Nullified Votes</div>
+                          </div>
+                        </CardContent>
+                      </Card>
                     </div>
-                  )}
-                </TabsContent>
-                
-                <TabsContent value="active" className="mt-0">
-                  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    {activeElections.map((election) => (
-                      <ElectionCard key={election.id} election={election} />
-                    ))}
-                  </div>
-                  {activeElections.length === 0 && (
-                    <div className="text-center py-12">
-                      <div className="w-20 h-20 bg-gradient-to-br from-green-100 to-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Activity className="h-10 w-10 text-green-500" />
-                      </div>
-                      <h3 className="text-xl font-semibold text-gray-900 mb-2">No Active Elections</h3>
-                      <p className="text-gray-600">All elections have been completed or none have been created yet.</p>
-                    </div>
-                  )}
-                </TabsContent>
-                
-                <TabsContent value="completed" className="mt-0">
-                  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    {completedElections.map((election) => (
-                      <ElectionCard key={election.id} election={election} />
-                    ))}
-                  </div>
-                  {completedElections.length === 0 && (
-                    <div className="text-center py-12">
-                      <div className="w-20 h-20 bg-gradient-to-br from-gray-100 to-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Clock className="h-10 w-10 text-gray-500" />
-                      </div>
-                      <h3 className="text-xl font-semibold text-gray-900 mb-2">No Completed Elections</h3>
-                      <p className="text-gray-600">Elections that have ended will appear here.</p>
-                    </div>
-                  )}
-                </TabsContent>
-              </div>
-            </Tabs>
-          </CardContent>
+                  </CardContent>
+                </Card>
+              ) : isElectionEnded ? (
+                <ElectionAuthorityInterface
+                  electionId={election.id}
+                  electionTitle={election.title}
+                  onTallyComplete={handleTallyComplete}
+                />
+              ) : (
+                <Card className="border-gray-200 bg-gray-50 rounded-2xl">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-gray-700">
+                      <Lock className="h-5 w-5" />
+                      Tally Processing Unavailable
+                    </CardTitle>
+                    <CardDescription className="text-gray-600">
+                      Tally processing will become available once the election is closed
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Alert className="border-amber-200 bg-amber-50 rounded-xl">
+                      <AlertTriangle className="h-4 w-4 text-amber-600" />
+                      <AlertDescription className="text-amber-800">
+                        The election is currently active and accepting votes. Tally processing is disabled to maintain election integrity. 
+                        {!isManuallyClosed && !isNaturallyClosed && " You can close the election early using the 'Close Early' button above."}
+                      </AlertDescription>
+                    </Alert>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+          </Tabs>
         </Card>
       </div>
     </div>
