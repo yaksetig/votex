@@ -135,23 +135,23 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
     description: string;
     trend?: 'up' | 'down' | 'neutral';
   }) => (
-    <Card className="border-slate-700 bg-slate-800 shadow-lg hover:shadow-xl transition-all duration-300">
+    <Card className="border-0 shadow-lg bg-gradient-to-br from-white to-gray-50 hover:shadow-xl transition-all duration-300">
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-slate-400 mb-1">{title}</p>
-            <p className="text-3xl font-bold text-white">{value}</p>
-            <p className="text-sm text-slate-500 mt-1">{description}</p>
+            <p className="text-sm font-medium text-gray-600 mb-1">{title}</p>
+            <p className="text-3xl font-bold text-gray-900">{value}</p>
+            <p className="text-sm text-gray-500 mt-1">{description}</p>
           </div>
           <div className={`p-3 rounded-2xl ${
-            trend === 'up' ? 'bg-green-800' : 
-            trend === 'down' ? 'bg-red-800' : 
-            'bg-blue-800'
+            trend === 'up' ? 'bg-green-100' : 
+            trend === 'down' ? 'bg-red-100' : 
+            'bg-blue-100'
           }`}>
             <Icon className={`h-8 w-8 ${
-              trend === 'up' ? 'text-green-300' : 
-              trend === 'down' ? 'text-red-300' : 
-              'text-blue-300'
+              trend === 'up' ? 'text-green-600' : 
+              trend === 'down' ? 'text-red-600' : 
+              'text-blue-600'
             }`} />
           </div>
         </div>
@@ -164,61 +164,61 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
     const stats = voteStats[election.id];
     
     return (
-      <Card className="group border-slate-700 bg-slate-800 hover:bg-slate-750 shadow-lg hover:shadow-2xl transition-all duration-500 rounded-2xl overflow-hidden">
+      <Card className="group border-0 shadow-lg hover:shadow-2xl transition-all duration-500 rounded-2xl overflow-hidden bg-gradient-to-br from-white to-gray-50 hover:from-blue-50 hover:to-indigo-50">
         <CardHeader className="p-6 pb-4">
           <div className="flex items-start justify-between">
             <div className="flex-1">
-              <CardTitle className="text-lg font-bold text-white mb-2 group-hover:text-blue-400 transition-colors">
+              <CardTitle className="text-lg font-bold text-gray-900 mb-2 group-hover:text-blue-700 transition-colors">
                 {election.title}
               </CardTitle>
               <div className="flex items-center gap-2 mb-3">
                 {isExpired ? (
-                  <Badge variant="secondary" className="bg-slate-600 text-slate-100 border-slate-500">
+                  <Badge variant="secondary" className="bg-gray-100 text-gray-700 border-gray-200">
                     <XCircle className="h-3 w-3 mr-1" />
                     Completed
                   </Badge>
                 ) : (
-                  <Badge variant="secondary" className="bg-green-600 text-green-100 border-green-500">
-                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse mr-1"></div>
+                  <Badge variant="secondary" className="bg-green-100 text-green-700 border-green-200">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse mr-1"></div>
                     Active
                   </Badge>
                 )}
-                <Badge variant="outline" className="text-xs border-slate-600 text-slate-300">
+                <Badge variant="outline" className="text-xs">
                   {stats?.totalVotes || 0} votes
                 </Badge>
               </div>
             </div>
             <div className="flex gap-2">
-              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 hover:bg-slate-700 text-blue-400">
-                <Eye className="h-4 w-4" />
+              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 hover:bg-blue-100">
+                <Eye className="h-4 w-4 text-blue-600" />
               </Button>
-              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 hover:bg-slate-700 text-slate-300">
-                <Edit className="h-4 w-4" />
+              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 hover:bg-gray-100">
+                <Edit className="h-4 w-4 text-gray-600" />
               </Button>
             </div>
           </div>
         </CardHeader>
         
         <CardContent className="px-6 pb-4">
-          <p className="text-sm text-slate-400 mb-4 line-clamp-2">{election.description}</p>
+          <p className="text-sm text-gray-600 mb-4 line-clamp-2">{election.description}</p>
           
           {/* Voting Options */}
           <div className="space-y-3 mb-4">
-            <div className="flex items-center justify-between p-3 bg-blue-900/50 rounded-xl border border-blue-800">
+            <div className="flex items-center justify-between p-3 bg-blue-50 rounded-xl border border-blue-100">
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-blue-400 rounded-full"></div>
-                <span className="text-sm font-medium text-blue-200">{election.option1}</span>
+                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                <span className="text-sm font-medium text-blue-900">{election.option1}</span>
               </div>
-              <span className="text-sm font-bold text-blue-300">
+              <span className="text-sm font-bold text-blue-700">
                 {stats?.option1Percentage || 0}%
               </span>
             </div>
-            <div className="flex items-center justify-between p-3 bg-purple-900/50 rounded-xl border border-purple-800">
+            <div className="flex items-center justify-between p-3 bg-purple-50 rounded-xl border border-purple-100">
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-purple-400 rounded-full"></div>
-                <span className="text-sm font-medium text-purple-200">{election.option2}</span>
+                <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
+                <span className="text-sm font-medium text-purple-900">{election.option2}</span>
               </div>
-              <span className="text-sm font-bold text-purple-300">
+              <span className="text-sm font-bold text-purple-700">
                 {stats?.option2Percentage || 0}%
               </span>
             </div>
@@ -228,7 +228,7 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
           {stats && stats.totalVotes > 0 && (
             <div className="space-y-2">
               <div className="relative">
-                <Progress value={stats.option1Percentage} className="h-2 bg-slate-700" />
+                <Progress value={stats.option1Percentage} className="h-2 bg-gray-200" />
                 <div 
                   className="absolute inset-0 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full transition-all duration-500" 
                   style={{ width: `${stats.option1Percentage}%` }}
@@ -237,7 +237,7 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
             </div>
           )}
           
-          <div className="flex items-center gap-4 mt-4 text-xs text-slate-500">
+          <div className="flex items-center gap-4 mt-4 text-xs text-gray-500">
             <div className="flex items-center gap-1">
               <Calendar className="h-3 w-3" />
               <span>
@@ -254,15 +254,15 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
         <div className="container mx-auto p-8">
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
             {[...Array(4)].map((_, i) => (
-              <Card key={i} className="border-slate-700 bg-slate-800 shadow-lg animate-pulse">
+              <Card key={i} className="border-0 shadow-lg animate-pulse">
                 <CardContent className="p-6">
-                  <div className="h-4 bg-slate-700 rounded mb-4"></div>
-                  <div className="h-8 bg-slate-700 rounded mb-2"></div>
-                  <div className="h-3 bg-slate-700 rounded"></div>
+                  <div className="h-4 bg-gray-200 rounded mb-4"></div>
+                  <div className="h-8 bg-gray-200 rounded mb-2"></div>
+                  <div className="h-3 bg-gray-200 rounded"></div>
                 </CardContent>
               </Card>
             ))}
@@ -273,19 +273,19 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
   }
 
   return (
-    <div className="min-h-screen bg-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
       {/* Header */}
-      <div className="bg-slate-800 border-b border-slate-700 shadow-sm">
+      <div className="bg-white border-b border-gray-100 shadow-sm">
         <div className="container mx-auto px-8 py-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
                 Election Authority Dashboard
               </h1>
-              <p className="text-slate-400 mt-1">Monitor and manage all elections</p>
+              <p className="text-gray-600 mt-1">Monitor and manage all elections</p>
             </div>
             <div className="flex items-center gap-3">
-              <Badge variant="outline" className="bg-blue-900/50 text-blue-300 border-blue-700">
+              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
                 <Shield className="h-3 w-3 mr-1" />
                 Authority Access
               </Badge>
@@ -328,16 +328,16 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
         </div>
 
         {/* Elections Management */}
-        <Card className="border-slate-700 bg-slate-800 shadow-xl rounded-3xl overflow-hidden">
-          <CardHeader className="bg-gradient-to-r from-slate-700 to-slate-600 text-white p-8">
+        <Card className="border-0 shadow-xl bg-white rounded-3xl overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-8">
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-2xl font-bold mb-2 text-white">Elections Management</CardTitle>
-                <CardDescription className="text-slate-300">
+                <CardTitle className="text-2xl font-bold mb-2">Elections Management</CardTitle>
+                <CardDescription className="text-blue-100">
                   Monitor, analyze, and manage all elections in the system
                 </CardDescription>
               </div>
-              <Button variant="secondary" className="bg-slate-600 text-white hover:bg-slate-500 border-slate-500">
+              <Button variant="secondary" className="bg-white text-blue-600 hover:bg-blue-50">
                 <Plus className="h-4 w-4 mr-2" />
                 New Election
               </Button>
@@ -346,25 +346,25 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
           
           <CardContent className="p-0">
             <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
-              <div className="border-b border-slate-700 px-8 pt-6">
-                <TabsList className="bg-slate-700 border border-slate-600 rounded-xl p-1">
+              <div className="border-b border-gray-100 px-8 pt-6">
+                <TabsList className="bg-gray-50 border border-gray-200 rounded-xl p-1">
                   <TabsTrigger 
                     value="overview" 
-                    className="px-6 py-2 rounded-lg data-[state=active]:bg-slate-600 data-[state=active]:shadow-sm data-[state=active]:text-blue-300 font-medium text-slate-300"
+                    className="px-6 py-2 rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-blue-600 font-medium"
                   >
                     <Activity className="h-4 w-4 mr-2" />
                     Overview
                   </TabsTrigger>
                   <TabsTrigger 
                     value="active"
-                    className="px-6 py-2 rounded-lg data-[state=active]:bg-slate-600 data-[state=active]:shadow-sm data-[state=active]:text-green-300 font-medium text-slate-300"
+                    className="px-6 py-2 rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-green-600 font-medium"
                   >
                     <CheckCircle className="h-4 w-4 mr-2" />
                     Active ({activeElections.length})
                   </TabsTrigger>
                   <TabsTrigger 
                     value="completed"
-                    className="px-6 py-2 rounded-lg data-[state=active]:bg-slate-600 data-[state=active]:shadow-sm data-[state=active]:text-slate-300 font-medium text-slate-300"
+                    className="px-6 py-2 rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-600 font-medium"
                   >
                     <Clock className="h-4 w-4 mr-2" />
                     Completed ({completedElections.length})
@@ -381,11 +381,11 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
                   </div>
                   {elections.length === 0 && (
                     <div className="text-center py-12">
-                      <div className="w-20 h-20 bg-gradient-to-br from-slate-700 to-slate-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Vote className="h-10 w-10 text-slate-300" />
+                      <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Vote className="h-10 w-10 text-blue-500" />
                       </div>
-                      <h3 className="text-xl font-semibold text-white mb-2">No Elections Found</h3>
-                      <p className="text-slate-400">Start by creating your first election to manage democratic processes.</p>
+                      <h3 className="text-xl font-semibold text-gray-900 mb-2">No Elections Found</h3>
+                      <p className="text-gray-600">Start by creating your first election to manage democratic processes.</p>
                     </div>
                   )}
                 </TabsContent>
@@ -398,11 +398,11 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
                   </div>
                   {activeElections.length === 0 && (
                     <div className="text-center py-12">
-                      <div className="w-20 h-20 bg-gradient-to-br from-green-800 to-emerald-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Activity className="h-10 w-10 text-green-300" />
+                      <div className="w-20 h-20 bg-gradient-to-br from-green-100 to-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Activity className="h-10 w-10 text-green-500" />
                       </div>
-                      <h3 className="text-xl font-semibold text-white mb-2">No Active Elections</h3>
-                      <p className="text-slate-400">All elections have been completed or none have been created yet.</p>
+                      <h3 className="text-xl font-semibold text-gray-900 mb-2">No Active Elections</h3>
+                      <p className="text-gray-600">All elections have been completed or none have been created yet.</p>
                     </div>
                   )}
                 </TabsContent>
@@ -415,11 +415,11 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
                   </div>
                   {completedElections.length === 0 && (
                     <div className="text-center py-12">
-                      <div className="w-20 h-20 bg-gradient-to-br from-slate-700 to-slate-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Clock className="h-10 w-10 text-slate-300" />
+                      <div className="w-20 h-20 bg-gradient-to-br from-gray-100 to-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Clock className="h-10 w-10 text-gray-500" />
                       </div>
-                      <h3 className="text-xl font-semibold text-white mb-2">No Completed Elections</h3>
-                      <p className="text-slate-400">Elections that have ended will appear here.</p>
+                      <h3 className="text-xl font-semibold text-gray-900 mb-2">No Completed Elections</h3>
+                      <p className="text-gray-600">Elections that have ended will appear here.</p>
                     </div>
                   )}
                 </TabsContent>
