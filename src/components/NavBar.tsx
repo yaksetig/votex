@@ -1,10 +1,12 @@
 
 import React from "react";
 import { useWallet } from "@/contexts/WalletContext";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 const NavBar = () => {
   const { isWorldIDVerified, resetIdentity } = useWallet();
+  const location = useLocation();
+  const isElectionAuthorityPage = location.pathname.includes('election_authority');
 
   return (
     <nav className="py-4 px-6 flex items-center justify-between border-b border-border">
@@ -16,7 +18,7 @@ const NavBar = () => {
         </Link>
       </div>
       <div className="flex items-center gap-4">
-        {isWorldIDVerified && (
+        {isWorldIDVerified && !isElectionAuthorityPage && (
           <>
             <Link to="/dashboard" className="text-sm hover:text-primary transition-colors">
               Dashboard
@@ -28,12 +30,14 @@ const NavBar = () => {
         )}
         {isWorldIDVerified && (
           <>
-            <div className="bg-green-500/20 text-green-500 px-3 py-1 rounded-full text-sm flex items-center">
-              <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-              </svg>
-              Verified Human
-            </div>
+            {!isElectionAuthorityPage && (
+              <div className="bg-green-500/20 text-green-500 px-3 py-1 rounded-full text-sm flex items-center">
+                <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+                Verified Human
+              </div>
+            )}
             <button 
               onClick={resetIdentity}
               className="text-sm text-muted-foreground hover:text-destructive"
