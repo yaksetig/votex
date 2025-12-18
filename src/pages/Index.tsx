@@ -1,20 +1,18 @@
-
 import React from 'react';
 import WorldIDVerifier from '@/components/WorldIDVerifier';
 import { useWallet } from '@/contexts/WalletContext';
 import { Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-
 const Index = () => {
-  const { isWorldIDVerified } = useWallet();
+  const {
+    isWorldIDVerified
+  } = useWallet();
 
   // If already verified, redirect directly to elections page
   if (isWorldIDVerified) {
     return <Navigate to="/elections" replace />;
   }
-
-  return (
-    <div className="min-h-[calc(100vh-64px)] flex items-center justify-center p-4">
+  return <div className="min-h-[calc(100vh-64px)] flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-card p-8 rounded-xl shadow-lg">
         <div className="mb-8 text-center">
           <div className="inline-block p-3 rounded-full bg-primary/10 mb-4">
@@ -23,9 +21,7 @@ const Index = () => {
             </svg>
           </div>
           <h1 className="text-3xl font-bold mb-2">Humanity Check</h1>
-          <p className="text-muted-foreground">
-            Prove you're a human by verifying with World ID.
-          </p>
+          <p className="text-muted-foreground">Prove you're a human with World ID.</p>
         </div>
         
         <div className="mb-8">
@@ -58,8 +54,6 @@ const Index = () => {
           <WorldIDVerifier />
         </div>
       </div>
-    </div>
-  );
+    </div>;
 };
-
 export default Index;
