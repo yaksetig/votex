@@ -63,11 +63,12 @@ export async function getElectionVoteData(electionId: string): Promise<VoteData 
 }
 
 // Record a vote in the appropriate tracking table
-export async function recordVote(electionId: string, voterId: string, choice: string): Promise<boolean> {
+// isOption1 should be true if the choice matches the election's option1
+export async function recordVote(electionId: string, voterId: string, isOption1: boolean): Promise<boolean> {
   try {
-    console.log(`Recording vote: election=${electionId}, voter=${voterId}, choice=${choice}`);
+    console.log(`Recording vote: election=${electionId}, voter=${voterId}, isOption1=${isOption1}`);
     
-    const tableName = choice === 'Yes' ? 'yes_votes' : 'no_votes';
+    const tableName = isOption1 ? 'yes_votes' : 'no_votes';
     
     const { error } = await supabase
       .from(tableName)
