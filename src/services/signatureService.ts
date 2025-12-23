@@ -37,7 +37,10 @@ function stringToBytes(str: string): Uint8Array {
 
 // SHA-256 hash function
 async function sha256(msg: Uint8Array): Promise<Uint8Array> {
-  const h = await crypto.subtle.digest("SHA-256", msg);
+  // Create a new ArrayBuffer to avoid SharedArrayBuffer type issues
+  const buffer = new ArrayBuffer(msg.length);
+  new Uint8Array(buffer).set(msg);
+  const h = await crypto.subtle.digest("SHA-256", buffer);
   return new Uint8Array(h);
 }
 
