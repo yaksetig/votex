@@ -232,8 +232,8 @@ const ElectionDetail = () => {
       
       if (oldVoteError) throw oldVoteError;
       
-      // Record in new tracking table
-      const tableName = selectedOption === 'Yes' ? 'yes_votes' : 'no_votes';
+      // Record in new tracking table - use option1 to determine table, not hardcoded "Yes"
+      const tableName = selectedOption === election.option1 ? 'yes_votes' : 'no_votes';
       const { error: newVoteError } = await supabase
         .from(tableName)
         .upsert({
