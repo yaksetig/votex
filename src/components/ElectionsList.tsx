@@ -146,10 +146,16 @@ const ElectionsList: React.FC<ElectionsListProps> = ({ elections, loading }) => 
               
               {/* Vote Distribution Bar */}
               {voteData && voteData.total > 0 ? (
-                <div className="mb-4 space-y-2">
+              <div className="mb-4 space-y-2">
                   <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>{election.option1}: {voteData.option1} ({voteData.option1Percentage}%)</span>
-                    <span>{election.option2}: {voteData.option2} ({voteData.option2Percentage}%)</span>
+                    <span className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-primary"></span>
+                      {election.option1}: {voteData.option1} ({voteData.option1Percentage}%)
+                    </span>
+                    <span className="flex items-center gap-1">
+                      {election.option2}: {voteData.option2} ({voteData.option2Percentage}%)
+                      <span className="w-2 h-2 rounded-full bg-muted"></span>
+                    </span>
                   </div>
                   <Progress value={voteData.option1Percentage} className="h-2" />
                   <div className="text-center text-xs text-muted-foreground">
