@@ -9,10 +9,12 @@ import { Shield, Loader2 } from 'lucide-react';
 
 interface WorldIDVerifierProps {
   onVerificationSuccess?: () => void;
+  signal?: string;  // Hash(pk) - binds BabyJubJub public key to World ID proof
 }
 
 const WorldIDVerifier: React.FC<WorldIDVerifierProps> = ({ 
-  onVerificationSuccess = () => {} 
+  onVerificationSuccess = () => {},
+  signal
 }) => {
   const [isVerifying, setIsVerifying] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -95,6 +97,7 @@ const WorldIDVerifier: React.FC<WorldIDVerifierProps> = ({
         <IDKitWidget
           app_id="app_e2fd2f8c99430ab200a093278e801c57"   // your real app_id
           action="registration"                           // match your dashboard
+          signal={signal}                                 // Hash(pk) - binds proof to public key
           onSuccess={handleVerificationSuccess}
           onError={handleVerificationError}
           autoClose
