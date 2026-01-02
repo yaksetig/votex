@@ -309,23 +309,132 @@ export async function deriveSecretFromPasskey(credentialId: string): Promise<PRF
 }
 
 /**
+ * Authenticate with ANY available passkey using discoverable credentials
+ * 
+ * This uses an empty allowCredentials array which enables:
+ * 1. Browser/OS to show all passkeys for this domain (from Keychain, Google PM, etc.)
+ * 2. QR code scanning to use a passkey from another device (hybrid transport)
+ * 
+ * This is the key to cross-device and cross-session determinism:
+ * - Works in private browsing (passkeys are in OS Keychain, not localStorage)
+ * - Works across devices via synced passkeys or hybrid transport
+ * 
+ * @returns The PRF-derived secret from the selected passkey
+ * @throws Error if authentication fails or is cancelled
+ */
+export async function authenticateWithAnyPasskey(): Promise<PRFResult> {
+  const challenge = generateChallenge();
+
+  // Create proper ArrayBuffer for challenge
+  const challengeBuffer = new ArrayBuffer(challenge.length);
+  new Uint8Array(challengeBuffer).set(challenge);
+
+  // Create proper ArrayBuffer for PRF salt
+  const prfSaltBuffer = new ArrayBuffer(PRF_DOMAIN_SALT.length);
+  new Uint8Array(prfSaltBuffer).set(PRF_DOMAIN_SALT);
+
+  const getOptions: PublicKeyCredentialRequestOptions = {
+    challenge: challengeBuffer,
+    rpId: window.location.hostname,
+    // EMPTY allowCredentials enables discoverable credential flow
+    // This shows the passkey picker with all available passkeys for this domain
+    allowCredentials: [],
+    userVerification: "required",
+    timeout: 60000,
+    extensions: {
+      prf: {
+        eval: {
+          first: prfSaltBuffer
+        }
+      }
+    } as AuthenticationExtensionsClientInputs
+  };
+
+  try {
+    const assertion = await navigator.credentials.get({
+      publicKey: getOptions,
+      // "optional" allows browser to show passkey picker UI
+      mediation: "optional"
+    }) as PublicKeyCredential | null;
+
+    if (!assertion) {
+      throw new Error("Authentication returned null");
+    }
+
+    // Extract credential ID from the assertion
+    const credentialId = bufferToBase64(assertion.rawId);
+    
+    // Store the credential ID for future convenience (but not required)
+    storeCredentialId(credentialId);
+
+    // Extract PRF result
+    const extensionResults = assertion.getClientExtensionResults() as {
+      prf?: { results?: { first?: ArrayBuffer } };
+    };
+
+    if (!extensionResults.prf?.results?.first) {
+      throw new Error(
+        "PRF extension did not return a result. " +
+        "Your passkey may not support the PRF extension."
+      );
+    }
+
+    const secret = extensionResults.prf.results.first;
+
+    // Validate secret length (should be 32 bytes)
+    if (secret.byteLength !== 32) {
+      throw new Error(`Unexpected PRF output length: ${secret.byteLength} (expected 32)`);
+    }
+
+    console.log("PRF secret derived via discoverable credentials");
+    return {
+      secret,
+      credentialId
+    };
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.name === "NotAllowedError") {
+        throw new Error("Passkey authentication was cancelled or timed out");
+      }
+      if (error.name === "SecurityError") {
+        throw new Error("Security error during passkey authentication");
+      }
+    }
+    throw error;
+  }
+}
+
+/**
  * Create a new passkey OR authenticate with existing one and derive secret
  * 
  * This is the main entry point for the passkey flow:
- * 1. If no credential exists, create a new one
- * 2. Authenticate with the credential to get PRF output
+ * 1. First, try discoverable credential flow (shows all available passkeys)
+ * 2. If no passkey found or user cancels, offer to create a new one
  * 
+ * @param forceCreate - If true, skip authentication attempt and create new passkey
  * @returns The PRF-derived secret
  */
-export async function getOrCreatePasskeySecret(): Promise<PRFResult> {
-  let credentialId = getStoredCredentialId();
-
-  if (!credentialId) {
-    // Generate a random user ID for privacy
-    // (World ID provides the actual uniqueness guarantee)
-    const userId = crypto.getRandomValues(new Uint8Array(32));
-    credentialId = await createPasskeyCredential(userId);
+export async function getOrCreatePasskeySecret(forceCreate: boolean = false): Promise<PRFResult> {
+  if (!forceCreate) {
+    try {
+      // Try discoverable credential flow first
+      // This will show any available passkeys (synced, from Keychain, or via QR)
+      console.log("Attempting discoverable credential authentication...");
+      return await authenticateWithAnyPasskey();
+    } catch (error) {
+      // If user explicitly cancelled, propagate the error
+      if (error instanceof Error && error.message.includes("cancelled")) {
+        throw error;
+      }
+      // Otherwise, fall through to create new passkey
+      console.log("No existing passkey found or authentication failed, will create new one");
+    }
   }
+
+  // Generate a random user ID for privacy
+  // (World ID provides the actual uniqueness guarantee)
+  const userId = crypto.getRandomValues(new Uint8Array(32));
+  const credentialId = await createPasskeyCredential(userId);
 
   // Now authenticate to get the PRF secret
   return await deriveSecretFromPasskey(credentialId);

@@ -6,22 +6,15 @@ import PasskeyRegistration from "@/components/PasskeyRegistration"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { Eye, EyeOff, Key, AlertTriangle, RefreshCw, Fingerprint, Loader2 } from "lucide-react"
-import { hasExistingPasskey, getOrCreatePasskeySecret } from "@/services/passkeyService"
+import { Key, Fingerprint, Loader2, RefreshCw } from "lucide-react"
+import { authenticateWithAnyPasskey } from "@/services/passkeyService"
 import { deriveKeypairFromSecret, publicKeyToStrings, verifyDerivedKeypair } from "@/services/deterministicKeyService"
 
 const Dashboard = () => {
   const { isWorldIDVerified, userId, derivedPublicKey, setDerivedPublicKey, resetIdentity } = useWallet()
   const { toast } = useToast()
   const [isVerificationComplete, setIsVerificationComplete] = useState(false)
-  const [showPrivateKeyWarning, setShowPrivateKeyWarning] = useState(false)
   const [isDerivingKey, setIsDerivingKey] = useState(false)
-  const [hasPasskey, setHasPasskey] = useState(false)
-  
-  // Check for existing passkey on mount
-  useEffect(() => {
-    setHasPasskey(hasExistingPasskey())
-  }, [])
   
   const handleRegistrationComplete = () => {
     console.log('Registration complete in Dashboard')
@@ -33,11 +26,13 @@ const Dashboard = () => {
     })
   }
 
-  // Re-derive keypair from passkey (for returning users)
+  // Re-derive keypair from passkey using discoverable credentials
+  // This uses the OS passkey picker, so it works in private browsing and across sessions
   const rederiveKeypair = async () => {
     setIsDerivingKey(true)
     try {
-      const prfResult = await getOrCreatePasskeySecret()
+      // Use discoverable credential flow - shows all available passkeys
+      const prfResult = await authenticateWithAnyPasskey()
       const keypair = await deriveKeypairFromSecret(prfResult.secret)
       
       // Verify the keypair is valid
@@ -170,7 +165,7 @@ const Dashboard = () => {
               </div>
             </CardContent>
           </Card>
-        ) : hasPasskey ? (
+        ) : (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -180,7 +175,8 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-muted-foreground">
-                Your keypair needs to be derived from your passkey. This happens on-demand for security.
+                Your keypair needs to be derived from your passkey. 
+                Select your passkey from the browser prompt - it works even in private browsing.
               </p>
               <Button 
                 onClick={rederiveKeypair} 
@@ -195,37 +191,9 @@ const Dashboard = () => {
                 ) : (
                   <>
                     <Fingerprint className="mr-2 h-4 w-4" />
-                    Derive Keypair with Passkey
+                    Sign in with Passkey
                   </>
                 )}
-              </Button>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-amber-600">
-                <AlertTriangle className="h-5 w-5" />
-                No Passkey Found
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-muted-foreground">
-                No passkey is associated with this identity. This may happen if you cleared your browser data.
-              </p>
-              <Alert>
-                <AlertDescription>
-                  You can reset your identity and create a new passkey. Your World ID verification will be re-verified
-                  to bind your new keypair.
-                </AlertDescription>
-              </Alert>
-              <Button 
-                onClick={resetIdentity} 
-                variant="outline"
-                className="w-full"
-              >
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Reset Identity and Re-register
               </Button>
             </CardContent>
           </Card>

@@ -25,8 +25,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Shield, Key, Fingerprint, Loader2, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { 
   checkPasskeySupport, 
-  hasExistingPasskey, 
   getOrCreatePasskeySecret,
+  authenticateWithAnyPasskey,
   type PasskeySupport 
 } from '@/services/passkeyService';
 import { 
@@ -41,6 +41,7 @@ interface PasskeyRegistrationProps {
 }
 
 type RegistrationStep = 'check-support' | 'ready' | 'passkey' | 'deriving' | 'worldid' | 'registering' | 'complete' | 'error';
+type AuthMode = 'signin' | 'create';
 
 const PasskeyRegistration: React.FC<PasskeyRegistrationProps> = ({
   onRegistrationComplete
@@ -50,7 +51,7 @@ const PasskeyRegistration: React.FC<PasskeyRegistrationProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [derivedSignal, setDerivedSignal] = useState<string | null>(null);
   const [publicKey, setPublicKey] = useState<{ x: string; y: string } | null>(null);
-  const [hasPasskey, setHasPasskey] = useState(false);
+  const [authMode, setAuthMode] = useState<AuthMode>('signin');
   
   const { toast } = useToast();
   const { setIsWorldIDVerified, setUserId, setJustVerified, setDerivedPublicKey } = useWallet();
@@ -62,7 +63,6 @@ const PasskeyRegistration: React.FC<PasskeyRegistrationProps> = ({
       try {
         const support = await checkPasskeySupport();
         setPasskeySupport(support);
-        setHasPasskey(hasExistingPasskey());
         setStep('ready');
       } catch (err) {
         console.error("Error checking passkey support:", err);
@@ -73,15 +73,24 @@ const PasskeyRegistration: React.FC<PasskeyRegistrationProps> = ({
     checkSupport();
   }, []);
 
-  // Start the registration flow
-  const startRegistration = async () => {
+  // Start the registration flow - tries to sign in with existing passkey first
+  const startRegistration = async (mode: AuthMode = 'signin') => {
     setError(null);
+    setAuthMode(mode);
     setStep('passkey');
     
     try {
-      // Step 1: Get or create passkey and derive PRF secret
-      console.log("Getting passkey secret...");
-      const prfResult = await getOrCreatePasskeySecret();
+      let prfResult;
+      
+      if (mode === 'signin') {
+        // Try discoverable credential flow (shows all available passkeys)
+        console.log("Attempting to authenticate with existing passkey...");
+        prfResult = await authenticateWithAnyPasskey();
+      } else {
+        // Force create new passkey
+        console.log("Creating new passkey...");
+        prfResult = await getOrCreatePasskeySecret(true);
+      }
       
       // Step 2: Derive BabyJubJub keypair from PRF secret
       setStep('deriving');
@@ -250,13 +259,11 @@ const PasskeyRegistration: React.FC<PasskeyRegistrationProps> = ({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Shield className="h-5 w-5 text-primary" />
-          Create Secure Identity
+          Secure Identity
         </CardTitle>
         <CardDescription>
-          {hasPasskey 
-            ? "Sign in with your existing passkey to verify your identity."
-            : "Create a passkey-protected identity that works across all your devices."
-          }
+          Sign in with an existing passkey or create a new identity. 
+          Passkeys sync across your devices via iCloud Keychain, Google Password Manager, or similar.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -280,10 +287,16 @@ const PasskeyRegistration: React.FC<PasskeyRegistrationProps> = ({
 
         {/* Action buttons based on step */}
         {step === 'ready' && (
-          <Button onClick={startRegistration} size="lg" className="w-full" variant="gradient">
-            <Fingerprint className="mr-2 h-4 w-4" />
-            {hasPasskey ? "Sign in with Passkey" : "Create Passkey"}
-          </Button>
+          <div className="space-y-3">
+            <Button onClick={() => startRegistration('signin')} size="lg" className="w-full" variant="gradient">
+              <Fingerprint className="mr-2 h-4 w-4" />
+              Sign in with Passkey
+            </Button>
+            <Button onClick={() => startRegistration('create')} size="lg" className="w-full" variant="outline">
+              <Key className="mr-2 h-4 w-4" />
+              Create New Identity
+            </Button>
+          </div>
         )}
 
         {(step === 'passkey' || step === 'deriving') && (
