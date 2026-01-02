@@ -2,101 +2,78 @@
 import React, { useState, useEffect } from "react"
 import { useWallet } from "@/contexts/WalletContext"
 import { useToast } from "@/hooks/use-toast"
-import WorldIDVerifier from "@/components/WorldIDVerifier"
-import GenerateKeypairButton from "@/components/GenerateKeypairButton"
-import { getStoredKeypair } from "@/services/keypairService"
-import { verifyKeypairConsistency } from "@/services/elGamalService"
-import { StoredKeypair, KeypairResult } from "@/types/keypair"
-import { Button } from "@/components/ui/button"
+import PasskeyRegistration from "@/components/PasskeyRegistration"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Eye, EyeOff, Key, AlertTriangle, RefreshCw } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Eye, EyeOff, Key, AlertTriangle, RefreshCw, Fingerprint, Loader2 } from "lucide-react"
+import { hasExistingPasskey, getOrCreatePasskeySecret } from "@/services/passkeyService"
+import { deriveKeypairFromSecret, publicKeyToStrings, verifyDerivedKeypair } from "@/services/deterministicKeyService"
 
 const Dashboard = () => {
-  const { isWorldIDVerified, userId } = useWallet()
+  const { isWorldIDVerified, userId, derivedPublicKey, setDerivedPublicKey } = useWallet()
   const { toast } = useToast()
   const [isVerificationComplete, setIsVerificationComplete] = useState(false)
-  const [keypair, setKeypair] = useState<StoredKeypair | null>(null)
-  const [showPrivateKey, setShowPrivateKey] = useState(false)
-  const [keypairValid, setKeypairValid] = useState<boolean | null>(null)
+  const [showPrivateKeyWarning, setShowPrivateKeyWarning] = useState(false)
+  const [isDerivingKey, setIsDerivingKey] = useState(false)
+  const [hasPasskey, setHasPasskey] = useState(false)
   
-  // Check verification status and load keypair on component mount
+  // Check for existing passkey on mount
   useEffect(() => {
-    console.log('Dashboard useEffect - isWorldIDVerified:', isWorldIDVerified, 'userId:', userId)
-    
-    // If already verified with a userId, show a message
-    if (isWorldIDVerified && userId) {
-      console.log('User already verified with ID:', userId)
-      
-      // Load keypair from localStorage
-      const storedKeypair = getStoredKeypair()
-      console.log('Stored keypair from localStorage:', storedKeypair)
-      
-      if (storedKeypair) {
-        console.log('Setting keypair state with:', storedKeypair)
-        setKeypair(storedKeypair)
-        
-        // Verify the loaded keypair consistency
-        const isValid = verifyKeypairConsistency(storedKeypair)
-        setKeypairValid(isValid)
-        
-        if (!isValid) {
-          console.warn("Loaded keypair failed consistency check!")
-          toast({
-            variant: "destructive",
-            title: "Keypair inconsistency detected",
-            description: "Your stored keypair may be from an old implementation. Consider generating a new one.",
-          })
-        }
-      } else {
-        console.log('No keypair found in localStorage')
-      }
-    }
-  }, [isWorldIDVerified, userId, toast])
-
-  const handleVerificationSuccess = () => {
-    console.log('Verification success callback in Dashboard')
+    setHasPasskey(hasExistingPasskey())
+  }, [])
+  
+  const handleRegistrationComplete = () => {
+    console.log('Registration complete in Dashboard')
     setIsVerificationComplete(true)
     
-    // Show celebration toast
     toast({
       title: "Welcome to Votex!",
       description: "You can now create and participate in anonymous elections.",
     })
   }
 
-  const handleKeypairGenerated = (newKeypair: KeypairResult) => {
-    console.log('Keypair generated in Dashboard:', newKeypair)
-    // Convert to StoredKeypair format
-    const storedKeypair: StoredKeypair = {
-      k: newKeypair.k.toString(),
-      Ax: newKeypair.Ax.toString(),
-      Ay: newKeypair.Ay.toString()
+  // Re-derive keypair from passkey (for returning users)
+  const rederiveKeypair = async () => {
+    setIsDerivingKey(true)
+    try {
+      const prfResult = await getOrCreatePasskeySecret()
+      const keypair = await deriveKeypairFromSecret(prfResult.secret)
+      
+      // Verify the keypair is valid
+      if (!verifyDerivedKeypair(keypair)) {
+        throw new Error("Derived keypair verification failed")
+      }
+      
+      const pkStrings = publicKeyToStrings(keypair.pk)
+      setDerivedPublicKey(pkStrings)
+      
+      toast({
+        title: "Keypair derived",
+        description: "Your cryptographic keypair has been derived from your passkey.",
+      })
+    } catch (error) {
+      console.error("Error deriving keypair:", error)
+      toast({
+        variant: "destructive",
+        title: "Derivation failed",
+        description: error instanceof Error ? error.message : "Failed to derive keypair",
+      })
+    } finally {
+      setIsDerivingKey(false)
     }
-    setKeypair(storedKeypair)
-    setKeypairValid(true) // New keypairs are always valid
-    
-    toast({
-      title: "New keypair generated",
-      description: "Your cryptographic keypair has been updated successfully.",
-    })
-  }
-
-  const truncateKey = (key: string, showFull: boolean = false) => {
-    if (showFull || key.length <= 12) return key;
-    return `${key.substring(0, 6)}...${key.substring(key.length - 6)}`;
   }
 
   // If not verified with World ID or don't have a userId
   if (!isWorldIDVerified || !userId) {
     return (
       <div className="container mx-auto py-8 px-4">
-        <div className="max-w-md mx-auto bg-card p-6 rounded-lg border border-border">
-          <h2 className="text-2xl font-bold mb-4">Welcome to Votex</h2>
-          <p className="mb-6">
-            To participate in anonymous voting, you need to verify your identity with World ID.
+        <div className="max-w-md mx-auto">
+          <h2 className="text-2xl font-bold mb-4 text-center">Welcome to Votex</h2>
+          <p className="mb-6 text-center text-muted-foreground">
+            To participate in anonymous voting, create a secure identity using your passkey and World ID.
             This ensures one-person-one-vote while keeping your votes private.
           </p>
-          <WorldIDVerifier onVerificationSuccess={handleVerificationSuccess} />
+          <PasskeyRegistration onRegistrationComplete={handleRegistrationComplete} />
         </div>
       </div>
     )
@@ -104,7 +81,6 @@ const Dashboard = () => {
 
   // Show a brief transition message after verification is complete
   if (isVerificationComplete) {
-    // Reset after a short delay
     setTimeout(() => setIsVerificationComplete(false), 2000)
     
     return (
@@ -121,8 +97,6 @@ const Dashboard = () => {
       </div>
     )
   }
-
-  console.log('Rendering dashboard with keypair:', keypair)
 
   // Verified view with anonymous identity
   return (
@@ -143,80 +117,102 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <p>
-              Your identity has been verified with World ID. Your keypair now uses a unified BabyJubJub implementation that's consistent with ZK proofs.
+              Your identity is verified with World ID and bound to your passkey. 
+              Your cryptographic keypair is derived on-demand and never stored.
             </p>
           </CardContent>
         </Card>
 
-        {keypair ? (
+        {derivedPublicKey ? (
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Key className="h-5 w-5 text-primary" />
-                  <CardTitle>Your Cryptographic Keypair</CardTitle>
-                  {keypairValid === false && (
-                    <AlertTriangle className="h-5 w-5 text-amber-500" />
-                  )}
+                  <CardTitle>Your Public Key</CardTitle>
                 </div>
-                <GenerateKeypairButton 
-                  onKeypairGenerated={handleKeypairGenerated}
-                />
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={rederiveKeypair}
+                  disabled={isDerivingKey}
+                >
+                  {isDerivingKey ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                  <span className="ml-2">Re-derive</span>
+                </Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {keypairValid === false && (
-                <div className="bg-amber-50 border border-amber-200 rounded-md p-3">
-                  <p className="text-sm text-amber-800">
-                    ⚠️ This keypair was generated with an older implementation and may not work with ZK proofs. 
-                    Consider generating a new keypair.
-                  </p>
-                </div>
-              )}
-              
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Private Key</p>
-                <div className="bg-muted p-3 rounded-md flex items-center justify-between">
-                  <code className="text-sm font-mono flex-1 break-all">
-                    {showPrivateKey ? keypair.k : "•".repeat(20)}
-                  </code>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowPrivateKey(!showPrivateKey)}
-                    className="ml-2"
-                  >
-                    {showPrivateKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
-                </div>
-                <p className="text-xs text-amber-600 mt-1">Keep this secret!</p>
+              <div className="bg-amber-50 border border-amber-200 rounded-md p-3 dark:bg-amber-950/20 dark:border-amber-800">
+                <p className="text-sm text-amber-800 dark:text-amber-200">
+                  🔒 Your private key is derived from your passkey and exists only in memory during use. 
+                  It is never stored.
+                </p>
               </div>
               
               <div>
                 <p className="text-sm text-muted-foreground mb-2">Public Key X</p>
                 <div className="bg-muted p-3 rounded-md">
-                  <code className="text-sm font-mono break-all">{keypair.Ax}</code>
+                  <code className="text-sm font-mono break-all">{derivedPublicKey.x}</code>
                 </div>
               </div>
               
               <div>
                 <p className="text-sm text-muted-foreground mb-2">Public Key Y</p>
                 <div className="bg-muted p-3 rounded-md">
-                  <code className="text-sm font-mono break-all">{keypair.Ay}</code>
+                  <code className="text-sm font-mono break-all">{derivedPublicKey.y}</code>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        ) : hasPasskey ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Fingerprint className="h-5 w-5" />
+                Derive Your Keypair
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-muted-foreground">
+                Your keypair needs to be derived from your passkey. This happens on-demand for security.
+              </p>
+              <Button 
+                onClick={rederiveKeypair} 
+                disabled={isDerivingKey}
+                className="w-full"
+              >
+                {isDerivingKey ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Deriving Keypair...
+                  </>
+                ) : (
+                  <>
+                    <Fingerprint className="mr-2 h-4 w-4" />
+                    Derive Keypair with Passkey
+                  </>
+                )}
+              </Button>
             </CardContent>
           </Card>
         ) : (
           <Card>
             <CardHeader>
-              <CardTitle>No Keypair Found</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-amber-600">
+                <AlertTriangle className="h-5 w-5" />
+                No Passkey Found
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-muted-foreground">
-                No cryptographic keypair was found in your browser's storage. Generate one to participate in anonymous voting.
+                No passkey is associated with this identity. This may happen if you cleared your browser data.
+                You'll need to register again to create a new passkey.
               </p>
-              <GenerateKeypairButton onKeypairGenerated={handleKeypairGenerated} />
             </CardContent>
           </Card>
         )}
