@@ -151,11 +151,31 @@ Deno.serve(async (req) => {
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       } else {
-        // Different key - reject
-        console.error("Attempt to register different key for existing nullifier");
+        // Different key - update the binding (passkey recovery flow)
+        console.log("Updating keypair binding for existing nullifier (passkey recovery)");
+        const { error: updateError } = await supabase
+          .from('world_id_keypairs')
+          .update({
+            public_key_x: pk.x,
+            public_key_y: pk.y
+          })
+          .eq('nullifier_hash', worldIdProof.nullifier_hash);
+        
+        if (updateError) {
+          console.error("Database update error:", updateError);
+          return new Response(
+            JSON.stringify({ error: "Failed to update keypair binding" }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
         return new Response(
-          JSON.stringify({ error: "A different keypair is already registered for this World ID" }),
-          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ 
+            success: true, 
+            message: "Keypair binding updated",
+            updated: true 
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
     }

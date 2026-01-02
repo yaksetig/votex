@@ -4,13 +4,14 @@ import { useWallet } from "@/contexts/WalletContext"
 import { useToast } from "@/hooks/use-toast"
 import PasskeyRegistration from "@/components/PasskeyRegistration"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Eye, EyeOff, Key, AlertTriangle, RefreshCw, Fingerprint, Loader2 } from "lucide-react"
 import { hasExistingPasskey, getOrCreatePasskeySecret } from "@/services/passkeyService"
 import { deriveKeypairFromSecret, publicKeyToStrings, verifyDerivedKeypair } from "@/services/deterministicKeyService"
 
 const Dashboard = () => {
-  const { isWorldIDVerified, userId, derivedPublicKey, setDerivedPublicKey } = useWallet()
+  const { isWorldIDVerified, userId, derivedPublicKey, setDerivedPublicKey, resetIdentity } = useWallet()
   const { toast } = useToast()
   const [isVerificationComplete, setIsVerificationComplete] = useState(false)
   const [showPrivateKeyWarning, setShowPrivateKeyWarning] = useState(false)
@@ -211,8 +212,21 @@ const Dashboard = () => {
             <CardContent className="space-y-4">
               <p className="text-muted-foreground">
                 No passkey is associated with this identity. This may happen if you cleared your browser data.
-                You'll need to register again to create a new passkey.
               </p>
+              <Alert>
+                <AlertDescription>
+                  You can reset your identity and create a new passkey. Your World ID verification will be re-verified
+                  to bind your new keypair.
+                </AlertDescription>
+              </Alert>
+              <Button 
+                onClick={resetIdentity} 
+                variant="outline"
+                className="w-full"
+              >
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Reset Identity and Re-register
+              </Button>
             </CardContent>
           </Card>
         )}
