@@ -15,7 +15,8 @@ include "node_modules/circomlib/circuits/comparators.circom";
  * 
  * The circuit verifies:
  * 1. The message m is binary (0 or 1)
- * 2. The voter's public key matches their private key: pk_voter = sk_voter * G
+ * 2. IF m=1: The voter's public key matches their private key: pk_voter = sk_voter * G
+ *    IF m=0: No keypair verification required (dummy nullification)
  * 3. The ciphertext is a valid ElGamal encryption: 
  *    - C1 = r * G (ephemeral public key)
  *    - C2 = m * G + r * pk_authority (encrypted message)
@@ -42,8 +43,9 @@ template Nullification() {
     m * (m - 1) === 0;
     
     // ============================================
-    // Constraint 2: Verify voter's keypair
-    // pk_voter = sk_voter * G
+    // Constraint 2: Conditionally verify voter's keypair
+    // IF m=1: pk_voter = sk_voter * G must hold
+    // IF m=0: no verification needed (dummy nullification)
     // ============================================
     
     // Convert sk_voter to bits for scalar multiplication
@@ -60,9 +62,12 @@ template Nullification() {
         pk_from_sk.e[i] <== sk_bits.out[i];
     }
     
-    // Verify computed public key matches provided public key
-    pk_from_sk.out[0] === pk_voter[0];
-    pk_from_sk.out[1] === pk_voter[1];
+    // Conditional verification: only enforce when m=1
+    // m * (pk_from_sk - pk_voter) === 0
+    // When m=0: 0 * (anything) = 0 ✓ (passes without checking)
+    // When m=1: 1 * (pk_from_sk - pk_voter) = 0, so they must be equal ✓
+    m * (pk_from_sk.out[0] - pk_voter[0]) === 0;
+    m * (pk_from_sk.out[1] - pk_voter[1]) === 0;
     
     // ============================================
     // Constraint 3: Verify ElGamal encryption
