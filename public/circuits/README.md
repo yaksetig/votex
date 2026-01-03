@@ -64,12 +64,41 @@ snarkjs plonk setup build/nullification.r1cs pot16_final.ptau nullification_fina
 snarkjs zkey export verificationkey nullification_final.zkey verification_key.json
 ```
 
-### Step 5: Copy to Public Directory
+### Step 5: Copy to Public Directory (Local Development)
 ```bash
 cp build/nullification_js/nullification.wasm ../public/circuits/
 cp nullification_final.zkey ../public/circuits/
 cp verification_key.json ../public/circuits/
 ```
+
+## Production Deployment: Supabase Storage
+
+For production, host the large circuit files in Supabase Storage to avoid GitHub file size limits.
+
+### Step 1: Upload Files to Supabase Storage
+
+1. Go to [Supabase Dashboard → Storage](https://supabase.com/dashboard/project/uficgolgcwvgxqlubpso/storage/buckets)
+2. Find the `circuits` bucket (already created)
+3. Upload these files:
+   - `nullification.wasm` (~2-5 MB)
+   - `nullification_final.zkey` (~50-200 MB)
+   - `verification_key.json` (~2 KB)
+
+### Step 2: Configure Environment Variable
+
+The app is already configured to use Supabase Storage. The environment variable is set in `.env`:
+
+```
+VITE_CIRCUIT_FILES_URL=https://uficgolgcwvgxqlubpso.supabase.co/storage/v1/object/public/circuits
+```
+
+If not set, the app falls back to local `/circuits/` path (for development with dev mode).
+
+### Step 3: Verify Files Are Accessible
+
+Test the URLs in your browser:
+- `https://uficgolgcwvgxqlubpso.supabase.co/storage/v1/object/public/circuits/nullification.wasm`
+- `https://uficgolgcwvgxqlubpso.supabase.co/storage/v1/object/public/circuits/verification_key.json`
 
 ## Quick Start (Automated)
 
@@ -88,7 +117,7 @@ chmod +x compile.sh
 | `nullification_final.zkey` | ~50-200 MB |
 | `verification_key.json` | ~2 KB |
 
-**Note**: The `.zkey` file is large. Consider hosting it on a CDN for production.
+**Note**: The `.zkey` file exceeds GitHub's 100MB limit. Use Supabase Storage for production.
 
 ## Development Mode
 

@@ -3,10 +3,20 @@ import * as snarkjs from "snarkjs";
 import { StoredKeypair } from "@/types/keypair";
 import { ElGamalCiphertext } from "@/services/elGamalService";
 
+// Get base URL for circuit files (Supabase Storage or local)
+function getCircuitFilesBaseUrl(): string {
+  const envUrl = import.meta.env.VITE_CIRCUIT_FILES_URL;
+  if (envUrl) {
+    return envUrl.endsWith('/') ? envUrl : `${envUrl}/`;
+  }
+  return '/circuits/';
+}
+
 // Paths to pre-compiled circuit artifacts
-const WASM_PATH = "/circuits/nullification.wasm";
-const ZKEY_PATH = "/circuits/nullification_final.zkey";
-const VKEY_PATH = "/circuits/verification_key.json";
+const BASE_URL = getCircuitFilesBaseUrl();
+const WASM_PATH = `${BASE_URL}nullification.wasm`;
+const ZKEY_PATH = `${BASE_URL}nullification_final.zkey`;
+const VKEY_PATH = `${BASE_URL}verification_key.json`;
 
 // Cache for verification key
 let verificationKey: any = null;
