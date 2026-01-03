@@ -34,7 +34,7 @@ npm install circomlib
 
 ### Step 1: Compile the Circuit
 ```bash
-cd circuits
+mkdir -p build
 circom nullification.circom --r1cs --wasm --sym -o build
 ```
 
