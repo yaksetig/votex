@@ -1,21 +1,24 @@
 
-import React, { useState, useEffect } from "react"
+import React, { useState } from "react"
 import { useWallet } from "@/contexts/WalletContext"
 import { useToast } from "@/hooks/use-toast"
 import PasskeyRegistration from "@/components/PasskeyRegistration"
+import WorldIDSignIn from "@/components/WorldIDSignIn"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { Key, Fingerprint, Loader2, RefreshCw } from "lucide-react"
+import { Key, Fingerprint, Loader2, RefreshCw, Shield, Plus } from "lucide-react"
 import { authenticateWithAnyPasskey } from "@/services/passkeyService"
 import { deriveKeypairFromSecret, publicKeyToStrings, verifyDerivedKeypair } from "@/services/deterministicKeyService"
 
+type AuthView = 'choose' | 'signin' | 'register';
+
 const Dashboard = () => {
-  const { isWorldIDVerified, userId, derivedPublicKey, setDerivedPublicKey, resetIdentity } = useWallet()
+  const { isWorldIDVerified, userId, derivedPublicKey, setDerivedPublicKey } = useWallet()
   const { toast } = useToast()
   const [isVerificationComplete, setIsVerificationComplete] = useState(false)
   const [isDerivingKey, setIsDerivingKey] = useState(false)
-  
+  const [authView, setAuthView] = useState<AuthView>('choose')
+
   const handleRegistrationComplete = () => {
     console.log('Registration complete in Dashboard')
     setIsVerificationComplete(true)
@@ -66,10 +69,59 @@ const Dashboard = () => {
         <div className="max-w-md mx-auto">
           <h2 className="text-2xl font-bold mb-4 text-center">Welcome to Votex</h2>
           <p className="mb-6 text-center text-muted-foreground">
-            To participate in anonymous voting, create a secure identity using your passkey and World ID.
-            This ensures one-person-one-vote while keeping your votes private.
+            {authView === 'choose' 
+              ? "Sign in with World ID or create a new secure identity."
+              : authView === 'signin'
+                ? "Verify with World ID to sign in."
+                : "Create a new identity using your passkey and World ID."
+            }
           </p>
-          <PasskeyRegistration onRegistrationComplete={handleRegistrationComplete} />
+          
+          {authView === 'choose' && (
+            <div className="space-y-3">
+              <Button 
+                onClick={() => setAuthView('signin')} 
+                size="lg" 
+                className="w-full" 
+                variant="gradient"
+              >
+                <Shield className="mr-2 h-4 w-4" />
+                Sign in with World ID
+              </Button>
+              <Button 
+                onClick={() => setAuthView('register')} 
+                size="lg" 
+                className="w-full" 
+                variant="outline"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Create New Identity
+              </Button>
+              <p className="text-xs text-muted-foreground text-center mt-4">
+                New users: Create an identity to bind your World ID to a passkey-derived keypair.
+              </p>
+            </div>
+          )}
+          
+          {authView === 'signin' && (
+            <WorldIDSignIn 
+              onBack={() => setAuthView('choose')}
+              onNeedRegistration={() => setAuthView('register')}
+            />
+          )}
+          
+          {authView === 'register' && (
+            <>
+              <PasskeyRegistration onRegistrationComplete={handleRegistrationComplete} />
+              <Button 
+                onClick={() => setAuthView('choose')} 
+                variant="ghost" 
+                className="w-full mt-4"
+              >
+                Back
+              </Button>
+            </>
+          )}
         </div>
       </div>
     )

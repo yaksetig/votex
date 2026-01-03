@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useWallet } from "@/contexts/WalletContext";
+import { authenticateWithAnyPasskey } from "@/services/passkeyService";
+import { deriveKeypairFromSecret, publicKeyToStrings, verifyDerivedKeypair } from "@/services/deterministicKeyService";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { formatDistanceToNow, isPast } from "date-fns";
-import { ArrowLeft, AlertCircle, CheckCircle, VoteIcon, KeyRound } from "lucide-react";
+import { ArrowLeft, AlertCircle, CheckCircle, VoteIcon, KeyRound, Fingerprint, Loader2 } from "lucide-react";
 import { signVote } from "@/services/signatureService";
 import { getStoredKeypair, validateAndMigrateKeypair } from "@/services/keypairService";
 import { StoredKeypair } from "@/types/keypair";
@@ -29,7 +31,7 @@ const ElectionDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { userId, isWorldIDVerified } = useWallet();
+  const { userId, isWorldIDVerified, derivedPublicKey, setDerivedPublicKey } = useWallet();
   
   const [election, setElection] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -43,6 +45,7 @@ const ElectionDetail = () => {
   const [participants, setParticipants] = useState<ElectionParticipant[]>([]);
   const [isParticipant, setIsParticipant] = useState(false);
   const [showNullificationDialog, setShowNullificationDialog] = useState(false);
+  const [isDerivingKey, setIsDerivingKey] = useState(false);
 
   useEffect(() => {
     fetchElectionData();
@@ -79,6 +82,46 @@ const ElectionDetail = () => {
       setIsParticipant(participantStatus);
     } catch (error) {
       // Silent error handling
+    }
+  };
+
+  // Re-derive keypair from passkey for voting
+  const rederiveKeypair = async () => {
+    setIsDerivingKey(true);
+    try {
+      const prfResult = await authenticateWithAnyPasskey();
+      const keypair = await deriveKeypairFromSecret(prfResult.secret);
+      
+      if (!verifyDerivedKeypair(keypair)) {
+        throw new Error("Derived keypair verification failed");
+      }
+      
+      const pkStrings = publicKeyToStrings(keypair.pk);
+      setDerivedPublicKey(pkStrings);
+      
+      // Store full keypair for voting
+      const storedKeypair = {
+        k: keypair.sk.toString(),
+        Ax: keypair.pk.x.toString(),
+        Ay: keypair.pk.y.toString()
+      };
+      localStorage.setItem("babyJubKeypair", JSON.stringify(storedKeypair));
+      setKeypair(storedKeypair);
+      setNeedsKeypair(false);
+      
+      toast({
+        title: "Keypair derived",
+        description: "You can now vote in this election.",
+      });
+    } catch (error) {
+      console.error("Error deriving keypair:", error);
+      toast({
+        variant: "destructive",
+        title: "Derivation failed",
+        description: error instanceof Error ? error.message : "Failed to derive keypair",
+      });
+    } finally {
+      setIsDerivingKey(false);
     }
   };
 
@@ -471,12 +514,35 @@ const ElectionDetail = () => {
             <p className="text-muted-foreground whitespace-pre-line">{election.description}</p>
           </div>
           
-          {needsKeypair && !keypair && (
+          {needsKeypair && !keypair && isWorldIDVerified && (
+            <div className="flex flex-col items-center p-4 bg-amber-50 dark:bg-amber-950 rounded-md border border-amber-200 dark:border-amber-800">
+              <Fingerprint className="h-8 w-8 text-amber-500 mb-2" />
+              <h3 className="text-lg font-medium">Derive Your Keypair</h3>
+              <p className="text-center text-muted-foreground mb-3">
+                Authenticate with your passkey to derive your cryptographic keypair for voting.
+              </p>
+              <Button onClick={rederiveKeypair} disabled={isDerivingKey}>
+                {isDerivingKey ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Deriving...
+                  </>
+                ) : (
+                  <>
+                    <Fingerprint className="mr-2 h-4 w-4" />
+                    Sign in with Passkey
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
+          
+          {needsKeypair && !keypair && !isWorldIDVerified && (
             <div className="flex flex-col items-center p-4 bg-amber-50 dark:bg-amber-950 rounded-md border border-amber-200 dark:border-amber-800">
               <KeyRound className="h-8 w-8 text-amber-500 mb-2" />
-              <h3 className="text-lg font-medium">Keypair Required</h3>
+              <h3 className="text-lg font-medium">Sign In Required</h3>
               <p className="text-center text-muted-foreground mb-3">
-                To vote securely, you need to generate a cryptographic keypair first.
+                Sign in to participate in this election.
               </p>
               <Button onClick={() => navigate("/dashboard")}>
                 Go to Dashboard
