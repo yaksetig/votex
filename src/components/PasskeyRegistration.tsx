@@ -32,7 +32,8 @@ import {
 import { 
   deriveKeypairFromSecret, 
   hashPublicKeyForSignal,
-  publicKeyToStrings 
+  publicKeyToStrings,
+  verifyDerivedKeypair
 } from '@/services/deterministicKeyService';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -96,6 +97,11 @@ const PasskeyRegistration: React.FC<PasskeyRegistrationProps> = ({
       setStep('deriving');
       console.log("Deriving keypair from PRF secret...");
       const keypair = await deriveKeypairFromSecret(prfResult.secret);
+      
+      // Verify keypair consistency before proceeding
+      if (!verifyDerivedKeypair(keypair)) {
+        throw new Error("Derived keypair failed consistency check - base point mismatch");
+      }
       
       // Step 3: Hash public key to create World ID signal
       const signal = await hashPublicKeyForSignal(keypair.pk);

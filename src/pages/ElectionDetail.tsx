@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { formatDistanceToNow, isPast } from "date-fns";
 import { ArrowLeft, AlertCircle, CheckCircle, VoteIcon, KeyRound } from "lucide-react";
 import { signVote } from "@/services/signatureService";
-import { getStoredKeypair } from "@/services/keypairService";
+import { getStoredKeypair, validateAndMigrateKeypair } from "@/services/keypairService";
 import { StoredKeypair } from "@/types/keypair";
 import { 
   registerElectionParticipant, 
@@ -49,9 +49,17 @@ const ElectionDetail = () => {
     checkIfUserVoted();
     initializeDefaultElectionAuthority();
     
-    const storedKeypair = getStoredKeypair();
-    if (storedKeypair) {
-      setKeypair(storedKeypair);
+    // Validate keypair consistency with current base point
+    const { valid, cleared, keypair: validKeypair } = validateAndMigrateKeypair();
+    if (cleared) {
+      toast({
+        variant: "destructive",
+        title: "Keypair Outdated",
+        description: "Your keypair was generated with an older version. Please generate a new one from the dashboard."
+      });
+      setNeedsKeypair(true);
+    } else if (valid && validKeypair) {
+      setKeypair(validKeypair);
     } else {
       setNeedsKeypair(true);
     }
