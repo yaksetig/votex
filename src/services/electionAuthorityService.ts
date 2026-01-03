@@ -253,6 +253,9 @@ export async function deleteElectionAuthority(id: string): Promise<boolean> {
 }
 
 // Initialize default election authority with the provided public key
+// CRITICAL: These public key values MUST match a keypair generated with the
+// circomlib standard BabyJubJub generator (see elGamalService.ts BASE_POINT)
+// Using sk=1, so pk = G (the generator point itself)
 export async function initializeDefaultElectionAuthority(): Promise<void> {
   try {
     console.log("Initializing default election authority");
@@ -268,8 +271,8 @@ export async function initializeDefaultElectionAuthority(): Promise<void> {
       await createElectionAuthorityWithPublicKey(
         "Default Election Authority",
         "Primary election authority for the platform",
-        "13522923618312071650302635321243604285850047309527197690046697525217605329069",
-        "10932479589697132144784969532699395534930855291504911162904822788453670442360"
+        "5299619240641551281634865583518297030282874472190772894086521144482721001553",
+        "16950150798460657717958625567821834550301663161624707787222815936182638968203"
       );
       console.log("Default election authority created successfully");
     } else {
