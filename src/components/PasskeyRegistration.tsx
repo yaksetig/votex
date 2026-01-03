@@ -103,6 +103,15 @@ const PasskeyRegistration: React.FC<PasskeyRegistrationProps> = ({
       
       console.log("Keypair derived, signal:", signal.slice(0, 20) + "...");
       
+      // Store full keypair in localStorage for voting/signing
+      const storedKeypair = {
+        k: keypair.sk.toString(),
+        Ax: keypair.pk.x.toString(),
+        Ay: keypair.pk.y.toString()
+      };
+      localStorage.setItem("babyJubKeypair", JSON.stringify(storedKeypair));
+      console.log("Full keypair stored in localStorage");
+      
       // Store for use in World ID verification
       setDerivedSignal(signal);
       setPublicKey(pkStrings);
