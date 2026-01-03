@@ -2,12 +2,17 @@
 import { supabase } from "@/integrations/supabase/client";
 import { ElGamalCiphertext } from "@/services/elGamalService";
 
+export interface NullificationProof {
+  proof: any;
+  publicSignals: string[];
+}
+
 export interface Nullification {
   id: string;
   election_id: string;
   user_id: string;
   nullifier_ciphertext: any; // JSONB data
-  nullifier_zkp: any; // JSONB data for zero-knowledge proof
+  nullifier_zkp: NullificationProof | null; // PLONK proof with public signals
   created_at: string;
 }
 
