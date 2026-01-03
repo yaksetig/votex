@@ -1,7 +1,9 @@
-
 import * as snarkjs from "snarkjs";
 import { StoredKeypair } from "@/types/keypair";
 import { ElGamalCiphertext } from "@/services/elGamalService";
+
+// Progress callback type
+export type ProofProgressCallback = (step: 'loading' | 'witness' | 'proving' | 'complete', progress: number) => void;
 
 // Get base URL for circuit files (Supabase Storage or local)
 function getCircuitFilesBaseUrl(): string {
@@ -35,10 +37,14 @@ export async function generateNullificationProof(
   authorityPublicKey: { x: string; y: string },
   ciphertext: ElGamalCiphertext,
   deterministicR: bigint,
-  message: number = 1 // 1 for actual nullification, 0 for dummy
+  message: number = 1,
+  onProgress?: ProofProgressCallback
 ): Promise<{ proof: any; publicSignals: string[] }> {
   try {
     console.log(`Generating Groth16 proof for ${message === 1 ? "actual" : "dummy"} nullification...`);
+    
+    // Report loading step
+    onProgress?.('loading', 10);
 
     const input = {
       // Public inputs
@@ -65,11 +71,23 @@ export async function generateNullificationProof(
       sk_voter: "***hidden***",
     });
 
+    // Report witness computation step
+    onProgress?.('witness', 30);
+    
+    // Small delay to allow UI to update before heavy computation
+    await new Promise(resolve => setTimeout(resolve, 50));
+    
+    // Report proving step
+    onProgress?.('proving', 50);
+
     const { proof, publicSignals } = await snarkjs.groth16.fullProve(
       input,
       WASM_PATH,
       ZKEY_PATH
     );
+
+    // Report completion
+    onProgress?.('complete', 100);
 
     console.log("Groth16 proof generated successfully:", { proof, publicSignals });
     return { proof, publicSignals };
