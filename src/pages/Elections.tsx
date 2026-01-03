@@ -12,7 +12,7 @@ import { isPast } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 
 const Elections = () => {
-  const { userId } = useWallet();
+  const { userId, isWorldIDVerified } = useWallet();
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
   const [elections, setElections] = useState<any[]>([]);
@@ -141,10 +141,12 @@ const Elections = () => {
     <div className="container mx-auto py-8 px-4">
       <div className="flex flex-col md:flex-row justify-between items-center mb-8">
         <h1 className="text-3xl font-bold mb-4 md:mb-0">Elections</h1>
-        <Button onClick={() => setShowForm(!showForm)} className="shadow-lg">
-          <Plus className="mr-2 h-4 w-4" />
-          {showForm ? "Cancel" : "Create Election"}
-        </Button>
+        {isWorldIDVerified && (
+          <Button onClick={() => setShowForm(!showForm)} className="shadow-lg">
+            <Plus className="mr-2 h-4 w-4" />
+            {showForm ? "Cancel" : "Create Election"}
+          </Button>
+        )}
       </div>
 
       {showForm && (

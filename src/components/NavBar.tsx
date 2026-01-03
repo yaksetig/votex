@@ -19,7 +19,7 @@ const NavBar = () => {
       title: "Logged out",
       description: "You have been securely logged out.",
     });
-    window.location.reload(); // Refresh to reset the page state
+    window.location.reload();
   };
 
   return (
@@ -32,16 +32,20 @@ const NavBar = () => {
         </Link>
       </div>
       <div className="flex items-center gap-4">
-        {isWorldIDVerified && !isElectionAuthorityPage && (
-          <>
-            <Link to="/dashboard" className="text-sm hover:text-primary transition-colors">
-              Dashboard
-            </Link>
-            <Link to="/elections" className="text-sm hover:text-primary transition-colors">
-              Elections
-            </Link>
-          </>
+        {/* Elections link always visible */}
+        {!isElectionAuthorityPage && (
+          <Link to="/elections" className="text-sm hover:text-primary transition-colors">
+            Elections
+          </Link>
         )}
+        
+        {/* Dashboard/Sign in link */}
+        {!isElectionAuthorityPage && (
+          <Link to="/dashboard" className="text-sm hover:text-primary transition-colors">
+            {isWorldIDVerified ? "Dashboard" : "Sign In"}
+          </Link>
+        )}
+
         {isElectionAuthorityPage ? (
           <Button onClick={handleElectionAuthorityLogout} variant="outline" size="sm">
             <LogOut className="mr-2 h-4 w-4" />
