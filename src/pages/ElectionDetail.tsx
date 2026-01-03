@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useWallet } from "@/contexts/WalletContext";
 import { useToast } from "@/hooks/use-toast";
@@ -29,7 +29,7 @@ const ElectionDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { userId } = useWallet();
+  const { userId, isWorldIDVerified } = useWallet();
   
   const [election, setElection] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -558,8 +558,21 @@ const ElectionDetail = () => {
           )}
         </CardContent>
         
-        <CardFooter>
-          {election && !isElectionClosed && !hasVoted && (
+        <CardFooter className="flex-col gap-4">
+          {/* Sign in prompt for unauthenticated users */}
+          {!isWorldIDVerified && !isElectionClosed && (
+            <div className="w-full text-center p-4 border rounded-lg bg-muted/50">
+              <p className="text-muted-foreground mb-3">
+                Sign in to vote in this election
+              </p>
+              <Button asChild>
+                <Link to="/dashboard">Authenticate with World ID</Link>
+              </Button>
+            </div>
+          )}
+          
+          {/* Vote button for authenticated users */}
+          {election && !isElectionClosed && !hasVoted && isWorldIDVerified && (
             <Button 
               className="w-full" 
               disabled={!selectedOption || submitting || !keypair}
