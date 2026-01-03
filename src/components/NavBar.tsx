@@ -1,7 +1,7 @@
 
 import React from "react";
 import { useWallet } from "@/contexts/WalletContext";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { clearElectionAuthoritySession } from "@/services/electionManagementService";
@@ -10,8 +10,14 @@ import { useToast } from "@/hooks/use-toast";
 const NavBar = () => {
   const { isWorldIDVerified, resetIdentity } = useWallet();
   const location = useLocation();
+  const navigate = useNavigate();
   const isElectionAuthorityPage = location.pathname.includes('election_authority');
   const { toast } = useToast();
+
+  const handleSignOut = () => {
+    resetIdentity();
+    navigate("/elections", { replace: true });
+  };
 
   const handleElectionAuthorityLogout = () => {
     clearElectionAuthoritySession();
@@ -61,7 +67,7 @@ const NavBar = () => {
                 Verified Human
               </div>
               <button 
-                onClick={resetIdentity}
+                onClick={handleSignOut}
                 className="text-sm text-muted-foreground hover:text-destructive"
               >
                 Sign out
