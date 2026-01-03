@@ -201,6 +201,17 @@ const ElectionDetail = () => {
   };
 
   const handleVote = async () => {
+    // Guard: Check if election is closed (expired or manually closed)
+    const electionClosed = isPast(new Date(election?.end_date)) || !!election?.closed_manually_at;
+    if (electionClosed) {
+      toast({
+        variant: "destructive",
+        title: "Election Closed",
+        description: "This election is no longer accepting votes."
+      });
+      return;
+    }
+    
     if (!selectedOption || !userId || !election || !keypair) {
       if (!keypair) {
         toast({
@@ -279,6 +290,17 @@ const ElectionDetail = () => {
 
   const performNullification = async (isActual: boolean) => {
     if (!userId || !election || !id || !keypair) return;
+    
+    // Guard: Check if election is closed (expired or manually closed)
+    const electionClosed = isPast(new Date(election.end_date)) || !!election.closed_manually_at;
+    if (electionClosed) {
+      toast({
+        variant: "destructive",
+        title: "Election Closed",
+        description: "This election is no longer accepting nullifications."
+      });
+      return;
+    }
     
     if (!hasVoted) {
       toast({
@@ -408,6 +430,7 @@ const ElectionDetail = () => {
 
   const endDate = new Date(election.end_date);
   const isExpired = isPast(endDate);
+  const isElectionClosed = isExpired || !!election.closed_manually_at;
   const totalVotes = voteCounts.option1 + voteCounts.option2;
   const option1Percentage = totalVotes > 0 ? Math.round((voteCounts.option1 / totalVotes) * 100) : 0;
   const option2Percentage = totalVotes > 0 ? Math.round((voteCounts.option2 / totalVotes) * 100) : 0;
@@ -427,14 +450,18 @@ const ElectionDetail = () => {
         <CardHeader>
           <div className="flex justify-between items-center">
             <CardTitle className="text-2xl">{election?.title}</CardTitle>
-            <Badge variant={election && isPast(new Date(election.end_date)) ? "destructive" : "default"}>
-              {election && isPast(new Date(election.end_date)) ? "Expired" : "Active"}
+            <Badge variant={isElectionClosed ? "destructive" : "default"}>
+              {isElectionClosed 
+                ? (election.closed_manually_at ? "Closed" : "Expired") 
+                : "Active"}
             </Badge>
           </div>
           <CardDescription>
-            {election && (isPast(new Date(election.end_date))
-              ? `Ended ${formatDistanceToNow(new Date(election.end_date), { addSuffix: true })}` 
-              : `Ends ${formatDistanceToNow(new Date(election.end_date), { addSuffix: true })}`)}
+            {isElectionClosed
+              ? (election.closed_manually_at 
+                  ? "Closed early by authority"
+                  : `Ended ${formatDistanceToNow(endDate, { addSuffix: true })}`)
+              : `Ends ${formatDistanceToNow(endDate, { addSuffix: true })}`}
           </CardDescription>
         </CardHeader>
         
@@ -457,7 +484,7 @@ const ElectionDetail = () => {
             </div>
           )}
           
-          {(election && (isPast(new Date(election.end_date)) || hasVoted)) ? (
+          {(election && (isElectionClosed || hasVoted)) ? (
             <div className="space-y-4">
               <h3 className="text-lg font-medium">Results</h3>
               <div className="space-y-3">
@@ -496,7 +523,7 @@ const ElectionDetail = () => {
                     <CheckCircle className="h-5 w-5 mr-2 text-primary" />
                     <span className="text-sm font-medium">You have voted in this election</span>
                   </div>
-                  {!isPast(new Date(election.end_date)) && (
+                  {!isElectionClosed && (
                     <Button 
                       variant="outline" 
                       size="sm"
@@ -532,7 +559,7 @@ const ElectionDetail = () => {
         </CardContent>
         
         <CardFooter>
-          {election && !isPast(new Date(election.end_date)) && !hasVoted && (
+          {election && !isElectionClosed && !hasVoted && (
             <Button 
               className="w-full" 
               disabled={!selectedOption || submitting || !keypair}
