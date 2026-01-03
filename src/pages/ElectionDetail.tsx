@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useWallet } from "@/contexts/WalletContext";
@@ -24,7 +24,6 @@ import { createNullificationEncryption, generateDeterministicR, elgamalEncrypt, 
 import { storeNullification } from "@/services/nullificationService";
 import { generateNullificationProof } from "@/services/zkProofService";
 import NullificationDialog from "@/components/NullificationDialog";
-import ZKProofProgressDialog, { ProofStep } from "@/components/ZKProofProgressDialog";
 
 const ElectionDetail = () => {
   const { id } = useParams();
@@ -44,14 +43,6 @@ const ElectionDetail = () => {
   const [participants, setParticipants] = useState<ElectionParticipant[]>([]);
   const [isParticipant, setIsParticipant] = useState(false);
   const [showNullificationDialog, setShowNullificationDialog] = useState(false);
-  
-  // ZK Proof progress state
-  const [showProofProgress, setShowProofProgress] = useState(false);
-  const [proofStep, setProofStep] = useState<ProofStep>('idle');
-  const [proofProgress, setProofProgress] = useState(0);
-  const [proofError, setProofError] = useState<string | undefined>();
-  const [nullificationType, setNullificationType] = useState<'actual' | 'dummy'>('actual');
-  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     fetchElectionData();
@@ -278,29 +269,6 @@ const ElectionDetail = () => {
     }
   };
 
-  // Smooth progress animation helper
-  const startProgressAnimation = (targetProgress: number) => {
-    if (progressIntervalRef.current) {
-      clearInterval(progressIntervalRef.current);
-    }
-    
-    progressIntervalRef.current = setInterval(() => {
-      setProofProgress(prev => {
-        if (prev >= targetProgress - 5) {
-          return prev;
-        }
-        return prev + 1;
-      });
-    }, 100);
-  };
-
-  const stopProgressAnimation = () => {
-    if (progressIntervalRef.current) {
-      clearInterval(progressIntervalRef.current);
-      progressIntervalRef.current = null;
-    }
-  };
-
   const performNullification = async (isActual: boolean) => {
     if (!userId || !election || !id || !keypair) return;
     
@@ -316,11 +284,6 @@ const ElectionDetail = () => {
     try {
       setNullifying(true);
       setShowNullificationDialog(false);
-      setNullificationType(isActual ? 'actual' : 'dummy');
-      setProofStep('loading');
-      setProofProgress(0);
-      setProofError(undefined);
-      setShowProofProgress(true);
       
       await ensureUserIsParticipant();
       
@@ -338,6 +301,7 @@ const ElectionDetail = () => {
       let message: number;
       
       if (isActual) {
+        // Actual nullification - encrypt 1
         message = 1;
         nullificationCiphertext = await createNullificationEncryption(
           keypair,
@@ -345,32 +309,24 @@ const ElectionDetail = () => {
         );
         deterministicR = await generateDeterministicR(userPrivateKey, userPublicKey);
       } else {
+        // Dummy nullification - encrypt 0
         message = 0;
         deterministicR = await generateDeterministicR(userPrivateKey, userPublicKey);
         nullificationCiphertext = elgamalEncrypt(authorityPoint, 0, deterministicR);
       }
       
-      // Generate proof with progress callback
+      toast({
+        title: "Generating Proof",
+        description: `Creating cryptographic proof for ${isActual ? 'actual' : 'dummy'} nullification. This may take a moment...`
+      });
+      
       const zkProof = await generateNullificationProof(
         keypair,
         { x: authority.public_key_x, y: authority.public_key_y },
         nullificationCiphertext,
         deterministicR,
-        message,
-        (step, progress) => {
-          setProofStep(step);
-          setProofProgress(progress);
-          if (step === 'proving') {
-            startProgressAnimation(95);
-          } else if (step === 'complete') {
-            stopProgressAnimation();
-          }
-        }
+        message  // Pass the correct message value
       );
-      
-      stopProgressAnimation();
-      setProofProgress(100);
-      setProofStep('complete');
       
       const stored = await storeNullification(id, userId, nullificationCiphertext, zkProof);
       
@@ -378,19 +334,17 @@ const ElectionDetail = () => {
         throw new Error("Failed to store nullification");
       }
       
-      // Brief delay to show completion state
-      await new Promise(resolve => setTimeout(resolve, 500));
-      setShowProofProgress(false);
-      
       toast({
         title: `${isActual ? 'Actual' : 'Dummy'} Nullification Submitted`,
         description: `Your ${isActual ? 'actual' : 'dummy'} nullification with cryptographic proof has been successfully recorded.`
       });
       
     } catch (error) {
-      stopProgressAnimation();
-      setProofStep('error');
-      setProofError(error instanceof Error ? error.message : 'An unknown error occurred');
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to submit nullification. Please try again."
+      });
     } finally {
       setNullifying(false);
     }
@@ -589,15 +543,6 @@ const ElectionDetail = () => {
         onActualNullification={handleActualNullification}
         onDummyNullification={handleDummyNullification}
         isProcessing={nullifying}
-      />
-
-      <ZKProofProgressDialog
-        open={showProofProgress}
-        onOpenChange={setShowProofProgress}
-        currentStep={proofStep}
-        progress={proofProgress}
-        errorMessage={proofError}
-        nullificationType={nullificationType}
       />
     </div>
   );
