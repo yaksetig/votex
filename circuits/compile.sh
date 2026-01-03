@@ -1,12 +1,12 @@
 #!/bin/bash
 
 # Nullification Circuit Compilation Script
-# This script automates the Circom circuit compilation and PLONK setup
+# This script automates the Circom circuit compilation and Groth16 setup
 
 set -e  # Exit on any error
 
 echo "=========================================="
-echo "Nullification Circuit Compiler"
+echo "Nullification Circuit Compiler (Groth16)"
 echo "=========================================="
 
 # Check prerequisites
@@ -44,29 +44,37 @@ else
     echo "[3/6] Powers of Tau file already exists ✓"
 fi
 
-# Step 4: Generate PLONK proving key
+# Step 4: Generate Groth16 proving key (Phase 2)
 echo ""
-echo "[4/6] Generating PLONK proving key..."
-echo "      This may take several minutes and use significant memory..."
-snarkjs plonk setup build/nullification.r1cs $PTAU_FILE nullification_final.zkey
+echo "[4/7] Generating Groth16 initial proving key..."
+snarkjs groth16 setup build/nullification.r1cs $PTAU_FILE nullification_0000.zkey
 
-# Step 5: Export verification key
+# Step 5: Contribute to the ceremony (required for Groth16)
 echo ""
-echo "[5/6] Exporting verification key..."
+echo "[5/7] Contributing to Groth16 ceremony..."
+snarkjs zkey contribute nullification_0000.zkey nullification_final.zkey \
+  --name="Initial contribution" -v -e="$(head -c 64 /dev/urandom | xxd -p -c 256)"
+
+# Step 6: Export verification key
+echo ""
+echo "[6/7] Exporting verification key..."
 snarkjs zkey export verificationkey nullification_final.zkey verification_key.json
 
-# Step 6: Copy to public directory
+# Step 7: Copy to public directory
 echo ""
-echo "[6/6] Copying artifacts to public/circuits/..."
+echo "[7/7] Copying artifacts to public/circuits/..."
 mkdir -p ../public/circuits
 cp build/nullification_js/nullification.wasm ../public/circuits/
 cp nullification_final.zkey ../public/circuits/
 cp verification_key.json ../public/circuits/
 
+# Cleanup intermediate file
+rm -f nullification_0000.zkey
+
 # Print summary
 echo ""
 echo "=========================================="
-echo "Compilation Complete!"
+echo "Compilation Complete! (Groth16)"
 echo "=========================================="
 echo ""
 echo "Generated files:"
@@ -76,4 +84,4 @@ echo "Circuit statistics:"
 snarkjs r1cs info build/nullification.r1cs
 echo ""
 echo "You can now use the nullification feature!"
-echo "To test, run: snarkjs plonk prove ..."
+echo "To test, run: snarkjs groth16 prove ..."

@@ -1,6 +1,15 @@
 # Nullification Circuit Compilation Guide
 
-This guide walks you through compiling the Circom circuit and generating the PLONK proving artifacts.
+This guide walks you through compiling the Circom circuit and generating the **Groth16** proving artifacts.
+
+## Why Groth16?
+
+Groth16 offers significantly faster proof generation compared to PLONK:
+- **3-10x faster** proof generation in the browser
+- **Smaller proof size** (~200 bytes vs ~1KB)
+- **Faster verification** - ideal for on-chain verification
+
+The trade-off is that Groth16 requires a circuit-specific trusted setup (contribution step), while PLONK uses a universal setup.
 
 ## Prerequisites
 
@@ -54,10 +63,17 @@ For larger circuits (2^20):
 wget https://hermez.s3-eu-west-1.amazonaws.com/powersOfTau28_hez_final_20.ptau -O pot20_final.ptau
 ```
 
-### Step 3: Generate PLONK Proving Key
+### Step 3: Generate Groth16 Proving Key (Phase 2 Setup)
 ```bash
-snarkjs plonk setup build/nullification.r1cs pot16_final.ptau nullification_final.zkey
+# Initial setup
+snarkjs groth16 setup build/nullification.r1cs pot16_final.ptau nullification_0000.zkey
+
+# Contribute to the ceremony (required for Groth16 security)
+snarkjs zkey contribute nullification_0000.zkey nullification_final.zkey \
+  --name="Initial contribution" -v -e="some random entropy text"
 ```
+
+**Note**: The contribution step is required for Groth16. You can add more contributions for stronger security, or use a multi-party ceremony for production.
 
 ### Step 4: Export Verification Key
 ```bash
@@ -69,6 +85,9 @@ snarkjs zkey export verificationkey nullification_final.zkey verification_key.js
 cp build/nullification_js/nullification.wasm ../public/circuits/
 cp nullification_final.zkey ../public/circuits/
 cp verification_key.json ../public/circuits/
+
+# Clean up intermediate file
+rm nullification_0000.zkey
 ```
 
 ## Production Deployment: Supabase Storage
@@ -81,7 +100,7 @@ For production, host the large circuit files in Supabase Storage to avoid GitHub
 2. Find the `circuits` bucket (already created)
 3. Upload these files:
    - `nullification.wasm` (~2-5 MB)
-   - `nullification_final.zkey` (~50-200 MB)
+   - `nullification_final.zkey` (~20-50 MB for Groth16, smaller than PLONK)
    - `verification_key.json` (~2 KB)
 
 ### Step 2: Configure Environment Variable
@@ -114,10 +133,10 @@ chmod +x compile.sh
 | File | Size |
 |------|------|
 | `nullification.wasm` | ~2-5 MB |
-| `nullification_final.zkey` | ~50-200 MB |
-| `verification_key.json` | ~2 KB |
+| `nullification_final.zkey` | ~20-50 MB (Groth16 is smaller than PLONK) |
+| `verification_key.json` | ~1-2 KB |
 
-**Note**: The `.zkey` file exceeds GitHub's 100MB limit. Use Supabase Storage for production.
+**Note**: The `.zkey` file may exceed GitHub's 100MB limit depending on circuit complexity. Use Supabase Storage for production.
 
 ## Development Mode
 
@@ -148,8 +167,25 @@ Use a larger Powers of Tau file (pot20 instead of pot16).
 ### Memory errors during setup
 Increase Node.js memory:
 ```bash
-NODE_OPTIONS="--max-old-space-size=8192" snarkjs plonk setup ...
+NODE_OPTIONS="--max-old-space-size=8192" snarkjs groth16 setup ...
 ```
+
+### Contribution step fails
+Ensure you have enough entropy. Try with explicit random text:
+```bash
+snarkjs zkey contribute nullification_0000.zkey nullification_final.zkey \
+  --name="My contribution" -v -e="type some random text here for entropy"
+```
+
+## Groth16 vs PLONK Comparison
+
+| Aspect | Groth16 | PLONK |
+|--------|---------|-------|
+| Proof Generation | ~1-5 seconds | ~5-30 seconds |
+| Proof Size | ~200 bytes | ~1 KB |
+| Verification Speed | Fastest | Slower |
+| Trusted Setup | Circuit-specific | Universal |
+| zkey File Size | Smaller | Larger |
 
 ## Circuit Details
 
