@@ -22,10 +22,10 @@ import {
   isUserParticipant 
 } from "@/services/electionParticipantsService";
 import { getElectionAuthorityForElection, initializeDefaultElectionAuthority } from "@/services/electionAuthorityService";
-import { createNullificationEncryption, generateDeterministicR, elgamalEncrypt, EdwardsPoint } from "@/services/elGamalService";
-import { storeNullification } from "@/services/nullificationService";
-import { generateNullificationProof } from "@/services/zkProofService";
+import { storeNullificationBatch } from "@/services/nullificationService";
+import { generateKAnonymousNullifications, KAnonymityProgress } from "@/services/kAnonymityNullificationService";
 import NullificationDialog from "@/components/NullificationDialog";
+import KAnonymityProgressDialog from "@/components/KAnonymityProgressDialog";
 
 const ElectionDetail = () => {
   const { id } = useParams();
@@ -46,6 +46,8 @@ const ElectionDetail = () => {
   const [isParticipant, setIsParticipant] = useState(false);
   const [showNullificationDialog, setShowNullificationDialog] = useState(false);
   const [isDerivingKey, setIsDerivingKey] = useState(false);
+  const [showProgressDialog, setShowProgressDialog] = useState(false);
+  const [nullificationProgress, setNullificationProgress] = useState<KAnonymityProgress | null>(null);
 
   useEffect(() => {
     fetchElectionData();
@@ -357,6 +359,7 @@ const ElectionDetail = () => {
     try {
       setNullifying(true);
       setShowNullificationDialog(false);
+      setShowProgressDialog(true);
       
       await ensureUserIsParticipant();
       
@@ -365,61 +368,48 @@ const ElectionDetail = () => {
         throw new Error("Failed to get election authority");
       }
       
-      const authorityPoint = new EdwardsPoint(BigInt(authority.public_key_x), BigInt(authority.public_key_y));
-      const userPublicKey = { x: BigInt(keypair.Ax), y: BigInt(keypair.Ay) };
-      const userPrivateKey = BigInt(keypair.k);
-      
-      let nullificationCiphertext;
-      let deterministicR;
-      let message: number;
-      
-      if (isActual) {
-        // Actual nullification - encrypt 1
-        message = 1;
-        nullificationCiphertext = await createNullificationEncryption(
-          keypair,
-          { x: authority.public_key_x, y: authority.public_key_y }
-        );
-        deterministicR = await generateDeterministicR(userPrivateKey, userPublicKey);
-      } else {
-        // Dummy nullification - encrypt 0
-        message = 0;
-        deterministicR = await generateDeterministicR(userPrivateKey, userPublicKey);
-        nullificationCiphertext = elgamalEncrypt(authorityPoint, 0, deterministicR);
-      }
-      
-      toast({
-        title: "Generating Proof",
-        description: `Creating cryptographic proof for ${isActual ? 'actual' : 'dummy'} nullification. This may take a moment...`
-      });
-      
-      const zkProof = await generateNullificationProof(
+      // Generate k-anonymous nullifications with progress tracking
+      const nullificationBatch = await generateKAnonymousNullifications(
+        id,
+        userId,
         keypair,
         { x: authority.public_key_x, y: authority.public_key_y },
-        nullificationCiphertext,
-        deterministicR,
-        message  // Pass the correct message value
+        isActual,
+        6, // k = 6
+        (progress) => setNullificationProgress(progress)
       );
       
-      const stored = await storeNullification(id, userId, nullificationCiphertext, zkProof);
+      // Store all nullifications atomically
+      const batchItems = nullificationBatch.map(item => ({
+        userId: item.targetUserId,
+        ciphertext: item.ciphertext,
+        zkp: item.zkp!
+      }));
+      
+      const stored = await storeNullificationBatch(id, batchItems);
       
       if (!stored) {
-        throw new Error("Failed to store nullification");
+        throw new Error("Failed to store nullifications");
       }
+      
+      setShowProgressDialog(false);
       
       toast({
         title: `${isActual ? 'Actual' : 'Dummy'} Nullification Submitted`,
-        description: `Your ${isActual ? 'actual' : 'dummy'} nullification with cryptographic proof has been successfully recorded.`
+        description: `Your nullification has been recorded with k-anonymity protection (${nullificationBatch.length} proofs).`
       });
       
     } catch (error) {
+      console.error("Nullification error:", error);
+      setShowProgressDialog(false);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to submit nullification. Please try again."
+        description: error instanceof Error ? error.message : "Failed to submit nullification."
       });
     } finally {
       setNullifying(false);
+      setNullificationProgress(null);
     }
   };
 
@@ -657,6 +647,11 @@ const ElectionDetail = () => {
         onActualNullification={handleActualNullification}
         onDummyNullification={handleDummyNullification}
         isProcessing={nullifying}
+      />
+
+      <KAnonymityProgressDialog
+        open={showProgressDialog}
+        progress={nullificationProgress}
       />
     </div>
   );
