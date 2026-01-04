@@ -51,7 +51,6 @@ const ElectionDetail = () => {
 
   useEffect(() => {
     fetchElectionData();
-    checkIfUserVoted();
     initializeDefaultElectionAuthority();
     
     // Validate keypair consistency with current base point
@@ -70,8 +69,10 @@ const ElectionDetail = () => {
     }
   }, [id]);
 
+  // Re-check vote status when userId becomes available (identity restored)
   useEffect(() => {
     if (userId && id) {
+      checkIfUserVoted();
       checkParticipantStatus();
     }
   }, [userId, id]);
@@ -246,6 +247,16 @@ const ElectionDetail = () => {
   };
 
   const handleVote = async () => {
+    // Guard: Check hasVoted state first
+    if (hasVoted) {
+      toast({
+        variant: "destructive",
+        title: "Already Voted",
+        description: "You have already cast your vote in this election."
+      });
+      return;
+    }
+    
     // Guard: Check if election is closed (expired or manually closed)
     const electionClosed = isPast(new Date(election?.end_date)) || !!election?.closed_manually_at;
     if (electionClosed) {
@@ -272,6 +283,24 @@ const ElectionDetail = () => {
     try {
       setSubmitting(true);
       
+      // Server-side duplicate check before attempting to vote
+      const { data: existingVote } = await supabase
+        .from("votes")
+        .select("id")
+        .eq("election_id", election.id)
+        .eq("voter", userId)
+        .single();
+        
+      if (existingVote) {
+        setHasVoted(true);
+        toast({
+          variant: "destructive",
+          title: "Already Voted",
+          description: "You have already cast your vote in this election."
+        });
+        return;
+      }
+      
       const participantRegistered = await ensureUserIsParticipant();
       
       if (!participantRegistered) {
@@ -295,6 +324,14 @@ const ElectionDetail = () => {
       });
       
       if (oldVoteError) throw oldVoteError;
+      
+      // Clean up: ensure voter is only in ONE tracking table
+      const oppositeTable = selectedOption === election.option1 ? 'no_votes' : 'yes_votes';
+      await supabase
+        .from(oppositeTable)
+        .delete()
+        .eq("election_id", election.id)
+        .eq("voter_id", userId);
       
       // Record in new tracking table - use option1 to determine table, not hardcoded "Yes"
       const tableName = selectedOption === election.option1 ? 'yes_votes' : 'no_votes';
