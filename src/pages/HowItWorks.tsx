@@ -1,11 +1,8 @@
-
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Shield, Vote, KeyRound, Eye, Lock, UserCheck, AlertTriangle } from "lucide-react";
-
 const HowItWorks = () => {
-  return (
-    <div className="container mx-auto py-8 px-4 max-w-4xl">
+  return <div className="container mx-auto py-8 px-4 max-w-4xl">
       <div className="text-center mb-12">
         <h1 className="text-4xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-400">
           How Votex Works
@@ -154,10 +151,7 @@ const HowItWorks = () => {
                 End-to-End Encryption
               </CardTitle>
             </CardHeader>
-            <CardContent className="text-muted-foreground text-sm">
-              Your vote is encrypted the moment you cast it. Only the election authority 
-              can decrypt the final tally, and individual votes are never revealed.
-            </CardContent>
+            <CardContent className="text-muted-foreground text-sm">The nullification payloads are end-to-end encrypted. Only the election authority can decrypt the final tally.</CardContent>
           </Card>
 
           <Card>
@@ -167,10 +161,7 @@ const HowItWorks = () => {
                 Vote Secrecy
               </CardTitle>
             </CardHeader>
-            <CardContent className="text-muted-foreground text-sm">
-              No one—not even the election authority—can see how you voted. The system 
-              uses homomorphic encryption to tally votes without decrypting them individually.
-            </CardContent>
+            <CardContent className="text-muted-foreground text-sm">No one can see how you voted. The system uses the World ID ZK authentication to ensure voter privacy.</CardContent>
           </Card>
 
           <Card>
@@ -180,10 +171,7 @@ const HowItWorks = () => {
                 Coercion Resistance
               </CardTitle>
             </CardHeader>
-            <CardContent className="text-muted-foreground text-sm">
-              Even if forced to vote under pressure, you can always nullify privately. 
-              There's no way for a coercer to verify your final vote.
-            </CardContent>
+            <CardContent className="text-muted-foreground text-sm">Even if coerced, you can always nullify privately. There's no way for a coercer to verify your final vote.</CardContent>
           </Card>
 
           <Card>
@@ -193,10 +181,7 @@ const HowItWorks = () => {
                 One Person, One Vote
               </CardTitle>
             </CardHeader>
-            <CardContent className="text-muted-foreground text-sm">
-              World ID verification ensures each person can only vote once per election, 
-              preventing fraud while maintaining privacy.
-            </CardContent>
+            <CardContent className="text-muted-foreground text-sm">World ID ensures one person one vote.</CardContent>
           </Card>
         </div>
       </section>
@@ -219,10 +204,8 @@ const HowItWorks = () => {
             <CardHeader className="pb-2">
               <CardTitle className="text-lg">Who can see my vote?</CardTitle>
             </CardHeader>
-            <CardContent className="text-muted-foreground text-sm">
-              No one. Your vote is encrypted and mixed with others. Only the final tally 
-              is revealed, never individual votes.
-            </CardContent>
+            <CardContent className="text-muted-foreground text-sm">Even though the actual vote is posted transparently, it is not possible to know the identity of the voter behind it. 
+Only final tally is revealed, never individual votes.</CardContent>
           </Card>
 
           <Card>
@@ -236,8 +219,6 @@ const HowItWorks = () => {
           </Card>
         </div>
       </section>
-    </div>
-  );
+    </div>;
 };
-
 export default HowItWorks;
