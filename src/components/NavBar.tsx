@@ -38,11 +38,16 @@ const NavBar = () => {
         </Link>
       </div>
       <div className="flex items-center gap-4">
-        {/* Elections link always visible */}
+        {/* Elections and How It Works links */}
         {!isElectionAuthorityPage && (
-          <Link to="/elections" className="text-sm hover:text-primary transition-colors">
-            Elections
-          </Link>
+          <>
+            <Link to="/elections" className="text-sm hover:text-primary transition-colors">
+              Elections
+            </Link>
+            <Link to="/how-it-works" className="text-sm hover:text-primary transition-colors">
+              How It Works
+            </Link>
+          </>
         )}
         
         {/* Dashboard/Sign in link */}
