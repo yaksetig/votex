@@ -94,7 +94,7 @@ const HowItWorks = () => {
               </li>
               <li>
                 <strong>Cryptographic Proof:</strong> Your vote is signed with your private key, 
-                proving it came from you without revealing your identity to others.
+                proving it came from a real human.
               </li>
             </ol>
           </CardContent>
