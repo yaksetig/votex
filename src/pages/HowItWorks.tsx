@@ -89,8 +89,8 @@ const HowItWorks = () => {
                 <strong>Join an Election:</strong> Register to participate with your public key.
               </li>
               <li>
-                <strong>Cast Your Vote:</strong> Select your choice. Your vote is encrypted with 
-                the election authority's public key before being submitted.
+                <strong>Cast Your Vote:</strong> Your vote is cast and no one knows who it came 
+                from due to the anonymous World authentication.
               </li>
               <li>
                 <strong>Cryptographic Proof:</strong> Your vote is signed with your private key, 
