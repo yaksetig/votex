@@ -273,6 +273,53 @@ export type Database = {
         }
         Relationships: []
       }
+      nullification_accumulators: {
+        Row: {
+          id: string
+          election_id: string
+          voter_id: string
+          acc_c1_x: string
+          acc_c1_y: string
+          acc_c2_x: string
+          acc_c2_y: string
+          version: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          election_id: string
+          voter_id: string
+          acc_c1_x: string
+          acc_c1_y: string
+          acc_c2_x: string
+          acc_c2_y: string
+          version?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          election_id?: string
+          voter_id?: string
+          acc_c1_x?: string
+          acc_c1_y?: string
+          acc_c2_x?: string
+          acc_c2_y?: string
+          version?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nullification_accumulators_election_id_fkey"
+            columns: ["election_id"]
+            isOneToOne: false
+            referencedRelation: "elections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       nullifications: {
         Row: {
           created_at: string

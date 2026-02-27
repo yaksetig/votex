@@ -1,12 +1,13 @@
 #!/bin/bash
 
-# Nullification Circuit Compilation Script
+# XOR Nullification Circuit Compilation Script
 # This script automates the Circom circuit compilation and Groth16 setup
+# for the XOR-based nullification accumulator circuit.
 
 set -e  # Exit on any error
 
 echo "=========================================="
-echo "Nullification Circuit Compiler (Groth16)"
+echo "XOR Nullification Circuit Compiler (Groth16)"
 echo "=========================================="
 
 # Check prerequisites
@@ -19,69 +20,69 @@ mkdir -p build
 # Step 1: Install circomlib if not present
 if [ ! -d "node_modules/circomlib" ]; then
     echo ""
-    echo "[1/6] Installing circomlib..."
+    echo "[1/7] Installing circomlib..."
     npm init -y 2>/dev/null || true
     npm install circomlib
 else
     echo ""
-    echo "[1/6] circomlib already installed ✓"
+    echo "[1/7] circomlib already installed ✓"
 fi
 
-# Step 2: Compile circuit
+# Step 2: Compile XOR circuit
 echo ""
-echo "[2/6] Compiling circuit..."
-circom nullification.circom --r1cs --wasm --sym -o build
+echo "[2/7] Compiling XOR nullification circuit..."
+circom nullification_xor.circom --r1cs --wasm --sym -o build
 
 # Step 3: Download Powers of Tau (if not present)
 PTAU_FILE="pot16_final.ptau"
 if [ ! -f "$PTAU_FILE" ]; then
     echo ""
-    echo "[3/6] Downloading Powers of Tau ceremony file..."
+    echo "[3/7] Downloading Powers of Tau ceremony file..."
     echo "      This may take a few minutes..."
     wget -q --show-progress https://hermez.s3-eu-west-1.amazonaws.com/powersOfTau28_hez_final_16.ptau -O $PTAU_FILE
 else
     echo ""
-    echo "[3/6] Powers of Tau file already exists ✓"
+    echo "[3/7] Powers of Tau file already exists ✓"
 fi
 
 # Step 4: Generate Groth16 proving key (Phase 2)
 echo ""
 echo "[4/7] Generating Groth16 initial proving key..."
-snarkjs groth16 setup build/nullification.r1cs $PTAU_FILE nullification_0000.zkey
+snarkjs groth16 setup build/nullification_xor.r1cs $PTAU_FILE nullification_xor_0000.zkey
 
 # Step 5: Contribute to the ceremony (required for Groth16)
 echo ""
 echo "[5/7] Contributing to Groth16 ceremony..."
-snarkjs zkey contribute nullification_0000.zkey nullification_final.zkey \
+snarkjs zkey contribute nullification_xor_0000.zkey nullification_xor_final.zkey \
   --name="Initial contribution" -v -e="$(head -c 64 /dev/urandom | xxd -p -c 256)"
 
 # Step 6: Export verification key
 echo ""
 echo "[6/7] Exporting verification key..."
-snarkjs zkey export verificationkey nullification_final.zkey verification_key.json
+snarkjs zkey export verificationkey nullification_xor_final.zkey verification_key_xor.json
 
 # Step 7: Copy to public directory
 echo ""
 echo "[7/7] Copying artifacts to public/circuits/..."
 mkdir -p ../public/circuits
-cp build/nullification_js/nullification.wasm ../public/circuits/
-cp nullification_final.zkey ../public/circuits/
-cp verification_key.json ../public/circuits/
+cp build/nullification_xor_js/nullification_xor.wasm ../public/circuits/
+cp nullification_xor_final.zkey ../public/circuits/
+cp verification_key_xor.json ../public/circuits/
 
 # Cleanup intermediate file
-rm -f nullification_0000.zkey
+rm -f nullification_xor_0000.zkey
 
 # Print summary
 echo ""
 echo "=========================================="
-echo "Compilation Complete! (Groth16)"
+echo "Compilation Complete! (Groth16 / XOR)"
 echo "=========================================="
 echo ""
 echo "Generated files:"
 ls -lh ../public/circuits/
 echo ""
 echo "Circuit statistics:"
-snarkjs r1cs info build/nullification.r1cs
+snarkjs r1cs info build/nullification_xor.r1cs
 echo ""
-echo "You can now use the nullification feature!"
+echo "You can now use the XOR nullification feature!"
 echo "To test, run: snarkjs groth16 prove ..."

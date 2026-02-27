@@ -1,6 +1,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { StoredKeypair } from "@/types/keypair";
+import { logger } from "@/services/logger";
 
 export interface ElectionAuthority {
   id: string;
@@ -19,7 +20,7 @@ export async function createElectionAuthority(
   keypair: StoredKeypair
 ): Promise<ElectionAuthority | null> {
   try {
-    console.log(`Creating election authority: ${name}`);
+    logger.debug(`Creating election authority: ${name}`);
     
     const { data, error } = await supabase
       .from("election_authorities")
@@ -33,14 +34,14 @@ export async function createElectionAuthority(
       .single();
 
     if (error) {
-      console.error("Error creating election authority:", error);
+      logger.error("Error creating election authority:", error);
       return null;
     }
 
-    console.log("Successfully created election authority:", data);
+    logger.debug("Successfully created election authority:", data);
     return data;
   } catch (error) {
-    console.error("Error in createElectionAuthority:", error);
+    logger.error("Error in createElectionAuthority:", error);
     return null;
   }
 }
@@ -53,7 +54,7 @@ export async function createElectionAuthorityWithPublicKey(
   publicKeyY: string
 ): Promise<ElectionAuthority | null> {
   try {
-    console.log(`Creating election authority with public key: ${name}`);
+    logger.debug(`Creating election authority with public key: ${name}`);
     
     const { data, error } = await supabase
       .from("election_authorities")
@@ -67,14 +68,14 @@ export async function createElectionAuthorityWithPublicKey(
       .single();
 
     if (error) {
-      console.error("Error creating election authority:", error);
+      logger.error("Error creating election authority:", error);
       return null;
     }
 
-    console.log("Successfully created election authority:", data);
+    logger.debug("Successfully created election authority:", data);
     return data;
   } catch (error) {
-    console.error("Error in createElectionAuthorityWithPublicKey:", error);
+    logger.error("Error in createElectionAuthorityWithPublicKey:", error);
     return null;
   }
 }
@@ -82,7 +83,7 @@ export async function createElectionAuthorityWithPublicKey(
 // Get all election authorities
 export async function getElectionAuthorities(): Promise<ElectionAuthority[]> {
   try {
-    console.log("Fetching all election authorities");
+    logger.debug("Fetching all election authorities");
     
     const { data, error } = await supabase
       .from("election_authorities")
@@ -90,14 +91,14 @@ export async function getElectionAuthorities(): Promise<ElectionAuthority[]> {
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("Error fetching election authorities:", error);
+      logger.error("Error fetching election authorities:", error);
       return [];
     }
 
-    console.log(`Found ${data?.length || 0} election authorities:`, data);
+    logger.debug(`Found ${data?.length || 0} election authorities:`, data);
     return data || [];
   } catch (error) {
-    console.error("Error in getElectionAuthorities:", error);
+    logger.error("Error in getElectionAuthorities:", error);
     return [];
   }
 }
@@ -105,7 +106,7 @@ export async function getElectionAuthorities(): Promise<ElectionAuthority[]> {
 // Get election authority by ID
 export async function getElectionAuthorityById(id: string): Promise<ElectionAuthority | null> {
   try {
-    console.log(`Fetching election authority with ID: ${id}`);
+    logger.debug(`Fetching election authority with ID: ${id}`);
     
     const { data, error } = await supabase
       .from("election_authorities")
@@ -114,14 +115,14 @@ export async function getElectionAuthorityById(id: string): Promise<ElectionAuth
       .maybeSingle();
 
     if (error) {
-      console.error("Error fetching election authority:", error);
+      logger.error("Error fetching election authority:", error);
       return null;
     }
 
-    console.log("Found election authority:", data);
+    logger.debug("Found election authority:", data);
     return data;
   } catch (error) {
-    console.error("Error in getElectionAuthorityById:", error);
+    logger.error("Error in getElectionAuthorityById:", error);
     return null;
   }
 }
@@ -129,7 +130,7 @@ export async function getElectionAuthorityById(id: string): Promise<ElectionAuth
 // Get election authority for a specific election
 export async function getElectionAuthorityForElection(electionId: string): Promise<ElectionAuthority | null> {
   try {
-    console.log(`Fetching election authority for election: ${electionId}`);
+    logger.debug(`Fetching election authority for election: ${electionId}`);
     
     // First, fetch the election to get the authority_id
     const { data: electionData, error: electionError } = await supabase
@@ -139,18 +140,18 @@ export async function getElectionAuthorityForElection(electionId: string): Promi
       .maybeSingle();
 
     if (electionError) {
-      console.error("Error fetching election:", electionError);
+      logger.error("Error fetching election:", electionError);
       return null;
     }
 
     if (!electionData) {
-      console.error("Election not found:", electionId);
+      logger.error("Election not found:", electionId);
       return null;
     }
 
     // If the election has a specific authority assigned, fetch it
     if (electionData.authority_id) {
-      console.log(`Fetching authority by ID: ${electionData.authority_id}`);
+      logger.debug(`Fetching authority by ID: ${electionData.authority_id}`);
       
       const { data: authorityData, error: authorityError } = await supabase
         .from("election_authorities")
@@ -159,18 +160,18 @@ export async function getElectionAuthorityForElection(electionId: string): Promi
         .maybeSingle();
         
       if (authorityError) {
-        console.error("Error fetching election authority by ID:", authorityError);
+        logger.error("Error fetching election authority by ID:", authorityError);
         return null;
       }
       
       if (authorityData) {
-        console.log("Found election authority for election:", authorityData);
+        logger.debug("Found election authority for election:", authorityData);
         return authorityData;
       }
     }
     
     // If no specific authority is assigned, get the default one
-    console.log("No specific authority assigned, fetching default authority");
+    logger.debug("No specific authority assigned, fetching default authority");
     
     // First ensure default authority exists
     await initializeDefaultElectionAuthority();
@@ -183,19 +184,19 @@ export async function getElectionAuthorityForElection(electionId: string): Promi
       .maybeSingle();
       
     if (defaultError) {
-      console.error("Error fetching default election authority:", defaultError);
+      logger.error("Error fetching default election authority:", defaultError);
       return null;
     }
     
     if (!defaultAuthority) {
-      console.error("Default election authority not found after initialization");
+      logger.error("Default election authority not found after initialization");
       return null;
     }
     
-    console.log("Using default election authority:", defaultAuthority);
+    logger.debug("Using default election authority:", defaultAuthority);
     return defaultAuthority;
   } catch (error) {
-    console.error("Error in getElectionAuthorityForElection:", error);
+    logger.error("Error in getElectionAuthorityForElection:", error);
     return null;
   }
 }
@@ -206,7 +207,7 @@ export async function updateElectionAuthority(
   updates: Partial<Pick<ElectionAuthority, 'name' | 'description'>>
 ): Promise<boolean> {
   try {
-    console.log(`Updating election authority ${id}:`, updates);
+    logger.debug(`Updating election authority ${id}:`, updates);
     
     const { error } = await supabase
       .from("election_authorities")
@@ -217,14 +218,14 @@ export async function updateElectionAuthority(
       .eq("id", id);
 
     if (error) {
-      console.error("Error updating election authority:", error);
+      logger.error("Error updating election authority:", error);
       return false;
     }
 
-    console.log("Successfully updated election authority");
+    logger.debug("Successfully updated election authority");
     return true;
   } catch (error) {
-    console.error("Error in updateElectionAuthority:", error);
+    logger.error("Error in updateElectionAuthority:", error);
     return false;
   }
 }
@@ -232,7 +233,7 @@ export async function updateElectionAuthority(
 // Delete election authority
 export async function deleteElectionAuthority(id: string): Promise<boolean> {
   try {
-    console.log(`Deleting election authority: ${id}`);
+    logger.debug(`Deleting election authority: ${id}`);
     
     const { error } = await supabase
       .from("election_authorities")
@@ -240,14 +241,14 @@ export async function deleteElectionAuthority(id: string): Promise<boolean> {
       .eq("id", id);
 
     if (error) {
-      console.error("Error deleting election authority:", error);
+      logger.error("Error deleting election authority:", error);
       return false;
     }
 
-    console.log("Successfully deleted election authority");
+    logger.debug("Successfully deleted election authority");
     return true;
   } catch (error) {
-    console.error("Error in deleteElectionAuthority:", error);
+    logger.error("Error in deleteElectionAuthority:", error);
     return false;
   }
 }
@@ -258,7 +259,7 @@ export async function deleteElectionAuthority(id: string): Promise<boolean> {
 // Using sk=1, so pk = G (the generator point itself)
 export async function initializeDefaultElectionAuthority(): Promise<void> {
   try {
-    console.log("Initializing default election authority");
+    logger.debug("Initializing default election authority");
     
     const existingAuthorities = await getElectionAuthorities();
     
@@ -274,11 +275,11 @@ export async function initializeDefaultElectionAuthority(): Promise<void> {
         "5299619240641551281634865583518297030282874472190772894086521144482721001553",
         "16950150798460657717958625567821834550301663161624707787222815936182638968203"
       );
-      console.log("Default election authority created successfully");
+      logger.debug("Default election authority created successfully");
     } else {
-      console.log("Default election authority already exists");
+      logger.debug("Default election authority already exists");
     }
   } catch (error) {
-    console.error("Error initializing default election authority:", error);
+    logger.error("Error initializing default election authority:", error);
   }
 }

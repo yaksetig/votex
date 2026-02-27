@@ -26,6 +26,7 @@ import { storeNullificationBatch } from "@/services/nullificationService";
 import { generateKAnonymousNullifications, KAnonymityProgress } from "@/services/kAnonymityNullificationService";
 import NullificationDialog from "@/components/NullificationDialog";
 import KAnonymityProgressDialog from "@/components/KAnonymityProgressDialog";
+import { Election } from "@/types/election";
 
 const ElectionDetail = () => {
   const { id } = useParams();
@@ -33,7 +34,7 @@ const ElectionDetail = () => {
   const { toast } = useToast();
   const { userId, isWorldIDVerified, derivedPublicKey, setDerivedPublicKey } = useWallet();
   
-  const [election, setElection] = useState<any>(null);
+  const [election, setElection] = useState<Election | null>(null);
   const [loading, setLoading] = useState(true);
   const [voteCounts, setVoteCounts] = useState({ option1: 0, option2: 0 });
   const [selectedOption, setSelectedOption] = useState<string>("");

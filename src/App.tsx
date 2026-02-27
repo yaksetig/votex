@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { BrowserRouter, Routes, Route } from "react-router-dom"
 import { WalletProvider } from "@/contexts/WalletContext"
+import ProtectedRoute from "@/components/ProtectedRoute"
 import NavBar from "@/components/NavBar"
 import Index from "@/pages/Index"
 import Dashboard from "@/pages/Dashboard"
@@ -31,11 +32,11 @@ const App: React.FC = () => (
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/success" element={<Success />} />
+                <Route path="/success" element={<ProtectedRoute><Success /></ProtectedRoute>} />
                 <Route path="/elections" element={<Elections />} />
                 <Route path="/elections/:id" element={<ElectionDetail />} />
-                <Route path="/elections/:id/authority" element={<ElectionAuthority />} />
-                <Route path="/election_authority" element={<ElectionAuthority />} />
+                <Route path="/elections/:id/authority" element={<ProtectedRoute><ElectionAuthority /></ProtectedRoute>} />
+                <Route path="/election_authority" element={<ProtectedRoute><ElectionAuthority /></ProtectedRoute>} />
                 <Route path="/how-it-works" element={<HowItWorks />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>

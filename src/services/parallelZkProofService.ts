@@ -1,13 +1,19 @@
 // Parallel ZK proof generation using Web Workers
 
+import { Groth16Proof } from "@/types/proof";
+import { logger } from "@/services/logger";
+
 export interface ProofInput {
   id: string;
   input: {
     ciphertext: string[];
+    gate_output: string[];
+    accumulator: string[];
     pk_voter: string[];
     pk_authority: string[];
+    x: string;
     r: string;
-    m: string;
+    s: string;
     sk_voter: string;
   };
 }
@@ -15,7 +21,7 @@ export interface ProofInput {
 export interface ProofResult {
   id: string;
   success: boolean;
-  proof?: any;
+  proof?: Groth16Proof;
   publicSignals?: string[];
   error?: string;
 }
@@ -24,14 +30,14 @@ export interface ProofResult {
 function getCircuitFilesBaseUrl(): string {
   const envUrl = import.meta.env.VITE_CIRCUIT_FILES_URL;
   if (envUrl) {
-    return envUrl.endsWith('/') ? envUrl : `${envUrl}/`;
+    return envUrl.endsWith("/") ? envUrl : `${envUrl}/`;
   }
-  return '/circuits/';
+  return "/circuits/";
 }
 
 const BASE_URL = getCircuitFilesBaseUrl();
-const WASM_PATH = `${BASE_URL}nullification.wasm`;
-const ZKEY_PATH = `${BASE_URL}nullification_final.zkey`;
+const WASM_PATH = `${BASE_URL}nullification_xor.wasm`;
+const ZKEY_PATH = `${BASE_URL}nullification_xor_final.zkey`;
 
 // Generate multiple proofs in parallel using Web Workers
 export async function generateProofsInParallel(
@@ -40,67 +46,54 @@ export async function generateProofsInParallel(
 ): Promise<ProofResult[]> {
   const total = proofInputs.length;
   let completed = 0;
-  const results: ProofResult[] = [];
 
-  console.log(`Starting parallel proof generation for ${total} proofs...`);
+  logger.debug(`Starting parallel proof generation for ${total} proofs...`);
 
-  // Determine how many workers to spawn (min of inputs length and available cores)
-  const maxWorkers = Math.min(navigator.hardwareConcurrency || 4, total);
-  console.log(`Using ${maxWorkers} parallel workers`);
+  const workerPromises: Promise<ProofResult>[] = proofInputs.map(
+    (proofInput) => {
+      return new Promise((resolve) => {
+        const worker = new Worker(
+          new URL("../workers/zkProofWorker.ts", import.meta.url),
+          { type: "module" }
+        );
 
-  // Create a pool of promises
-  const workerPromises: Promise<ProofResult>[] = proofInputs.map((proofInput) => {
-    return new Promise((resolve) => {
-      // Create a new worker for each proof
-      const worker = new Worker(
-        new URL("../workers/zkProofWorker.ts", import.meta.url),
-        { type: "module" }
-      );
+        worker.onmessage = (event: MessageEvent) => {
+          const result = event.data as ProofResult;
+          completed++;
 
-      // Set up message handler
-      worker.onmessage = (event: MessageEvent) => {
-        const result = event.data as ProofResult;
-        completed++;
-        
-        console.log(`Proof ${completed}/${total} completed`);
-        onProgress?.(completed, total);
-        
-        // Terminate the worker
-        worker.terminate();
-        
-        resolve(result);
-      };
+          logger.debug(`Proof ${completed}/${total} completed`);
+          onProgress?.(completed, total);
 
-      // Handle worker errors
-      worker.onerror = (error) => {
-        completed++;
-        console.error(`Worker error for proof ${proofInput.id}:`, error);
-        onProgress?.(completed, total);
-        
-        worker.terminate();
-        
-        resolve({
+          worker.terminate();
+          resolve(result);
+        };
+
+        worker.onerror = (error) => {
+          completed++;
+          logger.error(`Worker error for proof ${proofInput.id}:`, error);
+          onProgress?.(completed, total);
+
+          worker.terminate();
+          resolve({
+            id: proofInput.id,
+            success: false,
+            error: error.message || "Worker error",
+          });
+        };
+
+        worker.postMessage({
           id: proofInput.id,
-          success: false,
-          error: error.message || "Worker error",
+          input: proofInput.input,
+          wasmPath: WASM_PATH,
+          zkeyPath: ZKEY_PATH,
         });
-      };
-
-      // Send the proof generation request
-      worker.postMessage({
-        id: proofInput.id,
-        input: proofInput.input,
-        wasmPath: WASM_PATH,
-        zkeyPath: ZKEY_PATH,
       });
-    });
-  });
+    }
+  );
 
-  // Wait for all proofs to complete
   const allResults = await Promise.all(workerPromises);
-  
-  console.log(`All ${total} proofs completed`);
-  
+
+  logger.debug(`All ${total} proofs completed`);
   return allResults;
 }
 
@@ -115,7 +108,7 @@ export async function generateProofsSequentially(
 
   for (let i = 0; i < proofInputs.length; i++) {
     const proofInput = proofInputs[i];
-    
+
     try {
       const { proof, publicSignals } = await snarkjs.groth16.fullProve(
         proofInput.input,

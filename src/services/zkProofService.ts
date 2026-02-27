@@ -1,69 +1,79 @@
-
 import * as snarkjs from "snarkjs";
 import { StoredKeypair } from "@/types/keypair";
+import { Groth16Proof, VerificationKey } from "@/types/proof";
 import { ElGamalCiphertext } from "@/services/elGamalService";
+import { logger } from "@/services/logger";
 
 // Get base URL for circuit files (Supabase Storage or local)
 function getCircuitFilesBaseUrl(): string {
   const envUrl = import.meta.env.VITE_CIRCUIT_FILES_URL;
   if (envUrl) {
-    return envUrl.endsWith('/') ? envUrl : `${envUrl}/`;
+    return envUrl.endsWith("/") ? envUrl : `${envUrl}/`;
   }
-  return '/circuits/';
+  return "/circuits/";
 }
 
-// Paths to pre-compiled circuit artifacts
+// Paths to pre-compiled XOR circuit artifacts
 const BASE_URL = getCircuitFilesBaseUrl();
-const WASM_PATH = `${BASE_URL}nullification.wasm`;
-const ZKEY_PATH = `${BASE_URL}nullification_final.zkey`;
-const VKEY_PATH = `${BASE_URL}verification_key.json`;
+const WASM_PATH = `${BASE_URL}nullification_xor.wasm`;
+const ZKEY_PATH = `${BASE_URL}nullification_xor_final.zkey`;
+const VKEY_PATH = `${BASE_URL}verification_key_xor.json`;
 
 // Cache for verification key
-let verificationKey: any = null;
+let verificationKey: VerificationKey | null = null;
 
-async function loadVerificationKey(): Promise<any> {
+async function loadVerificationKey(): Promise<VerificationKey> {
   if (!verificationKey) {
     const response = await fetch(VKEY_PATH);
-    verificationKey = await response.json();
+    verificationKey = (await response.json()) as VerificationKey;
   }
   return verificationKey;
 }
 
-// Generate Groth16 proof for nullification
+// Generate Groth16 proof for XOR nullification
 export async function generateNullificationProof(
   voterKeypair: StoredKeypair,
   authorityPublicKey: { x: string; y: string },
   ciphertext: ElGamalCiphertext,
-  deterministicR: bigint,
-  message: number = 1 // 1 for actual nullification, 0 for dummy
-): Promise<{ proof: any; publicSignals: string[] }> {
+  gateOutput: ElGamalCiphertext,
+  accumulator: ElGamalCiphertext,
+  r: bigint,
+  s: bigint,
+  message: number = 1
+): Promise<{ proof: Groth16Proof; publicSignals: string[] }> {
   try {
-    console.log(`Generating Groth16 proof for ${message === 1 ? "actual" : "dummy"} nullification...`);
+    logger.debug(
+      `Generating Groth16 proof for ${message === 1 ? "actual" : "dummy"} XOR nullification...`
+    );
 
     const input = {
-      // Public inputs
       ciphertext: [
         ciphertext.c1.x.toString(),
         ciphertext.c1.y.toString(),
         ciphertext.c2.x.toString(),
         ciphertext.c2.y.toString(),
       ],
+      gate_output: [
+        gateOutput.c1.x.toString(),
+        gateOutput.c1.y.toString(),
+        gateOutput.c2.x.toString(),
+        gateOutput.c2.y.toString(),
+      ],
+      accumulator: [
+        accumulator.c1.x.toString(),
+        accumulator.c1.y.toString(),
+        accumulator.c2.x.toString(),
+        accumulator.c2.y.toString(),
+      ],
       pk_voter: [voterKeypair.Ax, voterKeypair.Ay],
       pk_authority: [authorityPublicKey.x, authorityPublicKey.y],
-      // Private inputs
-      r: deterministicR.toString(),
-      m: message.toString(),
+      x: message.toString(),
+      r: r.toString(),
+      s: s.toString(),
       sk_voter: voterKeypair.k,
     };
 
-    console.log("Computing witness and generating Groth16 proof with inputs:", {
-      ciphertext: input.ciphertext,
-      pk_voter: input.pk_voter,
-      pk_authority: input.pk_authority,
-      r: input.r,
-      m: input.m,
-      sk_voter: "***hidden***",
-    });
+    logger.debug("Computing witness and generating Groth16 proof...");
 
     const { proof, publicSignals } = await snarkjs.groth16.fullProve(
       input,
@@ -71,35 +81,34 @@ export async function generateNullificationProof(
       ZKEY_PATH
     );
 
-    console.log("Groth16 proof generated successfully:", { proof, publicSignals });
+    logger.debug("Groth16 proof generated successfully");
     return { proof, publicSignals };
   } catch (error) {
-    console.error("Error generating Groth16 proof:", error);
-    
-    // Provide helpful error message
+    logger.error("Error generating Groth16 proof:", error);
+
     if (error instanceof Error && error.message.includes("404")) {
       throw new Error(
-        "Circuit artifacts not found. Please compile the Circom circuit and upload to Supabase Storage. " +
-        "See circuits/README.md for instructions."
+        "Circuit artifacts not found. Please compile the XOR Circom circuit and upload to Supabase Storage. " +
+          "See circuits/README.md for instructions."
       );
     }
-    
+
     throw new Error(`Failed to generate Groth16 proof: ${error}`);
   }
 }
 
 // Verify Groth16 proof
 export async function verifyNullificationProof(
-  proof: any,
+  proof: Groth16Proof,
   publicSignals: string[]
 ): Promise<boolean> {
   try {
     const vkey = await loadVerificationKey();
     const valid = await snarkjs.groth16.verify(vkey, publicSignals, proof);
-    console.log("Groth16 proof verification result:", valid);
+    logger.debug("Groth16 proof verification result:", valid);
     return valid;
   } catch (error) {
-    console.error("Error verifying Groth16 proof:", error);
+    logger.error("Error verifying Groth16 proof:", error);
     return false;
   }
 }

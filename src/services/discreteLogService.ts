@@ -1,11 +1,12 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { EdwardsPoint } from '@/services/elGamalService';
+import { logger } from '@/services/logger';
 
 // Generate and store discrete log lookup table in Supabase
 export async function initializeDiscreteLogTable(maxValue: number = 100): Promise<boolean> {
   try {
-    console.log(`Initializing discrete log table with max value: ${maxValue}`);
+    logger.debug(`Initializing discrete log table with max value: ${maxValue}`);
     
     // Check if table is already populated
     const { data: existingData, error: checkError } = await supabase
@@ -14,12 +15,12 @@ export async function initializeDiscreteLogTable(maxValue: number = 100): Promis
       .limit(1);
       
     if (checkError) {
-      console.error('Error checking discrete log table:', checkError);
+      logger.error('Error checking discrete log table:', checkError);
       return false;
     }
     
     if (existingData && existingData.length > 0) {
-      console.log('Discrete log table already initialized');
+      logger.debug('Discrete log table already initialized');
       return true;
     }
     
@@ -45,14 +46,14 @@ export async function initializeDiscreteLogTable(maxValue: number = 100): Promis
       .insert(entries);
       
     if (insertError) {
-      console.error('Error inserting discrete log entries:', insertError);
+      logger.error('Error inserting discrete log entries:', insertError);
       return false;
     }
     
-    console.log(`Successfully initialized discrete log table with ${entries.length} entries`);
+    logger.debug(`Successfully initialized discrete log table with ${entries.length} entries`);
     return true;
   } catch (error) {
-    console.error('Error in initializeDiscreteLogTable:', error);
+    logger.error('Error in initializeDiscreteLogTable:', error);
     return false;
   }
 }
@@ -67,13 +68,13 @@ export async function getDiscreteLogFromDB(pointString: string): Promise<number 
       .maybeSingle();
       
     if (error) {
-      console.error('Error fetching discrete log:', error);
+      logger.error('Error fetching discrete log:', error);
       return null;
     }
     
     return data?.discrete_log_value ?? null;
   } catch (error) {
-    console.error('Error in getDiscreteLogFromDB:', error);
+    logger.error('Error in getDiscreteLogFromDB:', error);
     return null;
   }
 }
@@ -84,14 +85,14 @@ export async function clearDiscreteLogTable(): Promise<boolean> {
     const { error } = await supabase.rpc('clear_discrete_log_table');
     
     if (error) {
-      console.error('Error clearing discrete log table:', error);
+      logger.error('Error clearing discrete log table:', error);
       return false;
     }
     
-    console.log('Successfully cleared discrete log table');
+    logger.debug('Successfully cleared discrete log table');
     return true;
   } catch (error) {
-    console.error('Error in clearDiscreteLogTable:', error);
+    logger.error('Error in clearDiscreteLogTable:', error);
     return false;
   }
 }
@@ -104,13 +105,13 @@ export async function getDiscreteLogTableSize(): Promise<number> {
       .select('*', { count: 'exact', head: true });
       
     if (error) {
-      console.error('Error getting table size:', error);
+      logger.error('Error getting table size:', error);
       return 0;
     }
     
     return count || 0;
   } catch (error) {
-    console.error('Error in getDiscreteLogTableSize:', error);
+    logger.error('Error in getDiscreteLogTableSize:', error);
     return 0;
   }
 }

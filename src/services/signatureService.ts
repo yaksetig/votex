@@ -1,166 +1,128 @@
-
 import { buildBabyjub } from "circomlibjs";
 import { StoredKeypair } from "@/types/keypair";
+import { CURVE_ORDER } from "@/services/crypto/constants";
+import { toBytesBE, stringToBytes, hashToScalarBE } from "@/services/crypto/utils";
+import { logger } from "@/services/logger";
 
-// Global variable to store the BabyJubjub instance once initialized
-let babyJub: any = null;
-let ORDER: bigint;
+// circomlibjs BabyJubjub instance (field-element representation)
+interface BabyJubInstance {
+  F: {
+    e: (v: bigint) => unknown;
+    toObject: (v: unknown) => bigint;
+  };
+  Base8: [unknown, unknown];
+  subOrder: bigint;
+  mulPointEscalar: (p: unknown, s: bigint) => [unknown, unknown];
+  addPoint: (a: [unknown, unknown], b: [unknown, unknown]) => [unknown, unknown];
+}
 
-// Initialize BabyJubjub
-async function getBabyJub(): Promise<any> {
+let babyJub: BabyJubInstance | null = null;
+
+async function getBabyJub(): Promise<BabyJubInstance> {
   if (babyJub) return babyJub;
-  
+
   if (!globalThis.crypto?.subtle) {
     throw new Error("WebCrypto API unavailable; must run in a modern browser.");
   }
-  
-  babyJub = await buildBabyjub();
-  ORDER = babyJub.subOrder;
+
+  babyJub = (await buildBabyjub()) as unknown as BabyJubInstance;
   return babyJub;
-}
-
-// Convert a bigint to a big-endian byte array
-function toBytesBE(x: bigint): Uint8Array {
-  const out = new Uint8Array(32);
-  let v = x;
-  for (let i = 31; i >= 0; i--) {
-    out[i] = Number(v & 0xffn);
-    v >>= 8n;
-  }
-  return out;
-}
-
-// Convert a string to bytes
-function stringToBytes(str: string): Uint8Array {
-  return new TextEncoder().encode(str);
-}
-
-// SHA-256 hash function
-async function sha256(msg: Uint8Array): Promise<Uint8Array> {
-  // Create a new ArrayBuffer to avoid SharedArrayBuffer type issues
-  const buffer = new ArrayBuffer(msg.length);
-  new Uint8Array(buffer).set(msg);
-  const h = await crypto.subtle.digest("SHA-256", buffer);
-  return new Uint8Array(h);
-}
-
-// Hash to scalar modulo order
-async function hashToScalarBE(...parts: Uint8Array[]): Promise<bigint> {
-  const all = Uint8Array.from(parts.flatMap(p => [...p]));
-  const d = await sha256(all);
-  const hex = [...d].map(b => b.toString(16).padStart(2, "0")).join("");
-  const digestValue = BigInt("0x" + hex);
-  return digestValue % ORDER;
-}
-
-// Generate a random scalar
-function randomScalar(order: bigint): bigint {
-  const buf = crypto.getRandomValues(new Uint8Array(32));
-  const hex = Array.from(buf)
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-  return BigInt("0x" + hex) % order;
 }
 
 // Sign a message with the user's keypair
 export async function signVote(
-  keypair: StoredKeypair, 
-  electionId: string, 
+  keypair: StoredKeypair,
+  electionId: string,
   choice: string
 ): Promise<{
-  signature: string,
-  publicKey: { x: string, y: string },
-  timestamp: number
+  signature: string;
+  publicKey: { x: string; y: string };
+  timestamp: number;
 }> {
   const bj = await getBabyJub();
   const { F } = bj;
-  
-  // Convert keypair strings to bigints
+
   const privateKey = BigInt(keypair.k);
   const Ax = BigInt(keypair.Ax);
-  const Ay = BigInt(keypair.Ay);
-  
-  // Create message from election ID and choice
+
   const timestamp = Date.now();
   const message = `${electionId}:${choice}:${timestamp}`;
   const msgBytes = stringToBytes(message);
-  
+
   // Generate the internal nonce (r)
-  const r = await hashToScalarBE(toBytesBE(privateKey), msgBytes);
-  
+  const r = await hashToScalarBE(CURVE_ORDER, toBytesBE(privateKey), msgBytes);
+
   // Calculate R = r*B
   const R_e = bj.mulPointEscalar(bj.Base8, r);
   const Rx = F.toObject(R_e[0]);
   const Ry = F.toObject(R_e[1]);
-  
+
   // Calculate challenge t = H(Rx || Ax || message)
   const t = await hashToScalarBE(
+    CURVE_ORDER,
     toBytesBE(Rx),
     toBytesBE(Ax),
     msgBytes
   );
-  
+
   // Calculate signature s = (r + privateKey * t) mod ORDER
-  const s = (r + privateKey * t) % ORDER;
-  
-  // Format the signature as a JSON string for storage
+  const s = (r + privateKey * t) % CURVE_ORDER;
+
   const signatureObject = {
     R: { x: Rx.toString(), y: Ry.toString() },
     s: s.toString(),
-    message
+    message,
   };
-  
+
   return {
     signature: JSON.stringify(signatureObject),
     publicKey: { x: keypair.Ax, y: keypair.Ay },
-    timestamp
+    timestamp,
   };
 }
 
 // Verify a signature
 export async function verifySignature(
   signature: string,
-  publicKey: { x: string, y: string }
+  publicKey: { x: string; y: string }
 ): Promise<boolean> {
   try {
     const bj = await getBabyJub();
     const { F } = bj;
-    
-    // Parse the signature
+
     const sigObj = JSON.parse(signature);
     const s = BigInt(sigObj.s);
     const Rx = BigInt(sigObj.R.x);
     const Ry = BigInt(sigObj.R.y);
     const msgBytes = stringToBytes(sigObj.message);
-    
-    // Convert public key to bigints
+
     const Ax = BigInt(publicKey.x);
     const Ay = BigInt(publicKey.y);
-    
-    // Recreate points
-    const R_e = [F.e(Rx), F.e(Ry)];
-    const A_e = [F.e(Ax), F.e(Ay)];
-    
+
+    const R_e: [unknown, unknown] = [F.e(Rx), F.e(Ry)];
+    const A_e: [unknown, unknown] = [F.e(Ax), F.e(Ay)];
+
     // Calculate challenge t = H(Rx || Ax || message)
     const t = await hashToScalarBE(
+      CURVE_ORDER,
       toBytesBE(Rx),
       toBytesBE(Ax),
       msgBytes
     );
-    
+
     // Verify: sB = R + tA
     const sB = bj.mulPointEscalar(bj.Base8, s);
     const tA = bj.mulPointEscalar(A_e, t);
     const rhs = bj.addPoint(R_e, tA);
-    
+
     const sB_x = F.toObject(sB[0]);
     const sB_y = F.toObject(sB[1]);
     const rhs_x = F.toObject(rhs[0]);
     const rhs_y = F.toObject(rhs[1]);
-    
+
     return sB_x === rhs_x && sB_y === rhs_y;
   } catch (error) {
-    console.error("Signature verification failed:", error);
+    logger.error("Signature verification failed:", error);
     return false;
   }
 }

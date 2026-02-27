@@ -2,6 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { StoredKeypair } from "@/types/keypair";
 import { verifyKeypairConsistency } from "@/services/elGamalService";
+import { logger } from "@/services/logger";
 
 // Check if a keypair exists in localStorage
 export function getStoredKeypair(): StoredKeypair | null {
@@ -19,7 +20,7 @@ export function validateAndMigrateKeypair(): { valid: boolean; cleared: boolean;
   const isConsistent = verifyKeypairConsistency(storedKeypair);
   if (!isConsistent) {
     localStorage.removeItem("babyJubKeypair");
-    console.warn("Cleared outdated keypair - base point mismatch detected");
+    logger.warn("Cleared outdated keypair - base point mismatch detected");
     return { valid: false, cleared: true, keypair: null };
   }
   
@@ -38,7 +39,7 @@ export async function registerKeypair(keypair: StoredKeypair): Promise<boolean> 
       .single();
       
     if (existingKeypair) {
-      console.log("Keypair already registered");
+      logger.debug("Keypair already registered");
       return true;
     }
     
@@ -51,13 +52,13 @@ export async function registerKeypair(keypair: StoredKeypair): Promise<boolean> 
       });
       
     if (error) {
-      console.error("Error registering keypair:", error);
+      logger.error("Error registering keypair:", error);
       return false;
     }
     
     return true;
   } catch (error) {
-    console.error("Error in keypair registration:", error);
+    logger.error("Error in keypair registration:", error);
     return false;
   }
 }

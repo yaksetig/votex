@@ -1,64 +1,18 @@
-
 import { StoredKeypair } from "@/types/keypair";
-
-// BabyJubJub curve parameters
-const CURVE_ORDER = 2736030358979909402780800718157159386076813972158567259200215660948447373041n;
-const FIELD_SIZE = 21888242871839275222246405745257275088548364400416034343698204186575808495617n;
-const D = 168696n;
-const A = 168700n;
-
-// CRITICAL: This base point MUST match the generator used in circomlib
-// (node_modules/circomlib/circuits/babyjub.circom)
-// Changing this will break ZK proof verification!
-const BASE_POINT = {
-  x: 5299619240641551281634865583518297030282874472190772894086521144482721001553n,
-  y: 16950150798460657717958625567821834550301663161624707787222815936182638968203n
-};
-
-// Utility functions
-function mod(a: bigint, m: bigint): bigint {
-  return ((a % m) + m) % m;
-}
-
-function modInverse(a: bigint, m: bigint): bigint | null {
-  if (a < 0n) a = mod(a, m);
-  
-  let [old_r, r] = [a, m];
-  let [old_s, s] = [1n, 0n];
-  
-  while (r !== 0n) {
-    const quotient = old_r / r;
-    [old_r, r] = [r, old_r - quotient * r];
-    [old_s, s] = [s, old_s - quotient * s];
-  }
-  
-  return old_r > 1n ? null : mod(old_s, m);
-}
-
-function toBytesBE(x: bigint): Uint8Array {
-  const out = new Uint8Array(32);
-  let v = x;
-  for (let i = 31; i >= 0; i--) {
-    out[i] = Number(v & 0xffn);
-    v >>= 8n;
-  }
-  return out;
-}
-
-async function sha256(msg: Uint8Array): Promise<Uint8Array> {
-  // Create a new ArrayBuffer to avoid SharedArrayBuffer type issues
-  const buffer = new ArrayBuffer(msg.length);
-  new Uint8Array(buffer).set(msg);
-  const h = await crypto.subtle.digest("SHA-256", buffer);
-  return new Uint8Array(h);
-}
-
-async function hashToScalarBE(...parts: Uint8Array[]): Promise<bigint> {
-  const all = Uint8Array.from(parts.flatMap(p => [...p]));
-  const d = await sha256(all);
-  const hex = [...d].map(b => b.toString(16).padStart(2, "0")).join("");
-  return BigInt("0x" + hex) % CURVE_ORDER;
-}
+import {
+  CURVE_ORDER,
+  FIELD_SIZE,
+  BABYJUBJUB_D as D,
+  BABYJUBJUB_A as A,
+  BASE_POINT,
+} from "@/services/crypto/constants";
+import {
+  mod,
+  modInverse,
+  toBytesBE,
+  hashToScalarBE,
+  randomScalar,
+} from "@/services/crypto/utils";
 
 // Edwards curve point operations for BabyJubJub
 export class EdwardsPoint {
@@ -87,29 +41,34 @@ export class EdwardsPoint {
   }
 
   add(other: EdwardsPoint): EdwardsPoint {
-    const x1 = this.x, y1 = this.y;
-    const x2 = other.x, y2 = other.y;
-    
+    const x1 = this.x,
+      y1 = this.y;
+    const x2 = other.x,
+      y2 = other.y;
+
     const x1y2 = (x1 * y2) % FIELD_SIZE;
     const y1x2 = (y1 * x2) % FIELD_SIZE;
     const y1y2 = (y1 * y2) % FIELD_SIZE;
     const x1x2 = (x1 * x2) % FIELD_SIZE;
-    
+
     const dx1x2y1y2 = (D * x1x2 * y1y2) % FIELD_SIZE;
-    
+
     const x3_num = (x1y2 + y1x2) % FIELD_SIZE;
     const x3_den = modInverse((1n + dx1x2y1y2) % FIELD_SIZE, FIELD_SIZE);
-    
+
     const y3_num = (y1y2 - A * x1x2) % FIELD_SIZE;
-    const y3_den = modInverse((1n - dx1x2y1y2 + FIELD_SIZE) % FIELD_SIZE, FIELD_SIZE);
-    
+    const y3_den = modInverse(
+      (1n - dx1x2y1y2 + FIELD_SIZE) % FIELD_SIZE,
+      FIELD_SIZE
+    );
+
     if (x3_den === null || y3_den === null) {
       throw new Error("Point addition failed - inverse doesn't exist");
     }
-    
+
     const x3 = (x3_num * x3_den) % FIELD_SIZE;
     const y3 = (y3_num * y3_den) % FIELD_SIZE;
-    
+
     return new EdwardsPoint(x3, y3);
   }
 
@@ -117,7 +76,7 @@ export class EdwardsPoint {
     let result = EdwardsPoint.identity();
     let addend = new EdwardsPoint(this.x, this.y);
     let k = scalar;
-    
+
     while (k > 0n) {
       if (k & 1n) {
         result = result.add(addend);
@@ -125,7 +84,7 @@ export class EdwardsPoint {
       addend = addend.add(addend);
       k >>= 1n;
     }
-    
+
     return result;
   }
 
@@ -142,11 +101,11 @@ export class EdwardsPoint {
 export function derivePublicKey(privateKey: bigint): EdwardsPoint {
   const basePoint = EdwardsPoint.base();
   const publicKey = basePoint.multiply(privateKey);
-  
+
   if (!publicKey.isOnCurve()) {
     throw new Error("Derived public key is not on curve!");
   }
-  
+
   return publicKey;
 }
 
@@ -155,12 +114,15 @@ export function verifyKeypairConsistency(keypair: StoredKeypair): boolean {
   try {
     const privateKey = BigInt(keypair.k);
     const expectedPublicKey = derivePublicKey(privateKey);
-    
+
     const actualPublicKeyX = BigInt(keypair.Ax);
     const actualPublicKeyY = BigInt(keypair.Ay);
-    
-    return expectedPublicKey.x === actualPublicKeyX && expectedPublicKey.y === actualPublicKeyY;
-  } catch (error) {
+
+    return (
+      expectedPublicKey.x === actualPublicKeyX &&
+      expectedPublicKey.y === actualPublicKeyY
+    );
+  } catch {
     return false;
   }
 }
@@ -174,43 +136,133 @@ export interface ElGamalCiphertext {
 }
 
 // ElGamal encryption in the exponent
-export function elgamalEncrypt(publicKey: EdwardsPoint, message: number, randomValue?: bigint): ElGamalCiphertext {
-  const r = randomValue || BigInt(Math.floor(Math.random() * Number.MAX_SAFE_INTEGER));
+export function elgamalEncrypt(
+  publicKey: EdwardsPoint,
+  message: number,
+  randomValue?: bigint
+): ElGamalCiphertext {
+  const r = randomValue ?? randomScalar(CURVE_ORDER);
   const basePoint = EdwardsPoint.base();
-  
+
   const c1 = basePoint.multiply(r);
   const sharedSecret = publicKey.multiply(r);
   const mG = basePoint.multiply(BigInt(message));
   const c2 = sharedSecret.add(mG);
-  
+
   return {
     c1: c1,
     c2: c2,
     r: r,
-    ciphertext: [c1.x, c1.y, c2.x, c2.y]
+    ciphertext: [c1.x, c1.y, c2.x, c2.y],
   };
 }
 
 // Generate deterministic random value r = hash(sk, pk)
-export async function generateDeterministicR(privateKey: bigint, publicKey: { x: bigint, y: bigint }): Promise<bigint> {
+export async function generateDeterministicR(
+  privateKey: bigint,
+  publicKey: { x: bigint; y: bigint }
+): Promise<bigint> {
   const skBytes = toBytesBE(privateKey);
   const pkXBytes = toBytesBE(publicKey.x);
   const pkYBytes = toBytesBE(publicKey.y);
-  
-  return await hashToScalarBE(skBytes, pkXBytes, pkYBytes);
+
+  return await hashToScalarBE(CURVE_ORDER, skBytes, pkXBytes, pkYBytes);
 }
 
 // Create ElGamal encryption for nullification
 export async function createNullificationEncryption(
   userKeypair: StoredKeypair,
-  authorityPublicKey: { x: string, y: string }
+  authorityPublicKey: { x: string; y: string }
 ): Promise<ElGamalCiphertext> {
-  const authorityPoint = new EdwardsPoint(BigInt(authorityPublicKey.x), BigInt(authorityPublicKey.y));
-  const userPublicKey = new EdwardsPoint(BigInt(userKeypair.Ax), BigInt(userKeypair.Ay));
+  const authorityPoint = new EdwardsPoint(
+    BigInt(authorityPublicKey.x),
+    BigInt(authorityPublicKey.y)
+  );
+  const userPublicKey = new EdwardsPoint(
+    BigInt(userKeypair.Ax),
+    BigInt(userKeypair.Ay)
+  );
   const userPrivateKey = BigInt(userKeypair.k);
-  
-  const deterministicR = await generateDeterministicR(userPrivateKey, userPublicKey);
+
+  const deterministicR = await generateDeterministicR(
+    userPrivateKey,
+    userPublicKey
+  );
   const ciphertext = elgamalEncrypt(authorityPoint, 1, deterministicR);
-  
+
   return ciphertext;
+}
+
+// ===== XOR Accumulator Operations =====
+
+// Negate an Edwards point: -(x, y) = (-x, y)
+export function negatePoint(point: EdwardsPoint): EdwardsPoint {
+  return new EdwardsPoint(-point.x, point.y);
+}
+
+// Subtract two ciphertexts: [[a]] - [[b]] = ([[a]].c1 - [[b]].c1, [[a]].c2 - [[b]].c2)
+export function subtractCiphertexts(
+  a: ElGamalCiphertext,
+  b: ElGamalCiphertext
+): ElGamalCiphertext {
+  const c1 = a.c1.add(negatePoint(b.c1));
+  const c2 = a.c2.add(negatePoint(b.c2));
+  return {
+    c1,
+    c2,
+    r: 0n,
+    ciphertext: [c1.x, c1.y, c2.x, c2.y],
+  };
+}
+
+// Compute the XOR conditional gate output.
+// Given x in {0,1} and accumulator [[y]], computes:
+//   x' = 2x - 1  (maps {0,1} -> {-1,1})
+//   gate_c1 = s*G + x' * acc_c1  (conditional negation)
+//   gate_c2 = s*H + x' * acc_c2
+export function computeXorGate(
+  x: number,
+  accumulator: ElGamalCiphertext,
+  authorityPublicKey: EdwardsPoint,
+  s: bigint
+): ElGamalCiphertext {
+  const basePoint = EdwardsPoint.base();
+
+  // x' = 2x - 1: when x=0 -> -1 (negate), when x=1 -> +1 (keep)
+  const condAcc_c1 = x === 1 ? accumulator.c1 : negatePoint(accumulator.c1);
+  const condAcc_c2 = x === 1 ? accumulator.c2 : negatePoint(accumulator.c2);
+
+  // s*G and s*H
+  const sG = basePoint.multiply(s);
+  const sH = authorityPublicKey.multiply(s);
+
+  // gate = (s*G + x'*acc_c1, s*H + x'*acc_c2)
+  const gate_c1 = sG.add(condAcc_c1);
+  const gate_c2 = sH.add(condAcc_c2);
+
+  return {
+    c1: gate_c1,
+    c2: gate_c2,
+    r: s,
+    ciphertext: [gate_c1.x, gate_c1.y, gate_c2.x, gate_c2.y],
+  };
+}
+
+// Compute the new XOR accumulator: new_acc = [[x]] - [[x'y]]
+export function computeXorAccumulator(
+  freshCiphertext: ElGamalCiphertext,
+  gateOutput: ElGamalCiphertext
+): ElGamalCiphertext {
+  return subtractCiphertexts(freshCiphertext, gateOutput);
+}
+
+// Create the identity ciphertext [[0]] = (O, O) where O is the identity point
+export function identityCiphertext(): ElGamalCiphertext {
+  const id = EdwardsPoint.identity();
+  return {
+    c1: id,
+    c2: id,
+    r: 0n,
+    ciphertext: [id.x, id.y, id.x, id.y],
+  };
 }

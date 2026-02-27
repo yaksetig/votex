@@ -1,5 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
+import { logger } from "@/services/logger";
 
 export interface VoteData {
   totalYesVotes: number;
@@ -13,7 +14,7 @@ export interface VoteData {
 // Get comprehensive vote data for an election using the new tracking tables
 export async function getElectionVoteData(electionId: string): Promise<VoteData | null> {
   try {
-    console.log(`Fetching vote data for election: ${electionId}`);
+    logger.debug(`Fetching vote data for election: ${electionId}`);
     
     // Get Yes votes
     const { data: yesVotes, error: yesError } = await supabase
@@ -22,7 +23,7 @@ export async function getElectionVoteData(electionId: string): Promise<VoteData 
       .eq("election_id", electionId);
       
     if (yesError) {
-      console.error("Error fetching yes votes:", yesError);
+      logger.error("Error fetching yes votes:", yesError);
       return null;
     }
     
@@ -33,7 +34,7 @@ export async function getElectionVoteData(electionId: string): Promise<VoteData 
       .eq("election_id", electionId);
       
     if (noError) {
-      console.error("Error fetching no votes:", noError);
+      logger.error("Error fetching no votes:", noError);
       return null;
     }
     
@@ -53,11 +54,11 @@ export async function getElectionVoteData(electionId: string): Promise<VoteData 
       nullifiedNoVotes
     };
     
-    console.log('Vote data calculated:', voteData);
+    logger.debug('Vote data calculated:', voteData);
     
     return voteData;
   } catch (error) {
-    console.error("Error in getElectionVoteData:", error);
+    logger.error("Error in getElectionVoteData:", error);
     return null;
   }
 }
@@ -66,7 +67,7 @@ export async function getElectionVoteData(electionId: string): Promise<VoteData 
 // isOption1 should be true if the choice matches the election's option1
 export async function recordVote(electionId: string, voterId: string, isOption1: boolean): Promise<boolean> {
   try {
-    console.log(`Recording vote: election=${electionId}, voter=${voterId}, isOption1=${isOption1}`);
+    logger.debug(`Recording vote: election=${electionId}, voter=${voterId}, isOption1=${isOption1}`);
     
     const tableName = isOption1 ? 'yes_votes' : 'no_votes';
     
@@ -82,14 +83,14 @@ export async function recordVote(electionId: string, voterId: string, isOption1:
       });
     
     if (error) {
-      console.error(`Error recording vote in ${tableName}:`, error);
+      logger.error(`Error recording vote in ${tableName}:`, error);
       return false;
     }
     
-    console.log(`Vote recorded successfully in ${tableName}`);
+    logger.debug(`Vote recorded successfully in ${tableName}`);
     return true;
   } catch (error) {
-    console.error("Error in recordVote:", error);
+    logger.error("Error in recordVote:", error);
     return false;
   }
 }
@@ -102,7 +103,7 @@ export async function updateVoteNullification(
   isNullified: boolean
 ): Promise<boolean> {
   try {
-    console.log(`Updating nullification: election=${electionId}, voter=${voterId}, count=${nullificationCount}, nullified=${isNullified}`);
+    logger.debug(`Updating nullification: election=${electionId}, voter=${voterId}, count=${nullificationCount}, nullified=${isNullified}`);
     
     // Check if voter has a Yes vote
     const { data: yesVote } = await supabase
@@ -126,7 +127,7 @@ export async function updateVoteNullification(
     } else if (noVote) {
       tableName = 'no_votes';
     } else {
-      console.error("No vote found for voter in either table");
+      logger.error("No vote found for voter in either table");
       return false;
     }
     
@@ -141,14 +142,14 @@ export async function updateVoteNullification(
       .eq("voter_id", voterId);
     
     if (error) {
-      console.error(`Error updating nullification in ${tableName}:`, error);
+      logger.error(`Error updating nullification in ${tableName}:`, error);
       return false;
     }
     
-    console.log(`Nullification updated successfully in ${tableName}`);
+    logger.debug(`Nullification updated successfully in ${tableName}`);
     return true;
   } catch (error) {
-    console.error("Error in updateVoteNullification:", error);
+    logger.error("Error in updateVoteNullification:", error);
     return false;
   }
 }
