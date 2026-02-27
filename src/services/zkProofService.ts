@@ -13,11 +13,11 @@ function getCircuitFilesBaseUrl(): string {
   return "/circuits/";
 }
 
-// Paths to pre-compiled circuit artifacts
+// Paths to pre-compiled XOR circuit artifacts
 const BASE_URL = getCircuitFilesBaseUrl();
-const WASM_PATH = `${BASE_URL}nullification.wasm`;
-const ZKEY_PATH = `${BASE_URL}nullification_final.zkey`;
-const VKEY_PATH = `${BASE_URL}verification_key.json`;
+const WASM_PATH = `${BASE_URL}nullification_xor.wasm`;
+const ZKEY_PATH = `${BASE_URL}nullification_xor_final.zkey`;
+const VKEY_PATH = `${BASE_URL}verification_key_xor.json`;
 
 // Cache for verification key
 let verificationKey: VerificationKey | null = null;
@@ -30,17 +30,20 @@ async function loadVerificationKey(): Promise<VerificationKey> {
   return verificationKey;
 }
 
-// Generate Groth16 proof for nullification
+// Generate Groth16 proof for XOR nullification
 export async function generateNullificationProof(
   voterKeypair: StoredKeypair,
   authorityPublicKey: { x: string; y: string },
   ciphertext: ElGamalCiphertext,
-  deterministicR: bigint,
+  gateOutput: ElGamalCiphertext,
+  accumulator: ElGamalCiphertext,
+  r: bigint,
+  s: bigint,
   message: number = 1
 ): Promise<{ proof: Groth16Proof; publicSignals: string[] }> {
   try {
     logger.debug(
-      `Generating Groth16 proof for ${message === 1 ? "actual" : "dummy"} nullification...`
+      `Generating Groth16 proof for ${message === 1 ? "actual" : "dummy"} XOR nullification...`
     );
 
     const input = {
@@ -50,10 +53,23 @@ export async function generateNullificationProof(
         ciphertext.c2.x.toString(),
         ciphertext.c2.y.toString(),
       ],
+      gate_output: [
+        gateOutput.c1.x.toString(),
+        gateOutput.c1.y.toString(),
+        gateOutput.c2.x.toString(),
+        gateOutput.c2.y.toString(),
+      ],
+      accumulator: [
+        accumulator.c1.x.toString(),
+        accumulator.c1.y.toString(),
+        accumulator.c2.x.toString(),
+        accumulator.c2.y.toString(),
+      ],
       pk_voter: [voterKeypair.Ax, voterKeypair.Ay],
       pk_authority: [authorityPublicKey.x, authorityPublicKey.y],
-      r: deterministicR.toString(),
-      m: message.toString(),
+      x: message.toString(),
+      r: r.toString(),
+      s: s.toString(),
       sk_voter: voterKeypair.k,
     };
 
@@ -72,7 +88,7 @@ export async function generateNullificationProof(
 
     if (error instanceof Error && error.message.includes("404")) {
       throw new Error(
-        "Circuit artifacts not found. Please compile the Circom circuit and upload to Supabase Storage. " +
+        "Circuit artifacts not found. Please compile the XOR Circom circuit and upload to Supabase Storage. " +
           "See circuits/README.md for instructions."
       );
     }

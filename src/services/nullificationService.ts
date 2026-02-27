@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ElGamalCiphertext } from "@/services/elGamalService";
 import { Groth16Proof } from "@/types/proof";
 import { Json } from "@/integrations/supabase/types";
+import { updateAccumulator } from "@/services/accumulatorService";
 import { logger } from "@/services/logger";
 
 export interface NullificationProof {
@@ -61,7 +62,73 @@ export async function storeNullification(
   }
 }
 
-// Batch store multiple nullifications atomically (for k-anonymity)
+// Batch store nullifications AND update accumulators atomically
+export async function storeNullificationBatchWithAccumulators(
+  electionId: string,
+  nullifications: Array<{
+    userId: string;
+    ciphertext: ElGamalCiphertext;
+    newAccumulator: ElGamalCiphertext;
+    accumulatorVersion: number;
+    zkp: { proof: Groth16Proof; publicSignals: string[] };
+  }>
+): Promise<boolean> {
+  try {
+    logger.debug(
+      `Storing batch of ${nullifications.length} XOR nullifications for election ${electionId}`
+    );
+
+    // Insert nullification rows
+    const records = nullifications.map((n) => ({
+      election_id: electionId,
+      user_id: n.userId,
+      nullifier_ciphertext: {
+        c1: {
+          x: n.ciphertext.c1.x.toString(),
+          y: n.ciphertext.c1.y.toString(),
+        },
+        c2: {
+          x: n.ciphertext.c2.x.toString(),
+          y: n.ciphertext.c2.y.toString(),
+        },
+      },
+      nullifier_zkp: n.zkp as unknown as Json,
+    }));
+
+    const { error } = await supabase.from("nullifications").insert(records);
+
+    if (error) {
+      logger.error("Error storing nullification batch:", error);
+      return false;
+    }
+
+    // Update each accumulator with optimistic locking
+    for (const n of nullifications) {
+      const updated = await updateAccumulator(
+        electionId,
+        n.userId,
+        n.newAccumulator,
+        n.accumulatorVersion
+      );
+      if (!updated) {
+        logger.error(
+          `Failed to update accumulator for voter ${n.userId} (version conflict)`
+        );
+        return false;
+      }
+    }
+
+    logger.debug(
+      `Successfully stored batch of ${nullifications.length} nullifications and updated accumulators`
+    );
+    return true;
+  } catch (error) {
+    logger.error("Error in storeNullificationBatchWithAccumulators:", error);
+    return false;
+  }
+}
+
+// Legacy batch store (without accumulator updates)
 export async function storeNullificationBatch(
   electionId: string,
   nullifications: Array<{

@@ -192,3 +192,77 @@ export async function createNullificationEncryption(
 
   return ciphertext;
 }
+
+// ===== XOR Accumulator Operations =====
+
+// Negate an Edwards point: -(x, y) = (-x, y)
+export function negatePoint(point: EdwardsPoint): EdwardsPoint {
+  return new EdwardsPoint(-point.x, point.y);
+}
+
+// Subtract two ciphertexts: [[a]] - [[b]] = ([[a]].c1 - [[b]].c1, [[a]].c2 - [[b]].c2)
+export function subtractCiphertexts(
+  a: ElGamalCiphertext,
+  b: ElGamalCiphertext
+): ElGamalCiphertext {
+  const c1 = a.c1.add(negatePoint(b.c1));
+  const c2 = a.c2.add(negatePoint(b.c2));
+  return {
+    c1,
+    c2,
+    r: 0n,
+    ciphertext: [c1.x, c1.y, c2.x, c2.y],
+  };
+}
+
+// Compute the XOR conditional gate output.
+// Given x in {0,1} and accumulator [[y]], computes:
+//   x' = 2x - 1  (maps {0,1} -> {-1,1})
+//   gate_c1 = s*G + x' * acc_c1  (conditional negation)
+//   gate_c2 = s*H + x' * acc_c2
+export function computeXorGate(
+  x: number,
+  accumulator: ElGamalCiphertext,
+  authorityPublicKey: EdwardsPoint,
+  s: bigint
+): ElGamalCiphertext {
+  const basePoint = EdwardsPoint.base();
+
+  // x' = 2x - 1: when x=0 -> -1 (negate), when x=1 -> +1 (keep)
+  const condAcc_c1 = x === 1 ? accumulator.c1 : negatePoint(accumulator.c1);
+  const condAcc_c2 = x === 1 ? accumulator.c2 : negatePoint(accumulator.c2);
+
+  // s*G and s*H
+  const sG = basePoint.multiply(s);
+  const sH = authorityPublicKey.multiply(s);
+
+  // gate = (s*G + x'*acc_c1, s*H + x'*acc_c2)
+  const gate_c1 = sG.add(condAcc_c1);
+  const gate_c2 = sH.add(condAcc_c2);
+
+  return {
+    c1: gate_c1,
+    c2: gate_c2,
+    r: s,
+    ciphertext: [gate_c1.x, gate_c1.y, gate_c2.x, gate_c2.y],
+  };
+}
+
+// Compute the new XOR accumulator: new_acc = [[x]] - [[x'y]]
+export function computeXorAccumulator(
+  freshCiphertext: ElGamalCiphertext,
+  gateOutput: ElGamalCiphertext
+): ElGamalCiphertext {
+  return subtractCiphertexts(freshCiphertext, gateOutput);
+}
+
+// Create the identity ciphertext [[0]] = (O, O) where O is the identity point
+export function identityCiphertext(): ElGamalCiphertext {
+  const id = EdwardsPoint.identity();
+  return {
+    c1: id,
+    c2: id,
+    r: 0n,
+    ciphertext: [id.x, id.y, id.x, id.y],
+  };
+}

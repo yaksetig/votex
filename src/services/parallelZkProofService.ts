@@ -7,10 +7,13 @@ export interface ProofInput {
   id: string;
   input: {
     ciphertext: string[];
+    gate_output: string[];
+    accumulator: string[];
     pk_voter: string[];
     pk_authority: string[];
+    x: string;
     r: string;
-    m: string;
+    s: string;
     sk_voter: string;
   };
 }
@@ -33,8 +36,8 @@ function getCircuitFilesBaseUrl(): string {
 }
 
 const BASE_URL = getCircuitFilesBaseUrl();
-const WASM_PATH = `${BASE_URL}nullification.wasm`;
-const ZKEY_PATH = `${BASE_URL}nullification_final.zkey`;
+const WASM_PATH = `${BASE_URL}nullification_xor.wasm`;
+const ZKEY_PATH = `${BASE_URL}nullification_xor_final.zkey`;
 
 // Generate multiple proofs in parallel using Web Workers
 export async function generateProofsInParallel(
