@@ -3,6 +3,7 @@ import { ElGamalCiphertext } from "@/services/elGamalService";
 import { Groth16Proof } from "@/types/proof";
 import { Json } from "@/integrations/supabase/types";
 import { updateAccumulator } from "@/services/accumulatorService";
+import { verifyNullificationProof } from "@/services/zkProofService";
 import { logger } from "@/services/logger";
 
 export interface NullificationProof {
@@ -77,6 +78,31 @@ export async function storeNullificationBatchWithAccumulators(
     logger.debug(
       `Storing batch of ${nullifications.length} XOR nullifications for election ${electionId}`
     );
+
+    // Verify all proofs in parallel before persisting anything
+    logger.debug(
+      `Verifying ${nullifications.length} proofs in parallel...`
+    );
+    const verificationResults = await Promise.all(
+      nullifications.map(async (n) => {
+        const valid = await verifyNullificationProof(
+          n.zkp.proof,
+          n.zkp.publicSignals
+        );
+        return { userId: n.userId, valid };
+      })
+    );
+
+    const failedVerifications = verificationResults.filter((r) => !r.valid);
+    if (failedVerifications.length > 0) {
+      const failedIds = failedVerifications.map((r) => r.userId).join(", ");
+      logger.error(
+        `Proof verification failed for voters: ${failedIds}. Aborting batch.`
+      );
+      return false;
+    }
+
+    logger.debug("All proofs verified successfully");
 
     // Insert nullification rows
     const records = nullifications.map((n) => ({
