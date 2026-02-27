@@ -22,7 +22,7 @@ import {
   isUserParticipant 
 } from "@/services/electionParticipantsService";
 import { getElectionAuthorityForElection, initializeDefaultElectionAuthority } from "@/services/electionAuthorityService";
-import { storeNullificationBatch } from "@/services/nullificationService";
+import { storeNullificationBatchWithAccumulators } from "@/services/nullificationService";
 import { generateKAnonymousNullifications, KAnonymityProgress } from "@/services/kAnonymityNullificationService";
 import NullificationDialog from "@/components/NullificationDialog";
 import KAnonymityProgressDialog from "@/components/KAnonymityProgressDialog";
@@ -417,14 +417,16 @@ const ElectionDetail = () => {
         (progress) => setNullificationProgress(progress)
       );
       
-      // Store all nullifications atomically
+      // Store all nullifications and update XOR accumulators atomically
       const batchItems = nullificationBatch.map(item => ({
         userId: item.targetUserId,
         ciphertext: item.ciphertext,
+        newAccumulator: item.newAccumulator,
+        accumulatorVersion: item.accumulatorVersion,
         zkp: item.zkp!
       }));
-      
-      const stored = await storeNullificationBatch(id, batchItems);
+
+      const stored = await storeNullificationBatchWithAccumulators(id, batchItems);
       
       if (!stored) {
         throw new Error("Failed to store nullifications");
