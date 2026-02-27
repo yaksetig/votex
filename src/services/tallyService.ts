@@ -2,12 +2,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { getNullificationsForElection } from "@/services/nullificationService";
 import { getElectionAuthorityForElection } from "@/services/electionAuthorityService";
 import { updateVoteNullification } from "@/services/voteTrackingService";
-import { 
-  addElGamalCiphertexts, 
-  decryptElGamalInExponent, 
+import {
+  addElGamalCiphertexts,
+  decryptElGamalInExponent,
   ensureDiscreteLogTable,
-  reconstructElGamalCiphertext 
+  reconstructElGamalCiphertext
 } from "@/services/elGamalTallyService";
+import { logger } from "@/services/logger";
 
 export interface TallyResult {
   userId: string;
@@ -26,19 +27,19 @@ export interface ElectionTallyResult {
 export async function aggregateUserNullifications(
   electionId: string, 
   userId: string
-): Promise<{ aggregatedCiphertext: any; nullificationCount: number } | null> {
+): Promise<{ aggregatedCiphertext: { c1: { x: string; y: string }; c2: { x: string; y: string } } | null; nullificationCount: number } | null> {
   try {
-    console.log(`Aggregating nullifications for user ${userId} in election ${electionId}`);
+    logger.debug(`Aggregating nullifications for user ${userId} in election ${electionId}`);
     
     const nullifications = await getNullificationsForElection(electionId);
     const userNullifications = nullifications.filter(n => n.user_id === userId);
     
     if (userNullifications.length === 0) {
-      console.log(`No nullifications found for user ${userId}`);
+      logger.debug(`No nullifications found for user ${userId}`);
       return { aggregatedCiphertext: null, nullificationCount: 0 };
     }
     
-    console.log(`Found ${userNullifications.length} nullifications for user ${userId}`);
+    logger.debug(`Found ${userNullifications.length} nullifications for user ${userId}`);
     
     // Convert stored ciphertexts back to ElGamalCiphertext objects
     const ciphertexts = userNullifications.map(n => 
@@ -62,7 +63,7 @@ export async function aggregateUserNullifications(
       nullificationCount: userNullifications.length
     };
   } catch (error) {
-    console.error("Error aggregating user nullifications:", error);
+    logger.error("Error aggregating user nullifications:", error);
     return null;
   }
 }
@@ -74,12 +75,12 @@ export async function processElectionTally(
   processedBy?: string
 ): Promise<ElectionTallyResult | null> {
   try {
-    console.log(`Processing election tally for election: ${electionId}`);
+    logger.debug(`Processing election tally for election: ${electionId}`);
     
     // Ensure discrete log table is initialized
     const tableInitialized = await ensureDiscreteLogTable(100);
     if (!tableInitialized) {
-      console.error("Failed to initialize discrete log table");
+      logger.error("Failed to initialize discrete log table");
       return null;
     }
     
@@ -95,7 +96,7 @@ export async function processElectionTally(
       .eq("election_id", electionId);
       
     if (yesError || noError) {
-      console.error("Error fetching votes:", yesError || noError);
+      logger.error("Error fetching votes:", yesError || noError);
       return null;
     }
     
@@ -105,7 +106,7 @@ export async function processElectionTally(
       ...(noVotes?.map(v => v.voter_id) || [])
     ];
     const uniqueVoters = [...new Set(allVoterIds)];
-    console.log(`Found ${uniqueVoters.length} unique voters`);
+    logger.debug(`Found ${uniqueVoters.length} unique voters`);
     
     const privateKey = BigInt(authorityPrivateKey);
     const results: TallyResult[] = [];
@@ -143,7 +144,7 @@ export async function processElectionTally(
         voteNullified
       });
       
-      console.log(`User ${userId}: ${nullificationCount} nullifications, vote nullified: ${voteNullified}`);
+      logger.debug(`User ${userId}: ${nullificationCount} nullifications, vote nullified: ${voteNullified}`);
     }
     
     // Store results in database
@@ -156,7 +157,7 @@ export async function processElectionTally(
       processedBy
     };
   } catch (error) {
-    console.error("Error processing election tally:", error);
+    logger.error("Error processing election tally:", error);
     return null;
   }
 }
@@ -168,7 +169,7 @@ async function storeTallyResults(
   processedBy?: string
 ): Promise<boolean> {
   try {
-    console.log(`Storing tally results for election: ${electionId}`);
+    logger.debug(`Storing tally results for election: ${electionId}`);
     
     // Prepare data for insertion
     const tallyData = results.map(result => ({
@@ -188,14 +189,14 @@ async function storeTallyResults(
       });
     
     if (error) {
-      console.error("Error storing tally results:", error);
+      logger.error("Error storing tally results:", error);
       return false;
     }
     
-    console.log(`Successfully stored ${results.length} tally results`);
+    logger.debug(`Successfully stored ${results.length} tally results`);
     return true;
   } catch (error) {
-    console.error("Error in storeTallyResults:", error);
+    logger.error("Error in storeTallyResults:", error);
     return false;
   }
 }
@@ -203,7 +204,7 @@ async function storeTallyResults(
 // Get stored tally results for an election
 export async function getElectionTallyResults(electionId: string): Promise<TallyResult[]> {
   try {
-    console.log(`Fetching tally results for election: ${electionId}`);
+    logger.debug(`Fetching tally results for election: ${electionId}`);
     
     const { data, error } = await supabase
       .from("election_tallies")
@@ -212,7 +213,7 @@ export async function getElectionTallyResults(electionId: string): Promise<Tally
       .order("processed_at", { ascending: false });
     
     if (error) {
-      console.error("Error fetching tally results:", error);
+      logger.error("Error fetching tally results:", error);
       return [];
     }
     
@@ -222,7 +223,7 @@ export async function getElectionTallyResults(electionId: string): Promise<Tally
       voteNullified: item.vote_nullified
     }));
   } catch (error) {
-    console.error("Error in getElectionTallyResults:", error);
+    logger.error("Error in getElectionTallyResults:", error);
     return [];
   }
 }
@@ -234,7 +235,7 @@ export async function calculateFinalResults(electionId: string): Promise<{
   nullifiedVotes: number;
 } | null> {
   try {
-    console.log(`Starting final results calculation for election: ${electionId}`);
+    logger.debug(`Starting final results calculation for election: ${electionId}`);
     
     // Get vote data from tracking tables
     const { data: yesVotes, error: yesError } = await supabase
@@ -248,11 +249,11 @@ export async function calculateFinalResults(electionId: string): Promise<{
       .eq("election_id", electionId);
       
     if (yesError || noError) {
-      console.error("Error fetching votes from tracking tables:", yesError || noError);
+      logger.error("Error fetching votes from tracking tables:", yesError || noError);
       return null;
     }
     
-    console.log(`Vote tracking data:`, { yesVotes, noVotes });
+    logger.debug(`Vote tracking data:`, { yesVotes, noVotes });
     
     const totalYesVotes = yesVotes?.length || 0;
     const totalNoVotes = noVotes?.length || 0;
@@ -267,11 +268,11 @@ export async function calculateFinalResults(electionId: string): Promise<{
       nullifiedVotes: nullifiedYesVotes + nullifiedNoVotes
     };
     
-    console.log('Final calculated results:', results);
+    logger.debug('Final calculated results:', results);
     
     return results;
   } catch (error) {
-    console.error("Error calculating final results:", error);
+    logger.error("Error calculating final results:", error);
     return null;
   }
 }

@@ -2,14 +2,16 @@
 // Generates multiple nullifications to ensure privacy against coercion
 
 import { StoredKeypair } from "@/types/keypair";
+import { Groth16Proof } from "@/types/proof";
 import { getElectionParticipants, ElectionParticipant } from "@/services/electionParticipantsService";
-import { 
-  elgamalEncrypt, 
-  generateDeterministicR, 
+import {
+  elgamalEncrypt,
+  generateDeterministicR,
   EdwardsPoint,
-  ElGamalCiphertext 
+  ElGamalCiphertext
 } from "@/services/elGamalService";
 import { generateProofsInParallel, ProofInput, ProofResult } from "@/services/parallelZkProofService";
+import { logger } from "@/services/logger";
 
 // Default k-anonymity parameter
 const DEFAULT_K = 6;
@@ -18,7 +20,7 @@ export interface NullificationBatchItem {
   targetUserId: string;
   isReal: boolean; // true = m=1 (actual), false = m=0 (dummy)
   ciphertext: ElGamalCiphertext;
-  zkp: { proof: any; publicSignals: string[] } | null;
+  zkp: { proof: Groth16Proof; publicSignals: string[] } | null;
 }
 
 export interface KAnonymityProgress {
@@ -64,7 +66,7 @@ export async function generateKAnonymousNullifications(
   k: number = DEFAULT_K,
   onProgress?: (progress: KAnonymityProgress) => void
 ): Promise<NullificationBatchItem[]> {
-  console.log(`Generating k-anonymous nullifications with k=${k}, actual=${isActualNullification}`);
+  logger.debug(`Generating k-anonymous nullifications with k=${k}, actual=${isActualNullification}`);
 
   // Step 1: Fetch all participants
   onProgress?.({
@@ -77,7 +79,7 @@ export async function generateKAnonymousNullifications(
   const participants = await getElectionParticipants(electionId);
   const participantCount = participants.length;
 
-  console.log(`Election has ${participantCount} participants`);
+  logger.debug(`Election has ${participantCount} participants`);
 
   // Calculate how many nullifications to generate
   const numNullifications = Math.min(k, participantCount);
@@ -115,7 +117,7 @@ export async function generateKAnonymousNullifications(
     }))
   ];
 
-  console.log(`Slots to nullify: ${slotsToNullify.length} (1 ${isActualNullification ? 'real' : 'dummy'} + ${otherSlots.length} dummy)`);
+  logger.debug(`Slots to nullify: ${slotsToNullify.length} (1 ${isActualNullification ? 'real' : 'dummy'} + ${otherSlots.length} dummy)`);
 
   // Step 3: Generate ElGamal ciphertexts for each slot
   onProgress?.({
@@ -204,7 +206,7 @@ export async function generateKAnonymousNullifications(
         publicSignals: result.publicSignals!
       };
     } else if (!result.success) {
-      console.error(`Failed to generate proof for slot ${result.id}:`, result.error);
+      logger.error(`Failed to generate proof for slot ${result.id}:`, result.error);
       throw new Error(`Failed to generate proof: ${result.error}`);
     }
   }
@@ -216,7 +218,7 @@ export async function generateKAnonymousNullifications(
     message: "All proofs generated successfully!"
   });
 
-  console.log(`Successfully generated ${nullificationItems.length} k-anonymous nullifications`);
+  logger.debug(`Successfully generated ${nullificationItems.length} k-anonymous nullifications`);
 
   return nullificationItems;
 }

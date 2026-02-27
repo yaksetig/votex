@@ -2,13 +2,14 @@
 import { supabase } from '@/integrations/supabase/client';
 import { EdwardsPoint } from '@/services/elGamalService';
 import { logElectionAuthorityAction } from '@/services/electionAuditService';
+import { logger } from '@/services/logger';
 
 // Authenticate election authority by private key only
 export async function authenticateElectionAuthorityByKey(
   privateKey: string
 ): Promise<{ success: boolean; authorityId?: string; authorityName?: string }> {
   try {
-    console.log('Authenticating election authority by private key...');
+    logger.debug('Authenticating election authority by private key...');
     
     // Derive public key from provided private key
     const privateKeyBigInt = BigInt(privateKey);
@@ -20,7 +21,7 @@ export async function authenticateElectionAuthorityByKey(
       .select('*');
 
     if (error) {
-      console.error('Error fetching election authorities:', error);
+      logger.error('Error fetching election authorities:', error);
       return { success: false };
     }
 
@@ -32,7 +33,7 @@ export async function authenticateElectionAuthorityByKey(
     });
 
     if (matchingAuthority) {
-      console.log('Election authority authentication successful');
+      logger.debug('Election authority authentication successful');
       // Log the authentication
       await logElectionAuthorityAction('GLOBAL', 'AUTHENTICATION', matchingAuthority.name, {
         authority_id: matchingAuthority.id,
@@ -45,11 +46,11 @@ export async function authenticateElectionAuthorityByKey(
         authorityName: matchingAuthority.name
       };
     } else {
-      console.log('Election authority authentication failed - no matching public key');
+      logger.debug('Election authority authentication failed - no matching public key');
       return { success: false };
     }
   } catch (error) {
-    console.error('Error during election authority authentication:', error);
+    logger.error('Error during election authority authentication:', error);
     return { success: false };
   }
 }

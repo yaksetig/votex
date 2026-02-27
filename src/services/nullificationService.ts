@@ -1,9 +1,11 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { ElGamalCiphertext } from "@/services/elGamalService";
+import { Groth16Proof } from "@/types/proof";
+import { Json } from "@/integrations/supabase/types";
+import { logger } from "@/services/logger";
 
 export interface NullificationProof {
-  proof: any;
+  proof: Groth16Proof;
   publicSignals: string[];
 }
 
@@ -11,8 +13,8 @@ export interface Nullification {
   id: string;
   election_id: string;
   user_id: string;
-  nullifier_ciphertext: any; // JSONB data
-  nullifier_zkp: NullificationProof | null; // PLONK proof with public signals
+  nullifier_ciphertext: Json;
+  nullifier_zkp: NullificationProof | null;
   created_at: string;
 }
 
@@ -21,41 +23,40 @@ export async function storeNullification(
   electionId: string,
   userId: string,
   ciphertext: ElGamalCiphertext,
-  zkp?: any // Zero-knowledge proof (optional for now)
+  zkp?: NullificationProof
 ): Promise<boolean> {
   try {
-    console.log(`Storing nullification for user ${userId} in election ${electionId}`);
-    
-    // Store only the essential ciphertext data (c1 and c2 points)
+    logger.debug(
+      `Storing nullification for user ${userId} in election ${electionId}`
+    );
+
     const nullifierData = {
       c1: {
         x: ciphertext.c1.x.toString(),
-        y: ciphertext.c1.y.toString()
+        y: ciphertext.c1.y.toString(),
       },
       c2: {
         x: ciphertext.c2.x.toString(),
-        y: ciphertext.c2.y.toString()
-      }
+        y: ciphertext.c2.y.toString(),
+      },
     };
 
-    const { error } = await supabase
-      .from("nullifications")
-      .insert({
-        election_id: electionId,
-        user_id: userId,
-        nullifier_ciphertext: nullifierData,
-        nullifier_zkp: zkp || null
-      });
+    const { error } = await supabase.from("nullifications").insert({
+      election_id: electionId,
+      user_id: userId,
+      nullifier_ciphertext: nullifierData,
+      nullifier_zkp: (zkp as unknown as Json) || null,
+    });
 
     if (error) {
-      console.error("Error storing nullification:", error);
+      logger.error("Error storing nullification:", error);
       return false;
     }
 
-    console.log("Successfully stored nullification");
+    logger.debug("Successfully stored nullification");
     return true;
   } catch (error) {
-    console.error("Error in storeNullification:", error);
+    logger.error("Error in storeNullification:", error);
     return false;
   }
 }
@@ -66,52 +67,54 @@ export async function storeNullificationBatch(
   nullifications: Array<{
     userId: string;
     ciphertext: ElGamalCiphertext;
-    zkp: { proof: any; publicSignals: string[] };
+    zkp: { proof: Groth16Proof; publicSignals: string[] };
   }>
 ): Promise<boolean> {
   try {
-    console.log(`Storing batch of ${nullifications.length} nullifications for election ${electionId}`);
+    logger.debug(
+      `Storing batch of ${nullifications.length} nullifications for election ${electionId}`
+    );
 
-    // Prepare all records
-    const records = nullifications.map(n => ({
+    const records = nullifications.map((n) => ({
       election_id: electionId,
       user_id: n.userId,
       nullifier_ciphertext: {
         c1: {
           x: n.ciphertext.c1.x.toString(),
-          y: n.ciphertext.c1.y.toString()
+          y: n.ciphertext.c1.y.toString(),
         },
         c2: {
           x: n.ciphertext.c2.x.toString(),
-          y: n.ciphertext.c2.y.toString()
-        }
+          y: n.ciphertext.c2.y.toString(),
+        },
       },
-      nullifier_zkp: n.zkp
+      nullifier_zkp: n.zkp as unknown as Json,
     }));
 
-    // Insert all at once for atomicity
-    const { error } = await supabase
-      .from("nullifications")
-      .insert(records);
+    const { error } = await supabase.from("nullifications").insert(records);
 
     if (error) {
-      console.error("Error storing nullification batch:", error);
+      logger.error("Error storing nullification batch:", error);
       return false;
     }
 
-    console.log(`Successfully stored batch of ${nullifications.length} nullifications`);
+    logger.debug(
+      `Successfully stored batch of ${nullifications.length} nullifications`
+    );
     return true;
   } catch (error) {
-    console.error("Error in storeNullificationBatch:", error);
+    logger.error("Error in storeNullificationBatch:", error);
     return false;
   }
 }
 
 // Get nullifications for an election (for election authority use)
-export async function getNullificationsForElection(electionId: string): Promise<Nullification[]> {
+export async function getNullificationsForElection(
+  electionId: string
+): Promise<Nullification[]> {
   try {
-    console.log(`Fetching nullifications for election: ${electionId}`);
-    
+    logger.debug(`Fetching nullifications for election: ${electionId}`);
+
     const { data, error } = await supabase
       .from("nullifications")
       .select("*")
@@ -119,14 +122,14 @@ export async function getNullificationsForElection(electionId: string): Promise<
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("Error fetching nullifications:", error);
+      logger.error("Error fetching nullifications:", error);
       return [];
     }
 
-    console.log(`Found ${data?.length || 0} nullifications for election`);
-    return data || [];
+    logger.debug(`Found ${data?.length || 0} nullifications for election`);
+    return (data || []) as Nullification[];
   } catch (error) {
-    console.error("Error in getNullificationsForElection:", error);
+    logger.error("Error in getNullificationsForElection:", error);
     return [];
   }
 }

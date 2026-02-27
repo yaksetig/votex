@@ -2,6 +2,7 @@
 import { EdwardsPoint } from '@/services/elGamalService';
 import { ElGamalCiphertext } from '@/services/elGamalService';
 import { getDiscreteLogFromDB, initializeDiscreteLogTable } from '@/services/discreteLogService';
+import { logger } from '@/services/logger';
 
 // Generate and initialize discrete log lookup table in Supabase
 export async function ensureDiscreteLogTable(maxValue: number = 100): Promise<boolean> {
@@ -58,7 +59,7 @@ export async function decryptElGamalInExponent(
   const result = await getDiscreteLogFromDB(pointString);
   
   if (result === null) {
-    console.warn("Could not find discrete log for point:", pointString);
+    logger.warn("Could not find discrete log for point:", pointString);
     return null;
   }
   
@@ -66,7 +67,7 @@ export async function decryptElGamalInExponent(
 }
 
 // Helper function to convert stored ciphertext back to ElGamalCiphertext
-export function reconstructElGamalCiphertext(storedCiphertext: any): ElGamalCiphertext {
+export function reconstructElGamalCiphertext(storedCiphertext: { c1: { x: string; y: string }; c2: { x: string; y: string } }): ElGamalCiphertext {
   const c1 = new EdwardsPoint(
     BigInt(storedCiphertext.c1.x),
     BigInt(storedCiphertext.c1.y)

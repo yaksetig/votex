@@ -1,10 +1,12 @@
 
 import { supabase } from '@/integrations/supabase/client';
+import { Json } from '@/integrations/supabase/types';
+import { logger } from '@/services/logger';
 
 export interface AuditLogEntry {
   action: string;
   performed_by: string;
-  details?: any;
+  details?: Json;
 }
 
 // Log election authority actions for audit trail
@@ -12,7 +14,7 @@ export async function logElectionAuthorityAction(
   electionId: string,
   action: string,
   performedBy: string,
-  details?: any
+  details?: Json
 ): Promise<void> {
   try {
     const { error } = await supabase
@@ -25,10 +27,10 @@ export async function logElectionAuthorityAction(
       });
 
     if (error) {
-      console.error('Error logging audit action:', error);
+      logger.error('Error logging audit action:', error);
     }
   } catch (error) {
-    console.error('Error in logElectionAuthorityAction:', error);
+    logger.error('Error in logElectionAuthorityAction:', error);
   }
 }
 
@@ -42,13 +44,13 @@ export async function getElectionAuditLog(electionId: string): Promise<AuditLogE
       .order('performed_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching audit log:', error);
+      logger.error('Error fetching audit log:', error);
       return [];
     }
 
     return data || [];
   } catch (error) {
-    console.error('Error in getElectionAuditLog:', error);
+    logger.error('Error in getElectionAuditLog:', error);
     return [];
   }
 }
