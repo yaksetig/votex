@@ -39,6 +39,42 @@ const BASE_URL = getCircuitFilesBaseUrl();
 const WASM_PATH = `${BASE_URL}nullification_xor.wasm`;
 const ZKEY_PATH = `${BASE_URL}nullification_xor_final.zkey`;
 
+// Cached circuit artifacts (fetched once, reused across all workers)
+let cachedWasm: ArrayBuffer | null = null;
+let cachedZkey: ArrayBuffer | null = null;
+let prefetchPromise: Promise<void> | null = null;
+
+/**
+ * Pre-fetch and cache circuit artifacts (wasm + zkey) as ArrayBuffers.
+ * Safe to call multiple times — concurrent calls coalesce into one fetch.
+ * Call early (e.g. when a user navigates to an election) to hide latency.
+ */
+export async function prefetchCircuitArtifacts(): Promise<void> {
+  if (cachedWasm && cachedZkey) return;
+
+  if (!prefetchPromise) {
+    prefetchPromise = (async () => {
+      logger.debug("Pre-fetching circuit artifacts...");
+      const [wasmResp, zkeyResp] = await Promise.all([
+        fetch(WASM_PATH),
+        fetch(ZKEY_PATH),
+      ]);
+      if (!wasmResp.ok) throw new Error(`Failed to fetch wasm: ${wasmResp.status}`);
+      if (!zkeyResp.ok) throw new Error(`Failed to fetch zkey: ${zkeyResp.status}`);
+      [cachedWasm, cachedZkey] = await Promise.all([
+        wasmResp.arrayBuffer(),
+        zkeyResp.arrayBuffer(),
+      ]);
+      logger.debug(
+        `Circuit artifacts cached (wasm: ${(cachedWasm!.byteLength / 1024).toFixed(0)} KB, ` +
+        `zkey: ${(cachedZkey!.byteLength / 1024).toFixed(0)} KB)`
+      );
+    })();
+  }
+
+  await prefetchPromise;
+}
+
 // Generate multiple proofs in parallel using Web Workers
 export async function generateProofsInParallel(
   proofInputs: ProofInput[],
@@ -48,6 +84,9 @@ export async function generateProofsInParallel(
   let completed = 0;
 
   logger.debug(`Starting parallel proof generation for ${total} proofs...`);
+
+  // Ensure artifacts are cached before spawning workers
+  await prefetchCircuitArtifacts();
 
   const workerPromises: Promise<ProofResult>[] = proofInputs.map(
     (proofInput) => {
@@ -81,11 +120,13 @@ export async function generateProofsInParallel(
           });
         };
 
+        // Pass cached ArrayBuffers via structured clone (copies in memory,
+        // but avoids each worker re-fetching over the network)
         worker.postMessage({
           id: proofInput.id,
           input: proofInput.input,
-          wasmPath: WASM_PATH,
-          zkeyPath: ZKEY_PATH,
+          wasmData: cachedWasm!,
+          zkeyData: cachedZkey!,
         });
       });
     }
@@ -106,14 +147,19 @@ export async function generateProofsSequentially(
   const results: ProofResult[] = [];
   const total = proofInputs.length;
 
+  // Use cached artifacts if available, otherwise fall back to URLs
+  await prefetchCircuitArtifacts();
+  const wasmSource = cachedWasm ? new Uint8Array(cachedWasm) : WASM_PATH;
+  const zkeySource = cachedZkey ? new Uint8Array(cachedZkey) : ZKEY_PATH;
+
   for (let i = 0; i < proofInputs.length; i++) {
     const proofInput = proofInputs[i];
 
     try {
       const { proof, publicSignals } = await snarkjs.groth16.fullProve(
         proofInput.input,
-        WASM_PATH,
-        ZKEY_PATH
+        wasmSource,
+        zkeySource
       );
 
       results.push({
