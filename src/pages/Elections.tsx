@@ -201,7 +201,7 @@ const Elections = () => {
         <section className="flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
           <div className="max-w-3xl">
             <h1 className="font-headline text-5xl font-extrabold tracking-tight text-primary md:text-6xl">
-              Active Consensus
+              Active Elections
             </h1>
             <p className="mt-4 max-w-2xl text-lg leading-relaxed text-on-surface-variant">
               Browse secure, cryptographically verified binary elections. Every ballot contributes to an auditable ledger without exposing the voter behind it.
