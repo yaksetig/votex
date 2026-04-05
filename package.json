@@ -8,6 +8,7 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
+    "postinstall": "patch-package",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest"
@@ -44,9 +45,7 @@
     "@supabase/supabase-js": "^2.49.4",
     "@tanstack/react-query": "^5.56.2",
     "@worldcoin/idkit": "^4.0.11",
-    "@worldcoin/minikit-js": "^2.0.2",
-    "assert": "^2.1.0",
-    "blake-hash": "^2.0.0",
+    "@worldcoin/idkit-core": "^4.1.0",
     "buffer": "^6.0.3",
     "circomlibjs": "^0.1.7",
     "class-variance-authority": "^0.7.1",
@@ -54,10 +53,10 @@
     "cmdk": "^1.0.0",
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.6.0",
-    "events": "^3.3.0",
     "input-otp": "^1.2.4",
     "lucide-react": "^0.462.0",
     "next-themes": "^0.3.0",
+    "poseidon-lite": "^0.3.0",
     "react": "^18.3.1",
     "react-day-picker": "^8.10.1",
     "react-dom": "^18.3.1",
@@ -69,9 +68,11 @@
     "sonner": "^1.5.0",
     "tailwind-merge": "^2.5.2",
     "tailwindcss-animate": "^1.0.7",
+    "tweetnacl": "^1.0.3",
+    "tweetnacl-util": "^0.15.1",
     "vaul": "^0.9.3",
-    "viem": "^2.47.10",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "zokrates-js": "^1.1.9"
   },
   "overrides": {
     "underscore": "1.13.8"
@@ -90,6 +91,7 @@
     "globals": "^15.9.0",
     "jsdom": "^29.0.1",
     "lovable-tagger": "^1.1.8",
+    "patch-package": "^8.0.1",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.11",
     "typescript": "^5.5.3",

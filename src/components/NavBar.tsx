@@ -8,7 +8,6 @@ import {
   UserCircle2,
   Vote,
 } from "lucide-react";
-import { MiniKit } from "@worldcoin/minikit-js";
 import { useWallet } from "@/contexts/WalletContext";
 import { cn } from "@/lib/utils";
 
@@ -39,8 +38,7 @@ const NavBar = () => {
     navigate("/dashboard", { replace: true });
   };
 
-  // Hide NavBar inside World App (it provides its own top navigation)
-  if (isAuthorityPage || MiniKit.isInstalled()) {
+  if (isAuthorityPage) {
     return null;
   }
 

@@ -52,13 +52,10 @@
 
   html {
     @apply scroll-smooth;
-    overscroll-behavior: none;
   }
 
   body {
     @apply min-h-screen bg-background font-body text-foreground antialiased;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: none;
     background-image:
       radial-gradient(circle at top left, rgba(173, 198, 255, 0.35), transparent 28%),
       radial-gradient(circle at bottom right, rgba(210, 228, 251, 0.55), transparent 32%),

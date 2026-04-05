@@ -1,6 +1,10 @@
-import React, { Suspense, lazy, useEffect, useRef, useState } from "react";
-import type { IDKitResult, RpContext } from "@worldcoin/idkit";
-import { MiniKit } from "@worldcoin/minikit-js";
+import React, { useState, useEffect } from "react";
+import {
+  IDKitRequestWidget,
+  orbLegacy,
+  type IDKitResult,
+  type RpContext,
+} from "@worldcoin/idkit";
 import { useNavigate } from "react-router-dom";
 import {
   AlertTriangle,
@@ -16,10 +20,18 @@ import { useWallet } from "@/contexts/WalletContext";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { KEYPAIR_VERSION } from "@/services/eddsaService";
+import {
+  authenticateWithPreferredPasskey,
+  createPasskeyCredential,
+  deriveSecretFromPasskey,
+} from "@/services/passkeyService";
+import {
+  deriveKeypairFromSecret,
+  hashPublicKeyForSignal,
+  publicKeyToStrings,
+  verifyDerivedKeypair,
+} from "@/services/deterministicKeyService";
 import { createWorldIdSession } from "@/services/worldIdSessionService";
-
-const WorldIdRequestWidget = lazy(() => import("@/components/WorldIdRequestWidget"));
 
 type SignInStep =
   | "ready"
@@ -44,7 +56,6 @@ const WorldIDSignIn: React.FC = () => {
   const [idkitResult, setIdkitResult] = useState<IDKitResult | null>(null);
   const [registrationMode, setRegistrationMode] = useState<RegistrationMode>(null);
   const [widgetOpen, setWidgetOpen] = useState(false);
-  const [shouldLoadWidget, setShouldLoadWidget] = useState(false);
   const [rpContext, setRpContext] = useState<RpContext | null>(null);
   const { toast } = useToast();
   const {
@@ -54,18 +65,6 @@ const WorldIDSignIn: React.FC = () => {
     setUserId,
   } = useWallet();
   const navigate = useNavigate();
-
-  const isInMiniApp = MiniKit.isInstalled();
-  const autoOpenTriggered = useRef(false);
-
-  // Auto-open IDKit widget when inside World App (no QR/button needed)
-  useEffect(() => {
-    if (isInMiniApp && rpContext && step === "ready" && !autoOpenTriggered.current) {
-      autoOpenTriggered.current = true;
-      setShouldLoadWidget(true);
-      setWidgetOpen(true);
-    }
-  }, [isInMiniApp, rpContext, step]);
 
   // Fetch RP signature on mount
   useEffect(() => {
@@ -135,16 +134,6 @@ const WorldIDSignIn: React.FC = () => {
   const handleReturningUserAuthentication = async (result: IDKitResult) => {
     setStep("authenticating");
 
-    const [
-      { authenticateWithPreferredPasskey },
-      { deriveKeypairFromSecret, publicKeyToStrings, verifyDerivedKeypair },
-      { storeKeypair },
-    ] = await Promise.all([
-      import("@/services/passkeyService"),
-      import("@/services/deterministicKeyService"),
-      import("@/services/keypairService"),
-    ]);
-
     const prfResult = await authenticateWithPreferredPasskey();
     const keypair = await deriveKeypairFromSecret(prfResult.secret);
 
@@ -153,14 +142,6 @@ const WorldIDSignIn: React.FC = () => {
     }
 
     const publicKey = publicKeyToStrings(keypair.pk);
-    storeKeypair({
-      version: KEYPAIR_VERSION,
-      seed: keypair.seedHex,
-      k: keypair.sk.toString(),
-      Ax: keypair.pk.x.toString(),
-      Ay: keypair.pk.y.toString(),
-    });
-
     const nullifier = getNullifier(result);
     await completeSession(nullifier, prfResult.secret, false, publicKey);
 
@@ -251,16 +232,6 @@ const WorldIDSignIn: React.FC = () => {
     setError(null);
 
     try {
-      const [
-        { authenticateWithPreferredPasskey, createPasskeyCredential, deriveSecretFromPasskey },
-        { deriveKeypairFromSecret, hashPublicKeyForSignal, publicKeyToStrings, verifyDerivedKeypair },
-        { storeKeypair },
-      ] = await Promise.all([
-        import("@/services/passkeyService"),
-        import("@/services/deterministicKeyService"),
-        import("@/services/keypairService"),
-      ]);
-
       let prfResult;
       const userIdBytes = crypto.getRandomValues(new Uint8Array(32));
 
@@ -285,13 +256,6 @@ const WorldIDSignIn: React.FC = () => {
 
       const publicKey = publicKeyToStrings(keypair.pk);
       const signal = await hashPublicKeyForSignal(keypair.pk);
-      storeKeypair({
-        version: KEYPAIR_VERSION,
-        seed: keypair.seedHex,
-        k: keypair.sk.toString(),
-        Ax: keypair.pk.x.toString(),
-        Ay: keypair.pk.y.toString(),
-      });
 
       setStep("registering");
 
@@ -406,10 +370,7 @@ const WorldIDSignIn: React.FC = () => {
               {showWorldIdButton && rpContext ? (
                 <>
                   <Button
-                    onClick={() => {
-                      setShouldLoadWidget(true);
-                      setWidgetOpen(true);
-                    }}
+                    onClick={() => setWidgetOpen(true)}
                     size="lg"
                     className="w-full justify-center text-base"
                     variant="gradient"
@@ -417,20 +378,19 @@ const WorldIDSignIn: React.FC = () => {
                     <ShieldCheck className="h-5 w-5" />
                     Verify with World ID
                   </Button>
-                  {shouldLoadWidget && (
-                    <Suspense fallback={null}>
-                      <WorldIdRequestWidget
-                        open={widgetOpen}
-                        onOpenChange={setWidgetOpen}
-                        appId={WORLD_ID_APP_ID}
-                        action={WORLD_ID_ACTION}
-                        rpContext={rpContext}
-                        handleVerify={handleVerify}
-                        onSuccess={handleWorldIDSuccess}
-                        onError={handleWorldIDError}
-                      />
-                    </Suspense>
-                  )}
+                  <IDKitRequestWidget
+                    open={widgetOpen}
+                    onOpenChange={setWidgetOpen}
+                    app_id={WORLD_ID_APP_ID}
+                    action={WORLD_ID_ACTION}
+                    rp_context={rpContext}
+                    allow_legacy_proofs={true}
+                    preset={orbLegacy({})}
+                    handleVerify={handleVerify}
+                    onSuccess={handleWorldIDSuccess}
+                    onError={handleWorldIDError}
+                    autoClose
+                  />
                 </>
               ) : showWorldIdButton && !rpContext ? (
                 <Button
