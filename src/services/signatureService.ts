@@ -1,10 +1,45 @@
+/**
+ * EdDSA-Poseidon Signature Service
+ *
+ * Implements EdDSA signatures over BabyJubJub using Poseidon hash,
+ * the standard signature scheme in the circom/iden3 ecosystem.
+ *
+ * Signature scheme:
+ *   r  = Poseidon(sk, msgField)           deterministic nonce
+ *   R  = r * Base8                        nonce commitment
+ *   h  = Poseidon(R.x, R.y, A.x, A.y, msgField)   challenge
+ *   S  = (r + h * sk) mod subOrder        response
+ *
+ * Verification:
+ *   h  = Poseidon(R.x, R.y, A.x, A.y, msgField)
+ *   S * Base8 == R + h * A
+ */
+
+import { poseidon2, poseidon5 } from "poseidon-lite";
 import { StoredKeypair } from "@/types/keypair";
 import { CURVE_ORDER } from "@/services/crypto/constants";
-import { toBytesBE, stringToBytes, hashToScalarBE } from "@/services/crypto/utils";
 import { EdwardsPoint } from "@/services/elGamalService";
 import { logger } from "@/services/logger";
 
-// Sign a message with the user's keypair
+/**
+ * Hash a message string to a field element via SHA-256 → mod CURVE_ORDER.
+ */
+async function hashMessageToField(message: string): Promise<bigint> {
+  const bytes = new TextEncoder().encode(message);
+  const buffer = new ArrayBuffer(bytes.length);
+  new Uint8Array(buffer).set(bytes);
+  const digest = await crypto.subtle.digest("SHA-256", buffer);
+  const hashBytes = new Uint8Array(digest);
+  let hex = "";
+  for (let i = 0; i < hashBytes.length; i++) {
+    hex += hashBytes[i].toString(16).padStart(2, "0");
+  }
+  return BigInt("0x" + hex) % CURVE_ORDER;
+}
+
+/**
+ * Sign a vote using EdDSA-Poseidon over BabyJubJub.
+ */
 export async function signVote(
   keypair: StoredKeypair,
   electionId: string,
@@ -14,35 +49,29 @@ export async function signVote(
   publicKey: { x: string; y: string };
   timestamp: number;
 }> {
-  const privateKey = BigInt(keypair.k);
+  const sk = BigInt(keypair.k);
   const Ax = BigInt(keypair.Ax);
+  const Ay = BigInt(keypair.Ay);
 
   const timestamp = Date.now();
   const message = `${electionId}:${choice}:${timestamp}`;
-  const msgBytes = stringToBytes(message);
+  const msgField = await hashMessageToField(message);
 
-  // Generate the internal nonce (r)
-  const r = await hashToScalarBE(CURVE_ORDER, toBytesBE(privateKey), msgBytes);
+  // Deterministic nonce: r = Poseidon(sk, msgField) mod subOrder
+  const r = poseidon2([sk, msgField]) % CURVE_ORDER;
 
-  // Calculate R = r*B
-  const rPoint = EdwardsPoint.base().multiply(r);
-  const Rx = rPoint.x;
-  const Ry = rPoint.y;
+  // R = r * Base8
+  const R = EdwardsPoint.base().multiply(r);
 
-  // Calculate challenge t = H(Rx || Ax || message)
-  const t = await hashToScalarBE(
-    CURVE_ORDER,
-    toBytesBE(Rx),
-    toBytesBE(Ax),
-    msgBytes
-  );
+  // Challenge: h = Poseidon(R.x, R.y, A.x, A.y, msgField) mod subOrder
+  const h = poseidon5([R.x, R.y, Ax, Ay, msgField]) % CURVE_ORDER;
 
-  // Calculate signature s = (r + privateKey * t) mod ORDER
-  const s = (r + privateKey * t) % CURVE_ORDER;
+  // Response: S = (r + h * sk) mod subOrder
+  const S = (r + ((h * sk) % CURVE_ORDER)) % CURVE_ORDER;
 
   const signatureObject = {
-    R: { x: Rx.toString(), y: Ry.toString() },
-    s: s.toString(),
+    R8: { x: R.x.toString(), y: R.y.toString() },
+    S: S.toString(),
     message,
   };
 
@@ -53,47 +82,45 @@ export async function signVote(
   };
 }
 
-// Verify a signature
+/**
+ * Verify an EdDSA-Poseidon signature.
+ */
 export async function verifySignature(
   signature: string,
   publicKey: { x: string; y: string }
 ): Promise<boolean> {
   try {
     const sigObj = JSON.parse(signature);
-    const s = BigInt(sigObj.s);
-    const Rx = BigInt(sigObj.R.x);
-    const Ry = BigInt(sigObj.R.y);
-    const msgBytes = stringToBytes(sigObj.message);
+    const S = BigInt(sigObj.S);
+    const Rx = BigInt(sigObj.R8.x);
+    const Ry = BigInt(sigObj.R8.y);
+    const message: string = sigObj.message;
 
     const Ax = BigInt(publicKey.x);
     const Ay = BigInt(publicKey.y);
 
-    if (s < 0n || s >= CURVE_ORDER) {
+    if (S < 0n || S >= CURVE_ORDER) {
       return false;
     }
 
-    const rPoint = new EdwardsPoint(Rx, Ry);
-    const publicKeyPoint = new EdwardsPoint(Ax, Ay);
-
-    if (!rPoint.isOnCurve() || !publicKeyPoint.isOnCurve()) {
+    const R = new EdwardsPoint(Rx, Ry);
+    const A = new EdwardsPoint(Ax, Ay);
+    if (!R.isOnCurve() || !A.isOnCurve()) {
       return false;
     }
 
-    // Calculate challenge t = H(Rx || Ax || message)
-    const t = await hashToScalarBE(
-      CURVE_ORDER,
-      toBytesBE(Rx),
-      toBytesBE(Ax),
-      msgBytes
-    );
+    const msgField = await hashMessageToField(message);
 
-    // Verify: sB = R + tA
-    const sB = EdwardsPoint.base().multiply(s);
-    const rhs = rPoint.add(publicKeyPoint.multiply(t));
+    // Recompute challenge: h = Poseidon(R.x, R.y, A.x, A.y, msgField)
+    const h = poseidon5([Rx, Ry, Ax, Ay, msgField]) % CURVE_ORDER;
 
-    return sB.equals(rhs);
+    // Verify: S * Base8 == R + h * A
+    const lhs = EdwardsPoint.base().multiply(S);
+    const rhs = R.add(A.multiply(h));
+
+    return lhs.equals(rhs);
   } catch (error) {
-    logger.error("Signature verification failed:", error);
+    logger.error("EdDSA-Poseidon signature verification failed:", error);
     return false;
   }
 }

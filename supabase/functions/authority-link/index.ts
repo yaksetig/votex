@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { poseidon5 } from "https://esm.sh/poseidon-lite@0.3.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -180,6 +181,12 @@ function buildAuthorityLinkMessage(
   ].join(":");
 }
 
+async function hashMessageToField(message: string): Promise<bigint> {
+  const bytes = stringToBytes(message);
+  const digest = await sha256(bytes);
+  return BigInt(`0x${bytesToHex(digest)}`) % CURVE_ORDER;
+}
+
 async function verifyAuthorityOwnershipProof(
   authUserId: string,
   authorityName: string,
@@ -195,36 +202,34 @@ async function verifyAuthorityOwnershipProof(
   );
 
   const parsed = JSON.parse(signature) as {
-    R?: { x?: string; y?: string };
+    R8?: { x?: string; y?: string };
+    S?: string;
     message?: string;
-    s?: string;
   };
 
-  if (!parsed.R?.x || !parsed.R?.y || !parsed.s || parsed.message !== expectedMessage) {
+  if (!parsed.R8?.x || !parsed.R8?.y || !parsed.S || parsed.message !== expectedMessage) {
     return false;
   }
 
-  const s = BigInt(parsed.s);
-  if (s < 0n || s >= CURVE_ORDER) {
+  const S = BigInt(parsed.S);
+  if (S < 0n || S >= CURVE_ORDER) {
     return false;
   }
 
-  const rPoint = new EdwardsPoint(BigInt(parsed.R.x), BigInt(parsed.R.y));
-  const publicKeyPoint = new EdwardsPoint(BigInt(publicKey.x), BigInt(publicKey.y));
+  const R = new EdwardsPoint(BigInt(parsed.R8.x), BigInt(parsed.R8.y));
+  const A = new EdwardsPoint(BigInt(publicKey.x), BigInt(publicKey.y));
 
-  if (!rPoint.isOnCurve() || !publicKeyPoint.isOnCurve()) {
+  if (!R.isOnCurve() || !A.isOnCurve()) {
     return false;
   }
 
-  const challenge = await hashToScalarBE(
-    toBytesBE(rPoint.x),
-    toBytesBE(publicKeyPoint.x),
-    stringToBytes(expectedMessage)
-  );
+  // EdDSA-Poseidon verification: S * Base8 == R + h * A
+  const msgField = await hashMessageToField(expectedMessage);
+  const h = poseidon5([R.x, R.y, A.x, A.y, msgField]) % CURVE_ORDER;
 
-  const left = EdwardsPoint.base().multiply(s);
-  const right = rPoint.add(publicKeyPoint.multiply(challenge));
-  return left.equals(right);
+  const lhs = EdwardsPoint.base().multiply(S);
+  const rhs = R.add(A.multiply(h));
+  return lhs.equals(rhs);
 }
 
 Deno.serve(async (req) => {
