@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { Suspense, lazy, useEffect, useState } from "react";
 import { isPast } from "date-fns";
 import {
   AlertTriangle,
@@ -12,16 +12,23 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import TallyResultsDisplay from "@/components/TallyResultsDisplay";
-import ElectionEditForm from "@/components/ElectionEditForm";
-import ElectionAuthorityInterface from "@/components/ElectionAuthorityInterface";
 import { closeElectionEarly, isElectionSafeToEdit } from "@/services/electionManagementService";
+
+const TallyResultsDisplay = lazy(() => import("@/components/TallyResultsDisplay"));
+const ElectionEditForm = lazy(() => import("@/components/ElectionEditForm"));
+const ElectionAuthorityInterface = lazy(() => import("@/components/ElectionAuthorityInterface"));
 
 interface ElectionAuthorityDashboardProps {
   electionId: string;
   authorityName: string;
   onBack: () => void;
 }
+
+const TabPaneLoading = () => (
+  <div className="rounded-[1.5rem] border border-outline-variant/15 bg-surface-container-low p-6 text-sm text-on-surface-variant">
+    Loading panel...
+  </div>
+);
 
 const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
   electionId,
@@ -275,13 +282,15 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
           </TabsList>
 
           <TabsContent value="overview" className="rounded-[1.5rem] bg-surface-container-lowest p-6 shadow-sm">
-            <TallyResultsDisplay
-              key={refreshKey}
-              electionId={election.id}
-              electionTitle={election.title}
-              option1Name={election.option1}
-              option2Name={election.option2}
-            />
+            <Suspense fallback={<TabPaneLoading />}>
+              <TallyResultsDisplay
+                key={refreshKey}
+                electionId={election.id}
+                electionTitle={election.title}
+                option1Name={election.option1}
+                option2Name={election.option2}
+              />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="edit" className="space-y-6 rounded-[1.5rem] bg-surface-container-lowest p-6 shadow-sm">
@@ -296,7 +305,9 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
               </div>
             )}
             {canEdit && (
-              <ElectionEditForm election={election} safeToEdit={safeToEdit} onElectionUpdated={handleElectionUpdated} />
+              <Suspense fallback={<TabPaneLoading />}>
+                <ElectionEditForm election={election} safeToEdit={safeToEdit} onElectionUpdated={handleElectionUpdated} />
+              </Suspense>
             )}
           </TabsContent>
 
@@ -310,11 +321,13 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
                 </p>
               </div>
             ) : isElectionEnded ? (
-              <ElectionAuthorityInterface
-                electionId={election.id}
-                electionTitle={election.title}
-                onTallyComplete={handleTallyComplete}
-              />
+              <Suspense fallback={<TabPaneLoading />}>
+                <ElectionAuthorityInterface
+                  electionId={election.id}
+                  electionTitle={election.title}
+                  onTallyComplete={handleTallyComplete}
+                />
+              </Suspense>
             ) : (
               <div className="rounded-[1.5rem] border border-outline-variant/15 bg-surface-container-low p-6">
                 <h3 className="font-headline text-2xl font-bold text-primary">Tally processing locked</h3>

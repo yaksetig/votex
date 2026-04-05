@@ -18,7 +18,7 @@ const ElectionAuthorityLogin: React.FC<ElectionAuthorityLoginProps> = ({ onLogin
   const [password, setPassword] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
   const [authorityName, setAuthorityName] = useState("");
-  const [privateKey, setPrivateKey] = useState("");
+  const [authoritySecret, setAuthoritySecret] = useState("");
   const [requiresAuthorityLink, setRequiresAuthorityLink] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,18 +37,18 @@ const ElectionAuthorityLogin: React.FC<ElectionAuthorityLoginProps> = ({ onLogin
       setError(null);
 
       if (requiresAuthorityLink) {
-        if (!privateKey.trim() || !authorityName.trim()) {
-          setError("Authority name and private key are required to complete identity linking.");
+        if (!authoritySecret.trim() || !authorityName.trim()) {
+          setError("Authority name and secret are required to complete identity linking.");
           return;
         }
 
-        const result = await linkCurrentAuthorityIdentity(authorityName.trim(), privateKey.trim());
+        const result = await linkCurrentAuthorityIdentity(authorityName.trim(), authoritySecret.trim());
         if (!result.success || !result.authorityId) {
           setError(result.error ?? "Authority linking failed");
           return;
         }
 
-        setPrivateKey("");
+        setAuthoritySecret("");
         toast({
           title: "Authority linked",
           description: `Secure session established for ${result.authorityName}.`,
@@ -58,8 +58,8 @@ const ElectionAuthorityLogin: React.FC<ElectionAuthorityLoginProps> = ({ onLogin
       }
 
       if (isSignUp) {
-        if (!privateKey.trim() || !authorityName.trim()) {
-          setError("Authority name and private key are required for registration.");
+        if (!authoritySecret.trim() || !authorityName.trim()) {
+          setError("Authority name and secret are required for registration.");
           return;
         }
 
@@ -67,7 +67,7 @@ const ElectionAuthorityLogin: React.FC<ElectionAuthorityLoginProps> = ({ onLogin
           email.trim(),
           password,
           authorityName.trim(),
-          privateKey.trim()
+          authoritySecret.trim()
         );
 
         if (!result.success || !result.authorityId) {
@@ -75,7 +75,7 @@ const ElectionAuthorityLogin: React.FC<ElectionAuthorityLoginProps> = ({ onLogin
           return;
         }
 
-        setPrivateKey("");
+        setAuthoritySecret("");
         toast({
           title: "Authority account created",
           description: `${result.authorityName} is now registered for secure management access.`,
@@ -129,7 +129,7 @@ const ElectionAuthorityLogin: React.FC<ElectionAuthorityLoginProps> = ({ onLogin
             Secure oversight for the Votex vote ledger.
           </h1>
           <p className="mt-4 text-sm leading-relaxed text-white/74">
-            Authenticate with your authority account, then prove possession of the BabyJubJub key that governs election updates, tally processing, and audit control.
+            Authenticate with your authority account, then prove possession of the authority secret that derives the BabyJubJub key governing election updates, tally processing, and audit control.
           </p>
 
           <div className="mt-10 rounded-[1.5rem] bg-white/10 p-5">
@@ -161,8 +161,8 @@ const ElectionAuthorityLogin: React.FC<ElectionAuthorityLoginProps> = ({ onLogin
 
           <p className="mt-4 max-w-2xl text-sm leading-relaxed text-on-surface-variant">
             {requiresAuthorityLink
-              ? "This Supabase Auth account is valid, but still needs to be bound to an authority key before it can manage elections."
-              : isSignUp
+                ? "This Supabase Auth account is valid, but still needs to be bound to an authority key before it can manage elections."
+                : isSignUp
                 ? "Create an authority account and bind it to the BabyJubJub key that controls your election records."
                 : "Use your authority email and password to access the election administration surface."}
           </p>
@@ -217,17 +217,17 @@ const ElectionAuthorityLogin: React.FC<ElectionAuthorityLoginProps> = ({ onLogin
                 </div>
 
                 <div>
-                  <Label htmlFor="privateKey" className="ledger-eyebrow">
-                    BabyJubJub private key
+                  <Label htmlFor="authoritySecret" className="ledger-eyebrow">
+                    Authority secret
                   </Label>
                   <Input
-                    id="privateKey"
+                    id="authoritySecret"
                     type="password"
-                    value={privateKey}
-                    onChange={(event) => setPrivateKey(event.target.value)}
+                    value={authoritySecret}
+                    onChange={(event) => setAuthoritySecret(event.target.value)}
                     disabled={isSubmitting}
                     className="mt-3"
-                    placeholder="Used once to prove authority key ownership"
+                    placeholder="Used to derive and prove ownership of the authority key"
                   />
                 </div>
               </div>
@@ -271,7 +271,7 @@ const ElectionAuthorityLogin: React.FC<ElectionAuthorityLoginProps> = ({ onLogin
               <div className="flex items-start gap-3">
                 <KeyRound className="mt-0.5 h-4 w-4 text-surface-tint" />
                 <span>
-                  Authority private keys are used only to derive the public key and sign a one-time ownership proof. They are never stored by the browser or server.
+                  Authority secrets are used only to derive the BabyJubJub key and sign a one-time ownership proof. They are never stored by the browser or server.
                 </span>
               </div>
             </div>

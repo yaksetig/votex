@@ -9,34 +9,6 @@ export async function ensureDiscreteLogTable(maxValue: number = 100): Promise<bo
   return await initializeDiscreteLogTable(maxValue);
 }
 
-// Add multiple ElGamal ciphertexts homomorphically
-export function addElGamalCiphertexts(ciphertexts: ElGamalCiphertext[]): ElGamalCiphertext {
-  if (ciphertexts.length === 0) {
-    throw new Error("Cannot add empty array of ciphertexts");
-  }
-  
-  if (ciphertexts.length === 1) {
-    return ciphertexts[0];
-  }
-  
-  // Start with the first ciphertext
-  let resultC1 = ciphertexts[0].c1;
-  let resultC2 = ciphertexts[0].c2;
-  
-  // Add all other ciphertexts
-  for (let i = 1; i < ciphertexts.length; i++) {
-    resultC1 = resultC1.add(ciphertexts[i].c1);
-    resultC2 = resultC2.add(ciphertexts[i].c2);
-  }
-  
-  return {
-    c1: resultC1,
-    c2: resultC2,
-    r: BigInt(0), // Placeholder since r is lost in homomorphic addition
-    ciphertext: [resultC1.x, resultC1.y, resultC2.x, resultC2.y]
-  };
-}
-
 // Helper function to negate an Edwards point (for subtraction)
 function negatePoint(point: EdwardsPoint): EdwardsPoint {
   // In Edwards curves, the negation of point (x, y) is (-x, y)
@@ -64,23 +36,4 @@ export async function decryptElGamalInExponent(
   }
   
   return result;
-}
-
-// Helper function to convert stored ciphertext back to ElGamalCiphertext
-export function reconstructElGamalCiphertext(storedCiphertext: { c1: { x: string; y: string }; c2: { x: string; y: string } }): ElGamalCiphertext {
-  const c1 = new EdwardsPoint(
-    BigInt(storedCiphertext.c1.x),
-    BigInt(storedCiphertext.c1.y)
-  );
-  const c2 = new EdwardsPoint(
-    BigInt(storedCiphertext.c2.x),
-    BigInt(storedCiphertext.c2.y)
-  );
-  
-  return {
-    c1,
-    c2,
-    r: BigInt(0), // Placeholder since r is not stored
-    ciphertext: [c1.x, c1.y, c2.x, c2.y]
-  };
 }

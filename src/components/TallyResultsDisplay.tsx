@@ -1,13 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import React, { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import {
   BarChart3,
   CheckCircle2,
@@ -17,9 +8,14 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { getElectionTallyResults, TallyResult } from "@/services/tallyService";
+import type { TallyResult } from "@/services/tallyService";
 import { getNullificationsForElection } from "@/services/nullificationService";
-import { getElectionVoteData, VoteData } from "@/services/voteTrackingService";
+import { getElectionTallyResults } from "@/services/tallyService";
+import type { VoteData } from "@/services/voteTrackingService";
+import { getElectionVoteData } from "@/services/voteTrackingService";
+import type { TallyChartDatum } from "@/components/TallyResultsChart";
+
+const TallyResultsChart = lazy(() => import("@/components/TallyResultsChart"));
 
 interface TallyResultsDisplayProps {
   electionId: string;
@@ -27,6 +23,23 @@ interface TallyResultsDisplayProps {
   option1Name: string;
   option2Name: string;
 }
+
+const EmptyChartState = () => (
+  <div className="flex h-full items-center justify-center rounded-[1.5rem] border border-outline-variant/12 bg-surface-container-low text-center">
+    <div>
+      <h4 className="font-headline text-2xl font-bold text-primary">
+        No vote data yet
+      </h4>
+      <p className="mt-2 text-sm text-on-surface-variant">
+        This election has not accumulated trackable vote totals yet.
+      </p>
+    </div>
+  </div>
+);
+
+const ChartLoadingState = () => (
+  <div className="h-full animate-pulse rounded-[1.5rem] border border-outline-variant/12 bg-surface-container-low" />
+);
 
 const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({
   electionId,
@@ -81,7 +94,7 @@ const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({
     };
   }, [totalNullifications, voteData]);
 
-  const chartData = useMemo(() => {
+  const chartData = useMemo<TallyChartDatum[]>(() => {
     if (!voteData) {
       return [];
     }
@@ -196,44 +209,15 @@ const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({
 
           <div className="mt-8 h-[320px]">
             {chartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ left: 8, right: 8, top: 8, bottom: 8 }}>
-                  <CartesianGrid stroke="#d9dce2" strokeDasharray="4 4" vertical={false} />
-                  <XAxis
-                    dataKey="name"
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: "#44474c", fontSize: 12, fontWeight: 600 }}
-                  />
-                  <YAxis
-                    allowDecimals={false}
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: "#74777d", fontSize: 12 }}
-                  />
-                  <Tooltip
-                    cursor={{ fill: "rgba(0, 90, 194, 0.06)" }}
-                    contentStyle={{
-                      borderRadius: 16,
-                      border: "1px solid rgba(196, 198, 205, 0.5)",
-                      boxShadow: "0 18px 48px rgba(0, 20, 54, 0.08)",
-                    }}
-                  />
-                  <Bar dataKey={option1Name} fill="#005ac2" radius={[10, 10, 0, 0]} />
-                  <Bar dataKey={option2Name} fill="#4f6073" radius={[10, 10, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              <Suspense fallback={<ChartLoadingState />}>
+                <TallyResultsChart
+                  chartData={chartData}
+                  option1Name={option1Name}
+                  option2Name={option2Name}
+                />
+              </Suspense>
             ) : (
-              <div className="flex h-full items-center justify-center rounded-[1.5rem] border border-outline-variant/12 bg-surface-container-low text-center">
-                <div>
-                  <h4 className="font-headline text-2xl font-bold text-primary">
-                    No vote data yet
-                  </h4>
-                  <p className="mt-2 text-sm text-on-surface-variant">
-                    This election has not accumulated trackable vote totals yet.
-                  </p>
-                </div>
-              </div>
+              <EmptyChartState />
             )}
           </div>
         </div>

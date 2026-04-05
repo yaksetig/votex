@@ -1,12 +1,35 @@
-
 declare module 'circomlibjs' {
-  export function buildBabyjub(): Promise<{
-    F: any;
-    subOrder: bigint;
-    Base8: [any, any];
-    mulPointEscalar: (base: [any, any], scalar: any) => [any, any];
-    poseidon: (inputs: any[]) => any;
-    signPoseidon: (privateKey: any, message: any) => { R8: [any, any]; S: any };
-    verifyPoseidon: (message: any, signature: { R8: [any, any]; S: any }, publicKey: [any, any]) => boolean;
+  export function buildEddsa(): Promise<{
+    F: {
+      e: (value: bigint | number | string) => unknown;
+      toObject: (value: unknown) => bigint | number | string;
+    };
+    babyJub: {
+      subOrder: bigint;
+      inCurve: (point: [unknown, unknown]) => boolean;
+      inSubgroup: (point: [unknown, unknown]) => boolean;
+    };
+    pruneBuffer: (buffer: Uint8Array) => Uint8Array;
+    prv2pub: (privateKey: Uint8Array) => [unknown, unknown];
+    signPoseidon: (
+      privateKey: Uint8Array,
+      message: unknown
+    ) => { R8: [unknown, unknown]; S: bigint };
+    verifyPoseidon: (
+      message: unknown,
+      signature: { R8: [unknown, unknown]; S: bigint },
+      publicKey: [unknown, unknown]
+    ) => boolean;
   }>;
+}
+
+declare module "blake-hash" {
+  const createBlakeHash: (algorithm: string) => {
+    update: (input: Uint8Array | string) => {
+      digest: () => Uint8Array;
+    };
+    digest: () => Uint8Array;
+  };
+
+  export default createBlakeHash;
 }

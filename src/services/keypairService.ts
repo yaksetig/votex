@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { StoredKeypair } from "@/types/keypair";
 import { verifyKeypairConsistency } from "@/services/elGamalService";
 import { logger } from "@/services/logger";
+import { KEYPAIR_VERSION } from "@/services/eddsaService";
 
 /**
  * Session-scoped keypair storage.
@@ -44,6 +45,16 @@ export function validateAndMigrateKeypair(): { valid: boolean; cleared: boolean;
   const storedKeypair = getStoredKeypair();
   if (!storedKeypair) {
     return { valid: false, cleared: false, keypair: null };
+  }
+
+  if (
+    storedKeypair.version !== KEYPAIR_VERSION ||
+    !storedKeypair.seed ||
+    typeof storedKeypair.seed !== "string"
+  ) {
+    clearStoredKeypair();
+    logger.warn("Cleared outdated keypair - unsupported key material format");
+    return { valid: false, cleared: true, keypair: null };
   }
 
   const isConsistent = verifyKeypairConsistency(storedKeypair);

@@ -10,6 +10,7 @@ import {
 import { resolveDelegations } from "@/services/delegationService";
 import { getElectionParticipants } from "@/services/electionParticipantsService";
 import { logger } from "@/services/logger";
+import { deriveAuthorityKeyMaterial } from "@/services/eddsaService";
 
 export interface TallyResult {
   userId: string;
@@ -25,12 +26,12 @@ export interface ElectionTallyResult {
   processedBy?: string;
 }
 
-// Process the entire election tally using the authority's private key.
+// Process the entire election tally using the authority's secret.
 // With XOR accumulators, each voter's accumulator decrypts to either
 // 0 (vote valid) or 1 (vote nullified). No count leakage.
 export async function processElectionTally(
   electionId: string,
-  authorityPrivateKey: string,
+  authoritySecret: string,
   processedBy?: string
 ): Promise<ElectionTallyResult | null> {
   try {
@@ -52,7 +53,8 @@ export async function processElectionTally(
       `Found ${accumulators.length} voter accumulators for election`
     );
 
-    const privateKey = BigInt(authorityPrivateKey);
+    const authorityKeyMaterial = await deriveAuthorityKeyMaterial(authoritySecret);
+    const privateKey = authorityKeyMaterial.scalar;
     const nullificationMap = new Map<string, { count: number; nullified: boolean }>();
 
     for (const acc of accumulators) {
@@ -224,58 +226,5 @@ export async function getElectionTallyResults(
   } catch (error) {
     logger.error("Error in getElectionTallyResults:", error);
     return [];
-  }
-}
-
-// Calculate final vote counts after applying nullifications
-export async function calculateFinalResults(electionId: string): Promise<{
-  preliminaryResults: { option1: number; option2: number };
-  finalResults: { option1: number; option2: number };
-  nullifiedVotes: number;
-} | null> {
-  try {
-    logger.debug(
-      `Starting final results calculation for election: ${electionId}`
-    );
-
-    const { data: yesVotes, error: yesError } = await supabase
-      .from("yes_votes")
-      .select("*")
-      .eq("election_id", electionId);
-
-    const { data: noVotes, error: noError } = await supabase
-      .from("no_votes")
-      .select("*")
-      .eq("election_id", electionId);
-
-    if (yesError || noError) {
-      logger.error(
-        "Error fetching votes from tracking tables:",
-        yesError || noError
-      );
-      return null;
-    }
-
-    const totalYesVotes = yesVotes?.length || 0;
-    const totalNoVotes = noVotes?.length || 0;
-    const nullifiedYesVotes =
-      yesVotes?.filter((vote) => vote.nullified).length || 0;
-    const nullifiedNoVotes =
-      noVotes?.filter((vote) => vote.nullified).length || 0;
-    const validYesVotes = totalYesVotes - nullifiedYesVotes;
-    const validNoVotes = totalNoVotes - nullifiedNoVotes;
-
-    const results = {
-      preliminaryResults: { option1: totalYesVotes, option2: totalNoVotes },
-      finalResults: { option1: validYesVotes, option2: validNoVotes },
-      nullifiedVotes: nullifiedYesVotes + nullifiedNoVotes,
-    };
-
-    logger.debug("Final calculated results:", results);
-
-    return results;
-  } catch (error) {
-    logger.error("Error calculating final results:", error);
-    return null;
   }
 }

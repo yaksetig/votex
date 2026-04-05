@@ -18,7 +18,7 @@ export interface ProofInput {
   };
 }
 
-export interface ProofResult {
+interface ProofResult {
   id: string;
   success: boolean;
   proof?: Groth16Proof;
@@ -95,43 +95,4 @@ export async function generateProofsInParallel(
 
   logger.debug(`All ${total} proofs completed`);
   return allResults;
-}
-
-// Fallback: Generate proofs sequentially (if workers not available)
-export async function generateProofsSequentially(
-  proofInputs: ProofInput[],
-  onProgress?: (completed: number, total: number) => void
-): Promise<ProofResult[]> {
-  const snarkjs = await import("snarkjs");
-  const results: ProofResult[] = [];
-  const total = proofInputs.length;
-
-  for (let i = 0; i < proofInputs.length; i++) {
-    const proofInput = proofInputs[i];
-
-    try {
-      const { proof, publicSignals } = await snarkjs.groth16.fullProve(
-        proofInput.input,
-        WASM_PATH,
-        ZKEY_PATH
-      );
-
-      results.push({
-        id: proofInput.id,
-        success: true,
-        proof,
-        publicSignals,
-      });
-    } catch (error) {
-      results.push({
-        id: proofInput.id,
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-
-    onProgress?.(i + 1, total);
-  }
-
-  return results;
 }

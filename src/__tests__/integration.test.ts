@@ -20,6 +20,7 @@ import {
   computeXorAccumulator,
 } from "../services/elGamalService";
 import { randomScalar } from "../services/crypto/utils";
+import { deriveAuthorityKeyMaterial } from "../services/eddsaService";
 
 /**
  * Pure decryption for tests — avoids the Supabase discrete-log lookup.
@@ -189,18 +190,31 @@ describe("Authority ownership proof format", () => {
       "../services/authorityOwnershipProofService"
     );
 
-    const pk = deriveAuthorityPublicKey("42");
+    const pk = await deriveAuthorityPublicKey("correct horse battery staple");
     const point = new EdwardsPoint(BigInt(pk.x), BigInt(pk.y));
     expect(point.isOnCurve()).toBe(true);
   });
 
-  it("deriveAuthorityPublicKey matches manual scalar multiplication", async () => {
+  it("deriveAuthorityPublicKey is deterministic for the same authority secret", async () => {
     const { deriveAuthorityPublicKey } = await import(
       "../services/authorityOwnershipProofService"
     );
 
-    const pk = deriveAuthorityPublicKey("7");
-    const expected = EdwardsPoint.base().multiply(7n);
+    const secret = "authority-demo-secret";
+    const pk1 = await deriveAuthorityPublicKey(secret);
+    const pk2 = await deriveAuthorityPublicKey(secret);
+    expect(pk1).toEqual(pk2);
+  });
+
+  it("deriveAuthorityPublicKey matches the scalar derived from the same secret", async () => {
+    const { deriveAuthorityPublicKey } = await import(
+      "../services/authorityOwnershipProofService"
+    );
+
+    const secret = "authority-demo-secret";
+    const pk = await deriveAuthorityPublicKey(secret);
+    const keyMaterial = await deriveAuthorityKeyMaterial(secret);
+    const expected = EdwardsPoint.base().multiply(keyMaterial.scalar);
     expect(pk.x).toBe(expected.x.toString());
     expect(pk.y).toBe(expected.y.toString());
   });

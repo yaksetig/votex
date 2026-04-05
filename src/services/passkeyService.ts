@@ -27,7 +27,7 @@ export interface PasskeySupport {
   prfSupported: boolean;
 }
 
-export interface PRFResult {
+interface PRFResult {
   secret: ArrayBuffer;  // 32-byte PRF output
   credentialId: string;
 }
@@ -99,17 +99,9 @@ export async function checkPasskeySupport(): Promise<PasskeySupport> {
 }
 
 /**
- * Check if a passkey credential already exists for this app
- */
-export function hasExistingPasskey(): boolean {
-  const stored = localStorage.getItem(CREDENTIAL_STORAGE_KEY);
-  return stored !== null;
-}
-
-/**
  * Get the stored credential ID if it exists
  */
-export function getStoredCredentialId(): string | null {
+function getStoredCredentialId(): string | null {
   const stored = localStorage.getItem(CREDENTIAL_STORAGE_KEY);
   if (!stored) return null;
   
@@ -342,7 +334,7 @@ export async function deriveSecretFromPasskey(credentialId: string): Promise<PRF
  * @returns The PRF-derived secret from the selected passkey
  * @throws Error if authentication fails or is cancelled
  */
-export async function authenticateWithAnyPasskey(): Promise<PRFResult> {
+async function authenticateWithAnyPasskey(): Promise<PRFResult> {
   assertSupportedWebAuthnOrigin();
 
   const challenge = generateChallenge();

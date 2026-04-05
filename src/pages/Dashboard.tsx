@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { Suspense, lazy, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowRight,
@@ -10,13 +10,8 @@ import {
 } from "lucide-react";
 import { useWallet } from "@/contexts/WalletContext";
 import { useToast } from "@/hooks/use-toast";
-import WorldIDSignIn from "@/components/WorldIDSignIn";
-import { authenticateWithPreferredPasskey } from "@/services/passkeyService";
-import {
-  deriveKeypairFromSecret,
-  publicKeyToStrings,
-  verifyDerivedKeypair,
-} from "@/services/deterministicKeyService";
+
+const WorldIDSignIn = lazy(() => import("@/components/WorldIDSignIn"));
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -33,6 +28,14 @@ const Dashboard = () => {
     setIsDerivingKey(true);
 
     try {
+      const [
+        { authenticateWithPreferredPasskey },
+        { deriveKeypairFromSecret, publicKeyToStrings, verifyDerivedKeypair },
+      ] = await Promise.all([
+        import("@/services/passkeyService"),
+        import("@/services/deterministicKeyService"),
+      ]);
+
       const prfResult = await authenticateWithPreferredPasskey();
       const keypair = await deriveKeypairFromSecret(prfResult.secret);
 
@@ -62,7 +65,11 @@ const Dashboard = () => {
   };
 
   if (!isWorldIDVerified || !userId) {
-    return <WorldIDSignIn />;
+    return (
+      <Suspense fallback={<div className="flex min-h-[calc(100vh-72px)] items-center justify-center px-4 py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
+        <WorldIDSignIn />
+      </Suspense>
+    );
   }
 
   return (

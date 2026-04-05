@@ -17,7 +17,7 @@ import {
 } from "@/services/elGamalService";
 import { logger } from "@/services/logger";
 
-export interface StoredAccumulator {
+interface StoredAccumulator {
   election_id: string;
   voter_id: string;
   acc_c1_x: string;

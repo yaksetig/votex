@@ -1,28 +1,31 @@
 /**
- * Deterministic Key Service - BabyJubJub key derivation from PRF output
+ * Deterministic Key Service - passkey PRF to EdDSA/BabyJubJub key material
  *
- * This service derives BabyJubJub keypairs deterministically from the
- * passkey PRF output. The derivation is:
+ * This service derives a vetted EdDSA seed from the passkey PRF output,
+ * then derives both:
  *
- *   S  = PRF(passkey, "votex:bjj:v1")      [from passkeyService]
- *   sk = SHA256(S || "babyjubjub") mod r   [this service]
- *   pk = sk * G                            [this service]
+ *   seed = HKDF-SHA256(PRF, "votex:eddsa:passkey-seed:v1")
+ *   pk   = circomlibjs EdDSA public key from seed
+ *   sk   = EdDSA-compatible subgroup scalar used by the existing ZK/ElGamal flow
  *
  * Security properties:
- * - sk is never stored, only derived on-demand
+ * - the seed is derived deterministically from the passkey secret
+ * - signatures use circomlibjs EdDSA-Poseidon
  * - Domain separation prevents key reuse across applications
- * - Reduction mod curve order ensures valid scalar
+ * - the scalar remains compatible with the existing BabyJubJub encryption circuits
  */
 
 import { EdwardsPoint } from "@/services/elGamalService";
-import { CURVE_ORDER } from "@/services/crypto/constants";
 import { toBytesBE, bytesToHex } from "@/services/crypto/utils";
 import { logger } from "@/services/logger";
-
-// Domain separator for key derivation
-const KEY_DERIVATION_DOMAIN = new TextEncoder().encode("babyjubjub");
+import {
+  deriveKeyMaterialFromSeed,
+  deriveSeedFromPasskeySecret,
+} from "@/services/eddsaService";
 
 export interface DerivedKeypair {
+  seed: Uint8Array;
+  seedHex: string;
   sk: bigint; // Private key - NEVER STORE THIS
   pk: {
     x: bigint;
@@ -36,38 +39,17 @@ export interface DerivedKeypair {
 export async function deriveKeypairFromSecret(
   prfSecret: ArrayBuffer
 ): Promise<DerivedKeypair> {
-  const secretBytes = new Uint8Array(prfSecret);
-  const combined = new Uint8Array(
-    secretBytes.length + KEY_DERIVATION_DOMAIN.length
-  );
-  combined.set(secretBytes, 0);
-  combined.set(KEY_DERIVATION_DOMAIN, secretBytes.length);
+  const seed = await deriveSeedFromPasskeySecret(prfSecret);
+  const keyMaterial = await deriveKeyMaterialFromSeed(seed);
 
-  const hashBuffer = await crypto.subtle.digest("SHA-256", combined);
-  const hashBytes = new Uint8Array(hashBuffer);
-  const hashHex = bytesToHex(hashBytes);
-
-  const sk = BigInt("0x" + hashHex) % CURVE_ORDER;
-
-  if (sk === 0n) {
-    throw new Error("Derived private key is zero - this should never happen");
-  }
-
-  const basePoint = EdwardsPoint.base();
-  const pkPoint = basePoint.multiply(sk);
-
-  if (!pkPoint.isOnCurve()) {
-    throw new Error(
-      "Derived public key is not on curve - cryptographic error"
-    );
-  }
-
-  logger.debug("BabyJubJub keypair derived successfully");
+  logger.debug("Passkey-backed EdDSA keypair derived successfully");
   return {
-    sk,
+    seed: keyMaterial.seed,
+    seedHex: keyMaterial.seedHex,
+    sk: keyMaterial.scalar,
     pk: {
-      x: pkPoint.x,
-      y: pkPoint.y,
+      x: keyMaterial.publicKey.x,
+      y: keyMaterial.publicKey.y,
     },
   };
 }
@@ -100,7 +82,11 @@ export function verifyDerivedKeypair(keypair: DerivedKeypair): boolean {
     const basePoint = EdwardsPoint.base();
     const expectedPk = basePoint.multiply(keypair.sk);
 
-    return expectedPk.x === keypair.pk.x && expectedPk.y === keypair.pk.y;
+    return (
+      expectedPk.x === keypair.pk.x &&
+      expectedPk.y === keypair.pk.y &&
+      keypair.sk > 0n
+    );
   } catch {
     return false;
   }
@@ -116,18 +102,5 @@ export function publicKeyToStrings(pk: {
   return {
     x: pk.x.toString(),
     y: pk.y.toString(),
-  };
-}
-
-/**
- * Convert string format back to bigint public key
- */
-export function stringsToPublicKey(pk: {
-  x: string;
-  y: string;
-}): { x: bigint; y: bigint } {
-  return {
-    x: BigInt(pk.x),
-    y: BigInt(pk.y),
   };
 }

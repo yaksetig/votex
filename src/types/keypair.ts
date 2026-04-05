@@ -1,11 +1,15 @@
 
 export interface KeypairResult {
+  version: string;
+  seed: string;
   k: bigint;
   Ax: bigint;
   Ay: bigint;
 }
 
 export interface StoredKeypair {
+  version: string;
+  seed: string;
   k: string;
   Ax: string;
   Ay: string;
@@ -18,6 +22,8 @@ export interface StoredKeypair {
  * IMPORTANT: sk should NEVER be stored - only kept in memory during use
  */
 export interface DerivedKeypair {
+  seed: Uint8Array; // 32-byte EdDSA seed
+  seedHex: string;
   sk: bigint;  // Private key - NEVER STORE
   pk: {
     x: bigint;

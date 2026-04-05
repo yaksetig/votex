@@ -23,7 +23,7 @@ const ElectionAuthorityInterface: React.FC<ElectionAuthorityInterfaceProps> = ({
   electionTitle,
   onTallyComplete = () => {},
 }) => {
-  const [privateKey, setPrivateKey] = useState("");
+  const [authoritySecret, setAuthoritySecret] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tallyResults, setTallyResults] = useState<ElectionTallyResult | null>(null);
@@ -47,8 +47,8 @@ const ElectionAuthorityInterface: React.FC<ElectionAuthorityInterfaceProps> = ({
   }, [tallyResults]);
 
   const handleProcessTally = async () => {
-    if (!privateKey.trim()) {
-      setError("Enter the authority private key to process the tally.");
+    if (!authoritySecret.trim()) {
+      setError("Enter the authority secret to process the tally.");
       return;
     }
 
@@ -58,7 +58,7 @@ const ElectionAuthorityInterface: React.FC<ElectionAuthorityInterfaceProps> = ({
 
       const results = await processElectionTally(
         electionId,
-        privateKey.trim(),
+        authoritySecret.trim(),
         "Election Authority"
       );
 
@@ -83,7 +83,7 @@ const ElectionAuthorityInterface: React.FC<ElectionAuthorityInterfaceProps> = ({
       });
     } finally {
       setIsProcessing(false);
-      setPrivateKey("");
+      setAuthoritySecret("");
     }
   };
 
@@ -166,7 +166,7 @@ const ElectionAuthorityInterface: React.FC<ElectionAuthorityInterfaceProps> = ({
               Process the final tally for {electionTitle}
             </h2>
             <p className="mt-3 max-w-3xl text-sm leading-relaxed text-white/76">
-              Enter the authority private key to decrypt the nullification accumulators, resolve final ballot validity, and write the official result set.
+              Enter the authority secret to derive the election key locally, decrypt the nullification accumulators, resolve final ballot validity, and write the official result set.
             </p>
           </div>
         </div>
@@ -187,18 +187,18 @@ const ElectionAuthorityInterface: React.FC<ElectionAuthorityInterfaceProps> = ({
           </div>
 
           <p className="mt-6 text-sm leading-relaxed text-on-surface-variant">
-            The private key is used locally to decrypt per-voter XOR accumulators. The browser clears the entered value immediately after processing completes or fails.
+            The authority secret is used locally to derive the BabyJubJub key and decrypt per-voter XOR accumulators. The browser clears the entered value immediately after processing completes or fails.
           </p>
 
-          <label htmlFor="privateKey" className="ledger-eyebrow mt-8 block">
-            Authority private key
+          <label htmlFor="authoritySecret" className="ledger-eyebrow mt-8 block">
+            Authority secret
           </label>
           <Input
-            id="privateKey"
+            id="authoritySecret"
             type="password"
-            value={privateKey}
-            onChange={(event) => setPrivateKey(event.target.value)}
-            placeholder="Enter the authority private key"
+            value={authoritySecret}
+            onChange={(event) => setAuthoritySecret(event.target.value)}
+            placeholder="Enter the authority secret"
             className="mt-3"
             disabled={isProcessing}
           />
@@ -211,7 +211,7 @@ const ElectionAuthorityInterface: React.FC<ElectionAuthorityInterfaceProps> = ({
 
           <Button
             onClick={handleProcessTally}
-            disabled={isProcessing || !privateKey.trim()}
+            disabled={isProcessing || !authoritySecret.trim()}
             className="mt-6 w-full"
             size="lg"
           >

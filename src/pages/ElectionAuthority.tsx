@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { Suspense, lazy, useEffect, useState } from "react";
 import {
   BarChart3,
   HelpCircle,
@@ -8,9 +8,6 @@ import {
   ShieldCheck,
   Vote,
 } from "lucide-react";
-import ElectionAuthorityLogin from "@/components/ElectionAuthorityLogin";
-import ElectionAuthorityDashboard from "@/components/ElectionAuthorityDashboard";
-import AuthorityElectionsList from "@/components/AuthorityElectionsList";
 import {
   clearElectionAuthoritySession,
   onAuthorityAuthStateChange,
@@ -19,6 +16,10 @@ import {
 import { getCurrentAuthority } from "@/services/electionAuthorityAuthService";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+
+const ElectionAuthorityLogin = lazy(() => import("@/components/ElectionAuthorityLogin"));
+const ElectionAuthorityDashboard = lazy(() => import("@/components/ElectionAuthorityDashboard"));
+const AuthorityElectionsList = lazy(() => import("@/components/AuthorityElectionsList"));
 
 const AUTHORITY_NAV = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -34,6 +35,17 @@ interface AuthorityShellProps {
   onLogout: () => void;
   children: React.ReactNode;
 }
+
+const AuthorityPaneLoading = () => (
+  <div className="flex min-h-[40vh] items-center justify-center">
+    <div className="rounded-[2rem] border border-outline-variant/15 bg-surface-container-lowest px-8 py-10 text-center shadow-ledger">
+      <p className="ledger-eyebrow">Authority workspace</p>
+      <h2 className="mt-3 font-headline text-2xl font-bold text-primary">
+        Loading view
+      </h2>
+    </div>
+  </div>
+);
 
 const AuthorityShell: React.FC<AuthorityShellProps> = ({
   authorityName,
@@ -170,7 +182,11 @@ const ElectionAuthority = () => {
   }
 
   if (!authorityId) {
-    return <ElectionAuthorityLogin onLoginSuccess={handleLoginSuccess} />;
+    return (
+      <Suspense fallback={<AuthorityPaneLoading />}>
+        <ElectionAuthorityLogin onLoginSuccess={handleLoginSuccess} />
+      </Suspense>
+    );
   }
 
   return (
@@ -179,19 +195,21 @@ const ElectionAuthority = () => {
       activeItem={selectedElectionId ? "management" : "dashboard"}
       onLogout={handleLogout}
     >
-      {selectedElectionId ? (
-        <ElectionAuthorityDashboard
-          electionId={selectedElectionId}
-          authorityName={authorityName || "Election Authority"}
-          onBack={() => setSelectedElectionId(null)}
-        />
-      ) : (
-        <AuthorityElectionsList
-          authorityId={authorityId}
-          authorityName={authorityName || "Election Authority"}
-          onElectionSelect={setSelectedElectionId}
-        />
-      )}
+      <Suspense fallback={<AuthorityPaneLoading />}>
+        {selectedElectionId ? (
+          <ElectionAuthorityDashboard
+            electionId={selectedElectionId}
+            authorityName={authorityName || "Election Authority"}
+            onBack={() => setSelectedElectionId(null)}
+          />
+        ) : (
+          <AuthorityElectionsList
+            authorityId={authorityId}
+            authorityName={authorityName || "Election Authority"}
+            onElectionSelect={setSelectedElectionId}
+          />
+        )}
+      </Suspense>
     </AuthorityShell>
   );
 };

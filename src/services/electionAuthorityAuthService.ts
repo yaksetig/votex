@@ -79,7 +79,7 @@ export async function signUpAuthority(
   email: string,
   password: string,
   authorityName: string,
-  authorityPrivateKey: string
+  authoritySecret: string
 ): Promise<AuthorityAuthResult> {
   try {
     // 1. Create the auth account
@@ -108,7 +108,7 @@ export async function signUpAuthority(
       }
     }
 
-    return await linkCurrentAuthorityIdentity(authorityName, authorityPrivateKey);
+    return await linkCurrentAuthorityIdentity(authorityName, authoritySecret);
   } catch (error) {
     logger.error('Unexpected error during authority sign-up:', error);
     return { success: false, error: 'Unexpected error during sign-up' };
@@ -117,7 +117,7 @@ export async function signUpAuthority(
 
 export async function linkCurrentAuthorityIdentity(
   authorityName: string,
-  authorityPrivateKey: string
+  authoritySecret: string
 ): Promise<AuthorityAuthResult> {
   try {
     const {
@@ -136,7 +136,7 @@ export async function linkCurrentAuthorityIdentity(
     const proof = await createAuthorityOwnershipProof(
       session.user.id,
       authorityName,
-      authorityPrivateKey
+      authoritySecret
     );
 
     const { data, error } = await supabase.functions.invoke('authority-link', {

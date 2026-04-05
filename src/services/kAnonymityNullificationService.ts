@@ -36,7 +36,7 @@ import { logger } from "@/services/logger";
 
 const DEFAULT_K = 6;
 
-export interface NullificationBatchItem {
+interface NullificationBatchItem {
   targetUserId: string;
   isReal: boolean;
   ciphertext: ElGamalCiphertext;
@@ -270,8 +270,4 @@ export async function generateKAnonymousNullifications(
   );
 
   return nullificationItems;
-}
-
-export function getKAnonymityParameter(): number {
-  return DEFAULT_K;
 }

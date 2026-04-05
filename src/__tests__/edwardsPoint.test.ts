@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { EdwardsPoint, derivePublicKey, verifyKeypairConsistency } from "../services/elGamalService";
 import { CURVE_ORDER } from "../services/crypto/constants";
+import { KEYPAIR_VERSION } from "../services/eddsaService";
 
 describe("EdwardsPoint", () => {
   it("identity point is on curve", () => {
@@ -123,6 +124,8 @@ describe("verifyKeypairConsistency", () => {
     const sk = 999n;
     const pk = base.multiply(sk);
     const keypair = {
+      version: KEYPAIR_VERSION,
+      seed: "11".repeat(32),
       k: sk.toString(),
       Ax: pk.x.toString(),
       Ay: pk.y.toString(),
@@ -134,6 +137,8 @@ describe("verifyKeypairConsistency", () => {
     const base = EdwardsPoint.base();
     const pk = base.multiply(999n);
     const keypair = {
+      version: KEYPAIR_VERSION,
+      seed: "22".repeat(32),
       k: "123", // wrong private key
       Ax: pk.x.toString(),
       Ay: pk.y.toString(),

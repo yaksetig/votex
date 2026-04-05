@@ -28,6 +28,7 @@ import { createDelegation, revokeDelegation, getActiveDelegation } from "@/servi
 import { recordVote } from "@/services/voteTrackingService";
 import { Election } from "@/types/election";
 import type { KAnonymityProgress } from "@/services/kAnonymityNullificationService";
+import { KEYPAIR_VERSION } from "@/services/eddsaService";
 
 const ElectionDetail = () => {
   const { id } = useParams();
@@ -218,6 +219,8 @@ const ElectionDetail = () => {
       setDerivedPublicKey(pkStrings);
 
       const storedKeypair = {
+        version: KEYPAIR_VERSION,
+        seed: derivedKeypair.seedHex,
         k: derivedKeypair.sk.toString(),
         Ax: derivedKeypair.pk.x.toString(),
         Ay: derivedKeypair.pk.y.toString(),

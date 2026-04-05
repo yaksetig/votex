@@ -1,26 +1,23 @@
-import { EdwardsPoint } from "@/services/elGamalService";
-import { CURVE_ORDER } from "@/services/crypto/constants";
-import { randomScalar } from "@/services/crypto/utils";
+import {
+  deriveKeyMaterialFromSeed,
+  KEYPAIR_VERSION,
+} from "@/services/eddsaService";
 
 export async function generateKeypair(): Promise<{
+  version: string;
+  seed: string;
   k: bigint;
   Ax: bigint;
   Ay: bigint;
 }> {
-  // Generate random private key
-  const k = randomScalar(CURVE_ORDER);
-
-  // Compute public key: A = k * G
-  const publicKeyPoint = EdwardsPoint.base().multiply(k);
-
-  // Verify the point is on curve
-  if (!publicKeyPoint.isOnCurve()) {
-    throw new Error("Generated public key is not on curve!");
-  }
+  const seed = crypto.getRandomValues(new Uint8Array(32));
+  const keyMaterial = await deriveKeyMaterialFromSeed(seed);
 
   return {
-    k,
-    Ax: publicKeyPoint.x,
-    Ay: publicKeyPoint.y,
+    version: KEYPAIR_VERSION,
+    seed: keyMaterial.seedHex,
+    k: keyMaterial.scalar,
+    Ax: keyMaterial.publicKey.x,
+    Ay: keyMaterial.publicKey.y,
   };
 }

@@ -9,8 +9,6 @@ import {
 import {
   mod,
   modInverse,
-  toBytesBE,
-  hashToScalarBE,
   randomScalar,
 } from "@/services/crypto/utils";
 
@@ -155,42 +153,6 @@ export function elgamalEncrypt(
     r: r,
     ciphertext: [c1.x, c1.y, c2.x, c2.y],
   };
-}
-
-// Generate deterministic random value r = hash(sk, pk)
-export async function generateDeterministicR(
-  privateKey: bigint,
-  publicKey: { x: bigint; y: bigint }
-): Promise<bigint> {
-  const skBytes = toBytesBE(privateKey);
-  const pkXBytes = toBytesBE(publicKey.x);
-  const pkYBytes = toBytesBE(publicKey.y);
-
-  return await hashToScalarBE(CURVE_ORDER, skBytes, pkXBytes, pkYBytes);
-}
-
-// Create ElGamal encryption for nullification
-export async function createNullificationEncryption(
-  userKeypair: StoredKeypair,
-  authorityPublicKey: { x: string; y: string }
-): Promise<ElGamalCiphertext> {
-  const authorityPoint = new EdwardsPoint(
-    BigInt(authorityPublicKey.x),
-    BigInt(authorityPublicKey.y)
-  );
-  const userPublicKey = new EdwardsPoint(
-    BigInt(userKeypair.Ax),
-    BigInt(userKeypair.Ay)
-  );
-  const userPrivateKey = BigInt(userKeypair.k);
-
-  const deterministicR = await generateDeterministicR(
-    userPrivateKey,
-    userPublicKey
-  );
-  const ciphertext = elgamalEncrypt(authorityPoint, 1, deterministicR);
-
-  return ciphertext;
 }
 
 // ===== XOR Accumulator Operations =====

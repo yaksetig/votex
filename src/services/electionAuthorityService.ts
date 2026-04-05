@@ -1,6 +1,5 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { StoredKeypair } from "@/types/keypair";
 import { logger } from "@/services/logger";
 
 export interface ElectionAuthority {
@@ -11,73 +10,6 @@ export interface ElectionAuthority {
   public_key_y: string;
   created_at: string;
   updated_at: string;
-}
-
-// Create a new election authority
-export async function createElectionAuthority(
-  name: string,
-  description: string,
-  keypair: StoredKeypair
-): Promise<ElectionAuthority | null> {
-  try {
-    logger.debug(`Creating election authority: ${name}`);
-    
-    const { data, error } = await supabase
-      .from("election_authorities")
-      .insert({
-        name,
-        description,
-        public_key_x: keypair.Ax,
-        public_key_y: keypair.Ay
-      })
-      .select()
-      .single();
-
-    if (error) {
-      logger.error("Error creating election authority:", error);
-      return null;
-    }
-
-    logger.debug("Successfully created election authority:", data);
-    return data;
-  } catch (error) {
-    logger.error("Error in createElectionAuthority:", error);
-    return null;
-  }
-}
-
-// Create election authority with raw public key coordinates
-export async function createElectionAuthorityWithPublicKey(
-  name: string,
-  description: string,
-  publicKeyX: string,
-  publicKeyY: string
-): Promise<ElectionAuthority | null> {
-  try {
-    logger.debug(`Creating election authority with public key: ${name}`);
-    
-    const { data, error } = await supabase
-      .from("election_authorities")
-      .insert({
-        name,
-        description,
-        public_key_x: publicKeyX,
-        public_key_y: publicKeyY
-      })
-      .select()
-      .single();
-
-    if (error) {
-      logger.error("Error creating election authority:", error);
-      return null;
-    }
-
-    logger.debug("Successfully created election authority:", data);
-    return data;
-  } catch (error) {
-    logger.error("Error in createElectionAuthorityWithPublicKey:", error);
-    return null;
-  }
 }
 
 // Get all election authorities
@@ -100,30 +32,6 @@ export async function getElectionAuthorities(): Promise<ElectionAuthority[]> {
   } catch (error) {
     logger.error("Error in getElectionAuthorities:", error);
     return [];
-  }
-}
-
-// Get election authority by ID
-export async function getElectionAuthorityById(id: string): Promise<ElectionAuthority | null> {
-  try {
-    logger.debug(`Fetching election authority with ID: ${id}`);
-    
-    const { data, error } = await supabase
-      .from("election_authorities")
-      .select("*")
-      .eq("id", id)
-      .maybeSingle();
-
-    if (error) {
-      logger.error("Error fetching election authority:", error);
-      return null;
-    }
-
-    logger.debug("Found election authority:", data);
-    return data;
-  } catch (error) {
-    logger.error("Error in getElectionAuthorityById:", error);
-    return null;
   }
 }
 
@@ -198,58 +106,6 @@ export async function getElectionAuthorityForElection(electionId: string): Promi
   } catch (error) {
     logger.error("Error in getElectionAuthorityForElection:", error);
     return null;
-  }
-}
-
-// Update election authority
-export async function updateElectionAuthority(
-  id: string,
-  updates: Partial<Pick<ElectionAuthority, 'name' | 'description'>>
-): Promise<boolean> {
-  try {
-    logger.debug(`Updating election authority ${id}:`, updates);
-    
-    const { error } = await supabase
-      .from("election_authorities")
-      .update({
-        ...updates,
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", id);
-
-    if (error) {
-      logger.error("Error updating election authority:", error);
-      return false;
-    }
-
-    logger.debug("Successfully updated election authority");
-    return true;
-  } catch (error) {
-    logger.error("Error in updateElectionAuthority:", error);
-    return false;
-  }
-}
-
-// Delete election authority
-export async function deleteElectionAuthority(id: string): Promise<boolean> {
-  try {
-    logger.debug(`Deleting election authority: ${id}`);
-    
-    const { error } = await supabase
-      .from("election_authorities")
-      .delete()
-      .eq("id", id);
-
-    if (error) {
-      logger.error("Error deleting election authority:", error);
-      return false;
-    }
-
-    logger.debug("Successfully deleted election authority");
-    return true;
-  } catch (error) {
-    logger.error("Error in deleteElectionAuthority:", error);
-    return false;
   }
 }
 

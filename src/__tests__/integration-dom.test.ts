@@ -8,9 +8,16 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { KEYPAIR_VERSION } from "../services/eddsaService";
 
 const KEYPAIR_KEY = "babyJubKeypair";
-const testKeypair = { k: "123", Ax: "456", Ay: "789" };
+const testKeypair = {
+  version: KEYPAIR_VERSION,
+  seed: "00".repeat(32),
+  k: "123",
+  Ax: "456",
+  Ay: "789",
+};
 
 describe("Keypair storage boundary", () => {
   beforeEach(() => {

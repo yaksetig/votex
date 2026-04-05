@@ -20,7 +20,7 @@ import { decryptElGamalInExponent } from "@/services/elGamalTallyService";
 import { getElectionParticipants, ElectionParticipant } from "@/services/electionParticipantsService";
 import { logger } from "@/services/logger";
 
-export interface StoredDelegation {
+interface StoredDelegation {
   id: string;
   election_id: string;
   delegator_id: string;
@@ -33,7 +33,7 @@ export interface StoredDelegation {
   revoked_at: string | null;
 }
 
-export interface DelegationResolution {
+interface DelegationResolution {
   delegatorId: string;
   delegateIndex: number;
   delegateParticipantId: string;
@@ -152,7 +152,7 @@ export async function getActiveDelegation(
 /**
  * Fetch all active delegations for an election (used at tally time).
  */
-export async function getElectionDelegations(
+async function getElectionDelegations(
   electionId: string
 ): Promise<StoredDelegation[]> {
   try {
@@ -181,7 +181,7 @@ export async function getElectionDelegations(
 /**
  * Reconstruct an ElGamalCiphertext from stored delegation coordinates.
  */
-export function delegationToCiphertext(d: StoredDelegation): ElGamalCiphertext {
+function delegationToCiphertext(d: StoredDelegation): ElGamalCiphertext {
   const c1 = new EdwardsPoint(
     BigInt(d.delegate_ct_c1_x),
     BigInt(d.delegate_ct_c1_y)

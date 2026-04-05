@@ -1,10 +1,13 @@
 import * as snarkjs from "snarkjs";
-import { StoredKeypair } from "@/types/keypair";
-import { Groth16Proof, VerificationKey } from "@/types/proof";
-import { ElGamalCiphertext } from "@/services/elGamalService";
+import type { StoredKeypair } from "@/types/keypair";
+import type { Groth16Proof, VerificationKey } from "@/types/proof";
+import type { ElGamalCiphertext } from "@/services/elGamalService";
 import { logger } from "@/services/logger";
 
-// Get base URL for circuit files (Supabase Storage or local)
+// Retained intentionally: this module provides standalone proof generation and
+// verification helpers for the XOR nullification circuit outside the current
+// worker-based batch proving path.
+
 function getCircuitFilesBaseUrl(): string {
   const envUrl = import.meta.env.VITE_CIRCUIT_FILES_URL;
   if (envUrl) {
@@ -13,13 +16,11 @@ function getCircuitFilesBaseUrl(): string {
   return "/circuits/";
 }
 
-// Paths to pre-compiled XOR circuit artifacts
 const BASE_URL = getCircuitFilesBaseUrl();
 const WASM_PATH = `${BASE_URL}nullification_xor.wasm`;
 const ZKEY_PATH = `${BASE_URL}nullification_xor_final.zkey`;
 const VKEY_PATH = `${BASE_URL}verification_key_xor.json`;
 
-// Cache for verification key
 let verificationKey: VerificationKey | null = null;
 
 async function loadVerificationKey(): Promise<VerificationKey> {
@@ -30,7 +31,6 @@ async function loadVerificationKey(): Promise<VerificationKey> {
   return verificationKey;
 }
 
-// Generate Groth16 proof for XOR nullification
 export async function generateNullificationProof(
   voterKeypair: StoredKeypair,
   authorityPublicKey: { x: string; y: string },
@@ -73,8 +73,6 @@ export async function generateNullificationProof(
       sk_voter: voterKeypair.k,
     };
 
-    logger.debug("Computing witness and generating Groth16 proof...");
-
     const { proof, publicSignals } = await snarkjs.groth16.fullProve(
       input,
       WASM_PATH,
@@ -88,8 +86,7 @@ export async function generateNullificationProof(
 
     if (error instanceof Error && error.message.includes("404")) {
       throw new Error(
-        "Circuit artifacts not found. Please compile the XOR Circom circuit and upload to Supabase Storage. " +
-          "See circuits/README.md for instructions."
+        "Circuit artifacts not found. Please compile the XOR Circom circuit and upload to Supabase Storage. See circuits/README.md for instructions."
       );
     }
 
@@ -97,7 +94,6 @@ export async function generateNullificationProof(
   }
 }
 
-// Verify Groth16 proof
 export async function verifyNullificationProof(
   proof: Groth16Proof,
   publicSignals: string[]
@@ -113,7 +109,6 @@ export async function verifyNullificationProof(
   }
 }
 
-// Check circuit files availability
 export async function checkCircuitFilesAvailable(): Promise<{
   available: boolean;
   missing: string[];

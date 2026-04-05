@@ -20,7 +20,7 @@ interface ValidateSessionResponse {
   userId?: string;
 }
 
-export interface ActiveWorldIdSession {
+interface ActiveWorldIdSession {
   expiresAt: string;
   userId: string;
 }
@@ -52,11 +52,11 @@ function storeSession(session: StoredSession): void {
   localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
 }
 
-export function clearStoredWorldIdSession(): void {
+function clearStoredWorldIdSession(): void {
   localStorage.removeItem(SESSION_STORAGE_KEY);
 }
 
-export async function deriveSessionVerifierHash(
+async function deriveSessionVerifierHash(
   prfSecret: ArrayBuffer
 ): Promise<string> {
   const secretBytes = new Uint8Array(prfSecret);
