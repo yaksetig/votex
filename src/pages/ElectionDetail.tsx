@@ -734,29 +734,19 @@ const ElectionDetail = () => {
                       If you were coerced, use <strong className="text-primary">Actual Nullification</strong> to invalidate your vote. Use <strong className="text-primary">Dummy Nullification</strong> to simulate the same sequence and preserve plausible deniability.
                     </p>
 
-                    <div className="mt-8 grid gap-4 sm:grid-cols-2">
+                    <div className="mt-8">
                       <button
                         type="button"
                         onClick={() => setShowNullificationDialog(true)}
-                        className="group rounded-[1.5rem] border border-outline-variant/20 bg-surface-container-lowest p-8 transition-all hover:border-surface-tint/40"
+                        className="group flex w-full items-center gap-5 rounded-[1.5rem] border border-outline-variant/20 bg-surface-container-lowest p-8 transition-all hover:border-surface-tint/40"
                       >
-                        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-surface-container-high transition-colors group-hover:bg-primary">
+                        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-surface-container-high transition-colors group-hover:bg-primary">
                           <ShieldCheck className="h-8 w-8 text-on-surface-variant transition-colors group-hover:text-white" />
                         </div>
-                        <h3 className="mt-5 font-headline text-xl font-bold text-primary">Actual Nullification</h3>
-                        <p className="mt-2 text-xs font-semibold uppercase tracking-[0.18em] text-outline">Type-0 protocol</p>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setShowNullificationDialog(true)}
-                        className="group rounded-[1.5rem] border border-outline-variant/20 bg-surface-container-lowest p-8 transition-all hover:border-surface-tint/40"
-                      >
-                        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-surface-container-high transition-colors group-hover:bg-primary">
-                          <Fingerprint className="h-8 w-8 text-on-surface-variant transition-colors group-hover:text-white" />
+                        <div className="text-left">
+                          <h3 className="font-headline text-xl font-bold text-primary">Nullify Vote</h3>
+                          <p className="mt-1 text-sm text-on-surface-variant">Invalidate your ballot or submit a decoy for plausible deniability</p>
                         </div>
-                        <h3 className="mt-5 font-headline text-xl font-bold text-primary">Dummy Nullification</h3>
-                        <p className="mt-2 text-xs font-semibold uppercase tracking-[0.18em] text-outline">Type-0 protocol</p>
                       </button>
                     </div>
 
