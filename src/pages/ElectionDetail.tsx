@@ -723,6 +723,56 @@ const ElectionDetail = () => {
                     </div>
                   )}
                 </div>
+              ) : electionClosed ? (
+                <div className="ledger-panel p-6 md:p-8">
+                  <div className="flex flex-col gap-2">
+                    <h2 className="font-headline text-2xl font-bold text-primary">Final Results</h2>
+                    <div className="h-1 w-12 rounded-full bg-surface-tint" />
+                  </div>
+
+                  <div className="mt-8 grid gap-4 sm:grid-cols-2">
+                    {[election.option1, election.option2].map((option, index) => {
+                      const count = index === 0 ? voteCounts.option1 : voteCounts.option2;
+                      const percentage = index === 0 ? option1Percentage : option2Percentage;
+                      const isWinner = count > (index === 0 ? voteCounts.option2 : voteCounts.option1);
+                      return (
+                        <div
+                          key={option}
+                          className={`rounded-[1.5rem] border p-6 ${
+                            isWinner
+                              ? "border-surface-tint bg-primary-fixed"
+                              : "border-outline-variant/15 bg-surface-container-lowest"
+                          }`}
+                        >
+                          <span className="ledger-eyebrow">Option {index === 0 ? "A" : "B"}</span>
+                          <h3 className="mt-3 font-headline text-2xl font-bold text-primary">{option}</h3>
+                          <div className="mt-6 space-y-2">
+                            <div className="flex items-end justify-between">
+                              <span className="text-sm text-on-surface-variant">{count} vote{count !== 1 ? "s" : ""}</span>
+                              <span className="font-headline text-2xl font-extrabold text-surface-tint">{percentage}%</span>
+                            </div>
+                            <div className="h-2 rounded-full bg-surface-container-high">
+                              <div
+                                className="h-full rounded-full bg-surface-tint transition-all"
+                                style={{ width: `${percentage}%` }}
+                              />
+                            </div>
+                          </div>
+                          {isWinner && totalVotes > 0 && (
+                            <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                              <CheckCircle2 className="h-3 w-3" />
+                              Winner
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="mt-6 text-center text-sm text-on-surface-variant">
+                    {totalVotes} total verified vote{totalVotes !== 1 ? "s" : ""} recorded
+                  </div>
+                </div>
               ) : (
                 <div className="space-y-8">
                   <div className="ledger-panel p-6 md:p-8">
