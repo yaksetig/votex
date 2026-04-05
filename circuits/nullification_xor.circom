@@ -69,7 +69,7 @@ template NullificationXOR() {
     // If x=1: pk_voter = sk_voter * G must hold
     // If x=0: no verification needed (dummy)
     // ================================================
-    component sk_bits = Num2Bits(254);
+    component sk_bits = Num2Bits_strict();
     sk_bits.in <== sk_voter;
 
     component pk_from_sk = EscalarMulFix(254, [
@@ -89,7 +89,7 @@ template NullificationXOR() {
     // c1 = r * G
     // c2 = x * G + r * H
     // ================================================
-    component r_bits = Num2Bits(254);
+    component r_bits = Num2Bits_strict();
     r_bits.in <== r;
 
     // c1 = r * G (fixed-base)
@@ -152,7 +152,7 @@ template NullificationXOR() {
     // cond_acc_c2 = (cond_acc_c2_x, accumulator[3])
 
     // s * G (fixed-base)
-    component s_bits = Num2Bits(254);
+    component s_bits = Num2Bits_strict();
     s_bits.in <== s;
 
     component s_g = EscalarMulFix(254, [

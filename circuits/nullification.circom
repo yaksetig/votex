@@ -49,7 +49,7 @@ template Nullification() {
     // ============================================
     
     // Convert sk_voter to bits for scalar multiplication
-    component sk_bits = Num2Bits(254);
+    component sk_bits = Num2Bits_strict();
     sk_bits.in <== sk_voter;
     
     // Compute sk_voter * G using fixed-base scalar multiplication
@@ -76,7 +76,7 @@ template Nullification() {
     // ============================================
     
     // Convert r to bits
-    component r_bits = Num2Bits(254);
+    component r_bits = Num2Bits_strict();
     r_bits.in <== r;
     
     // Compute C1 = r * G
@@ -103,7 +103,7 @@ template Nullification() {
     }
     
     // Convert m to bits for scalar multiplication
-    component m_bits = Num2Bits(254);
+    component m_bits = Num2Bits_strict();
     m_bits.in <== m;
     
     // Compute m * G (message encoding)
