@@ -4,7 +4,6 @@ import { formatDistanceToNow, isPast } from "date-fns";
 import {
   ArrowLeft,
   CheckCircle2,
-  Copy,
   Fingerprint,
   Loader2,
   ShieldCheck,
@@ -42,6 +41,7 @@ const ElectionDetail = () => {
   const [selectedOption, setSelectedOption] = useState("");
   const [hasVoted, setHasVoted] = useState(false);
   const [voteReceipt, setVoteReceipt] = useState<string | null>(null);
+  const [votedChoice, setVotedChoice] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [nullifying, setNullifying] = useState(false);
   const [keypair, setKeypair] = useState<StoredKeypair | null>(null);
@@ -172,13 +172,14 @@ const ElectionDetail = () => {
 
     const { data } = await supabase
       .from("votes")
-      .select("id")
+      .select("id, choice")
       .eq("election_id", id)
       .eq("voter", userId)
       .limit(1)
       .maybeSingle();
 
     setVoteReceipt(data?.id ?? null);
+    setVotedChoice(data?.choice ?? null);
   };
 
   const checkParticipantStatus = async () => {
@@ -300,7 +301,7 @@ const ElectionDetail = () => {
     try {
       const { data, error } = await supabase
         .from("votes")
-        .select("id")
+        .select("id, choice")
         .eq("election_id", id)
         .eq("voter", userId);
 
@@ -309,9 +310,11 @@ const ElectionDetail = () => {
       const voteExists = !!data && data.length > 0;
       setHasVoted(voteExists);
       setVoteReceipt(voteExists ? data?.[0]?.id ?? null : null);
+      setVotedChoice(voteExists ? data?.[0]?.choice ?? null : null);
     } catch {
       setHasVoted(false);
       setVoteReceipt(null);
+      setVotedChoice(null);
     }
   };
 
@@ -506,7 +509,7 @@ const ElectionDetail = () => {
   const totalVotes = voteCounts.option1 + voteCounts.option2;
   const option1Percentage = totalVotes > 0 ? Math.round((voteCounts.option1 / totalVotes) * 100) : 0;
   const option2Percentage = totalVotes > 0 ? Math.round((voteCounts.option2 / totalVotes) * 100) : 0;
-  const receiptLabel = voteReceipt ? `${voteReceipt.slice(0, 8)}...${voteReceipt.slice(-6)}` : "Pending";
+
 
   if (loading) {
     return (
@@ -561,36 +564,24 @@ const ElectionDetail = () => {
                 <>
                   <div className="mb-6 inline-flex items-center gap-3 rounded-full bg-blue-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-surface-tint">
                     <CheckCircle2 className="h-4 w-4" />
-                    Transaction complete
+                    Vote recorded
                   </div>
                   <h1 className="font-headline text-4xl font-extrabold text-primary md:text-5xl">
                     Vote Cast Successfully.
                   </h1>
                   <p className="mt-4 max-w-2xl text-base leading-relaxed text-on-surface-variant">
-                    Your cryptographic receipt has been broadcast to the ledger. If coercion ever becomes a risk, you can now nullify this ballot privately.
+                    Your ballot has been recorded. If coercion ever becomes a risk, you can nullify this ballot privately.
                   </p>
-                  <div className="mt-8 inline-flex flex-wrap items-center gap-4 rounded-[1.25rem] bg-surface-container-low px-5 py-4">
-                    <div>
-                      <p className="ledger-eyebrow">Receipt hash</p>
-                      <code className="mt-2 inline-flex rounded-lg bg-surface-container-lowest px-3 py-2 text-sm font-semibold text-primary">
-                        {receiptLabel}
-                      </code>
+                  {votedChoice && (
+                    <div className="mt-8 inline-flex items-center gap-4 rounded-[1.25rem] bg-surface-container-low px-5 py-4">
+                      <div>
+                        <p className="ledger-eyebrow">Your vote</p>
+                        <p className="mt-2 font-headline text-xl font-bold text-primary">
+                          {votedChoice}
+                        </p>
+                      </div>
                     </div>
-                    <div className="hidden h-10 w-px bg-outline-variant/30 sm:block" />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (voteReceipt) {
-                          void navigator.clipboard.writeText(voteReceipt);
-                          toast({ title: "Receipt copied", description: "The ledger receipt has been copied to your clipboard." });
-                        }
-                      }}
-                      className="inline-flex items-center gap-2 text-sm font-semibold text-surface-tint"
-                    >
-                      <Copy className="h-4 w-4" />
-                      Copy receipt
-                    </button>
-                  </div>
+                  )}
                 </>
               ) : (
                 <>
