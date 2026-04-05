@@ -166,7 +166,7 @@ const WorldIDSignIn: React.FC = () => {
 
     try {
       let prfResult;
-      const userIdBytes = new TextEncoder().encode(worldIdProof.nullifier_hash);
+      const userIdBytes = crypto.getRandomValues(new Uint8Array(32));
 
       try {
         const credentialId = await createPasskeyCredential(userIdBytes);
