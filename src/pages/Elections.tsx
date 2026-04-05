@@ -363,7 +363,7 @@ const Elections = () => {
         <section>
           <div className="mb-8 flex items-center justify-between">
             <h2 className="font-headline text-2xl font-bold text-primary">
-              Pending Consensus
+              Ongoing Elections
             </h2>
             <div className="flex gap-2">
               <button type="button" className="ledger-button-secondary px-3 py-3">
@@ -429,11 +429,10 @@ const Elections = () => {
         </section>
 
         <section>
-          <div className="mb-8 flex items-center gap-4">
-            <h2 className="font-headline text-2xl font-bold text-on-surface-variant">
+          <div className="mb-8 flex items-center justify-between">
+            <h2 className="font-headline text-2xl font-bold text-primary">
               Past Elections
             </h2>
-            <div className="ledger-divider" />
           </div>
 
           {archivedElections.length === 0 ? (
