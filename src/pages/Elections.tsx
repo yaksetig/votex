@@ -421,7 +421,7 @@ const Elections = () => {
         <section>
           <div className="mb-8 flex items-center gap-4">
             <h2 className="font-headline text-2xl font-bold text-on-surface-variant">
-              Historical Archive
+              Past Elections
             </h2>
             <div className="ledger-divider" />
           </div>
