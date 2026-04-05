@@ -28,6 +28,8 @@ interface ElectionRecord {
   authority_id?: string | null;
   election_authorities?: { name?: string | null } | null;
   voteCount: number;
+  option1Count: number;
+  option2Count: number;
 }
 
 const Elections = () => {
@@ -79,17 +81,20 @@ const Elections = () => {
 
       const enriched = await Promise.all(
         (electionsData || []).map(async (election) => {
-          const { count } = await supabase
-            .from("votes")
-            .select("*", { count: "exact", head: true })
-            .eq("election_id", election.id);
+          const [{ count: totalCount }, { count: opt1Count }, { count: opt2Count }] = await Promise.all([
+            supabase.from("votes").select("*", { count: "exact", head: true }).eq("election_id", election.id),
+            supabase.from("votes").select("*", { count: "exact", head: true }).eq("election_id", election.id).eq("choice", election.option1).eq("nullified", false),
+            supabase.from("votes").select("*", { count: "exact", head: true }).eq("election_id", election.id).eq("choice", election.option2).eq("nullified", false),
+          ]);
 
           return {
             ...election,
             election_authorities: election.authority_id
               ? authoritiesById.get(election.authority_id) || null
               : null,
-            voteCount: count ?? 0,
+            voteCount: totalCount ?? 0,
+            option1Count: opt1Count ?? 0,
+            option2Count: opt2Count ?? 0,
           } as ElectionRecord;
         })
       );
@@ -279,18 +284,28 @@ const Elections = () => {
                     </p>
 
                     <div className="mt-8 grid gap-4 md:grid-cols-2">
-                      <div className="rounded-[1.5rem] border border-outline-variant/12 bg-surface-container-low p-6">
-                        <span className="ledger-eyebrow">Option A</span>
-                        <span className="mt-2 block font-headline text-2xl font-bold text-primary">
-                          {featuredElection.option1}
-                        </span>
-                      </div>
-                      <div className="rounded-[1.5rem] border border-outline-variant/12 bg-surface-container-low p-6">
-                        <span className="ledger-eyebrow">Option B</span>
-                        <span className="mt-2 block font-headline text-2xl font-bold text-primary">
-                          {featuredElection.option2}
-                        </span>
-                      </div>
+                      {[featuredElection.option1, featuredElection.option2].map((option, idx) => {
+                        const count = idx === 0 ? featuredElection.option1Count : featuredElection.option2Count;
+                        const total = featuredElection.option1Count + featuredElection.option2Count;
+                        const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+                        return (
+                          <div key={option} className="rounded-[1.5rem] border border-outline-variant/12 bg-surface-container-low p-6">
+                            <span className="ledger-eyebrow">Option {idx === 0 ? "A" : "B"}</span>
+                            <span className="mt-2 block font-headline text-2xl font-bold text-primary">{option}</span>
+                            {total > 0 && (
+                              <div className="mt-4 space-y-1">
+                                <div className="flex items-center justify-between text-xs text-on-surface-variant">
+                                  <span>{count} vote{count !== 1 ? "s" : ""}</span>
+                                  <span className="font-bold text-surface-tint">{pct}%</span>
+                                </div>
+                                <div className="h-1.5 rounded-full bg-surface-container-high">
+                                  <div className="h-full rounded-full bg-surface-tint transition-all" style={{ width: `${pct}%` }} />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -309,7 +324,7 @@ const Elections = () => {
                       onClick={() => navigate(`/elections/${featuredElection.id}`)}
                       className="ledger-button-primary"
                     >
-                      Join & Vote
+                      Vote
                       <ArrowRight className="h-4 w-4" />
                     </button>
                   </div>
@@ -407,8 +422,24 @@ const Elections = () => {
                     {election.description}
                   </p>
 
-                  <div className="mt-6 flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant">
-                    <span>{election.option1} / {election.option2}</span>
+                  <div className="mt-6 space-y-2">
+                    {[election.option1, election.option2].map((option, idx) => {
+                      const count = idx === 0 ? election.option1Count : election.option2Count;
+                      const total = election.option1Count + election.option2Count;
+                      const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+                      return (
+                        <div key={option} className="flex items-center gap-3">
+                          <span className="w-16 truncate text-xs font-semibold text-on-surface-variant">{option}</span>
+                          <div className="h-1.5 flex-1 rounded-full bg-surface-container-high">
+                            <div className="h-full rounded-full bg-surface-tint transition-all" style={{ width: `${total > 0 ? pct : 0}%` }} />
+                          </div>
+                          <span className="w-8 text-right text-xs font-bold text-surface-tint">{total > 0 ? `${pct}%` : "–"}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-3 flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant">
+                    <span>{election.voteCount} vote{election.voteCount !== 1 ? "s" : ""}</span>
                     <span className="inline-flex items-center gap-1">
                       <Timer className="h-4 w-4" />
                       {formatDistanceToNowStrict(new Date(election.end_date))}
@@ -420,7 +451,7 @@ const Elections = () => {
                     onClick={() => navigate(`/elections/${election.id}`)}
                     className="mt-6 w-full rounded-[1rem] border border-surface-tint px-4 py-3 text-sm font-bold text-surface-tint transition-all hover:bg-surface-tint hover:text-white"
                   >
-                    Join & Vote
+                    Vote
                   </button>
                 </article>
               ))}
@@ -466,16 +497,29 @@ const Elections = () => {
                     <h3 className="font-headline text-xl font-bold text-primary">
                       {election.title}
                     </h3>
-                    <p className="mt-1 text-sm text-on-surface-variant">
-                      Final options: {election.option1} vs {election.option2}
-                    </p>
+                    <div className="mt-3 space-y-1.5">
+                      {[election.option1, election.option2].map((option, idx) => {
+                        const count = idx === 0 ? election.option1Count : election.option2Count;
+                        const total = election.option1Count + election.option2Count;
+                        const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+                        return (
+                          <div key={option} className="flex items-center gap-3">
+                            <span className="w-16 truncate text-xs font-semibold text-on-surface-variant">{option}</span>
+                            <div className="h-1.5 flex-1 rounded-full bg-surface-container-high">
+                              <div className="h-full rounded-full bg-surface-tint transition-all" style={{ width: `${total > 0 ? pct : 0}%` }} />
+                            </div>
+                            <span className="w-8 text-right text-xs font-bold text-surface-tint">{total > 0 ? `${pct}%` : "–"}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                   <button
                     type="button"
                     onClick={() => navigate(`/elections/${election.id}`)}
                     className="text-sm font-bold text-surface-tint"
                   >
-                    Results
+                    Details
                   </button>
                 </article>
               ))}
