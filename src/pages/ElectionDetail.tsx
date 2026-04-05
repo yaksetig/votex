@@ -802,7 +802,7 @@ const ElectionDetail = () => {
 
                     <div className="mt-8 rounded-[1.25rem] bg-tertiary-fixed/25 p-4">
                       <p className="text-sm leading-relaxed text-on-surface-variant">
-                        <strong className="text-primary">Note:</strong> To a casual observer, actual and dummy nullifications trigger the same encrypted workflow and proof generation sequence.
+                        <strong className="text-primary">Note:</strong> To external observers, actual and dummy nullifications look exactly the same.
                       </p>
                     </div>
                   </div>
