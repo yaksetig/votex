@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowRight,
   ChevronLeft,
@@ -32,6 +32,8 @@ interface ElectionRecord {
 
 const Elections = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const searchQuery = searchParams.get("q")?.toLowerCase() ?? "";
   const { isWorldIDVerified, userId } = useWallet();
   const { toast } = useToast();
   const [elections, setElections] = useState<ElectionRecord[]>([]);
@@ -156,13 +158,21 @@ const Elections = () => {
   };
 
   const { activeElections, archivedElections, featuredElection } = useMemo(() => {
+    const matchesSearch = (election: ElectionRecord) => {
+      if (!searchQuery) return true;
+      return (
+        election.title.toLowerCase().includes(searchQuery) ||
+        election.description?.toLowerCase().includes(searchQuery)
+      );
+    };
+
     const active = elections.filter(
       (election) =>
-        !election.closed_manually_at && !isPast(new Date(election.end_date))
+        !election.closed_manually_at && !isPast(new Date(election.end_date)) && matchesSearch(election)
     );
     const archived = elections.filter(
       (election) =>
-        !!election.closed_manually_at || isPast(new Date(election.end_date))
+        (!!election.closed_manually_at || isPast(new Date(election.end_date))) && matchesSearch(election)
     );
 
     return {
@@ -170,7 +180,7 @@ const Elections = () => {
       archivedElections: archived,
       featuredElection: active[0] ?? null,
     };
-  }, [elections]);
+  }, [elections, searchQuery]);
 
   const secondaryActiveElections = featuredElection
     ? activeElections.filter((election) => election.id !== featuredElection.id)

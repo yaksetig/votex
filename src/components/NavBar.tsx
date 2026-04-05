@@ -1,11 +1,11 @@
 import React from "react";
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { NavLink, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import {
-  Bell,
   CircleHelp,
   Compass,
   LayoutDashboard,
   LogOut,
+  Search,
   ShieldCheck,
   UserCircle2,
   Vote,
@@ -29,6 +29,7 @@ const NavBar = () => {
   const { isWorldIDVerified, resetIdentity } = useWallet();
   const location = useLocation();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const isAuthorityPage =
     location.pathname === "/election_authority" || location.pathname.endsWith("/authority");
@@ -97,8 +98,22 @@ const NavBar = () => {
 
           <div className="flex items-center gap-3">
             {showSearch && (
-              <div className="hidden min-w-[260px] items-center rounded-full border border-outline-variant/20 bg-surface-container-low px-4 py-2 sm:flex">
-                <span className="text-sm text-on-surface-variant">Search elections...</span>
+              <div className="hidden min-w-[260px] items-center gap-2 rounded-full border border-outline-variant/20 bg-surface-container-low px-4 py-2 sm:flex">
+                <Search className="h-4 w-4 text-on-surface-variant" />
+                <input
+                  type="text"
+                  placeholder="Search elections..."
+                  value={searchParams.get("q") ?? ""}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val) {
+                      setSearchParams({ q: val }, { replace: true });
+                    } else {
+                      setSearchParams({}, { replace: true });
+                    }
+                  }}
+                  className="w-full bg-transparent text-sm text-primary placeholder:text-on-surface-variant outline-none"
+                />
               </div>
             )}
 
@@ -111,13 +126,6 @@ const NavBar = () => {
               </NavLink>
             ) : (
               <>
-                <button
-                  type="button"
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-primary"
-                >
-                  <Bell className="h-5 w-5" />
-                </button>
-
                 {isWorldIDVerified ? (
                   <>
                     <div className="hidden items-center gap-2 rounded-full bg-secondary-container px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-on-secondary-container sm:flex">
