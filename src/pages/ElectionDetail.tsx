@@ -560,46 +560,38 @@ const ElectionDetail = () => {
           <section className="ledger-panel relative overflow-hidden p-8 md:p-12">
             <div className="absolute -right-8 top-0 h-64 w-64 rounded-full bg-primary-fixed-dim/50 blur-[90px]" />
             <div className="relative z-10">
-              {hasVoted ? (
-                <>
-                  <div className="mb-6 inline-flex items-center gap-3 rounded-full bg-blue-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-surface-tint">
+              <div className="mb-6 flex flex-wrap items-center gap-3">
+                {hasVoted ? (
+                  <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-surface-tint">
                     <CheckCircle2 className="h-4 w-4" />
                     Vote recorded
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-secondary-container px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-on-secondary-container">
+                    Active ballot
+                  </span>
+                )}
+                {!electionClosed && (
+                  <span className="text-xs font-semibold uppercase tracking-[0.16em] text-on-surface-variant">
+                    Ends {formatDistanceToNow(new Date(election.end_date), { addSuffix: true })}
+                  </span>
+                )}
+              </div>
+              <h1 className="font-headline text-4xl font-extrabold text-primary md:text-5xl">
+                {election.title}
+              </h1>
+              <p className="mt-4 max-w-3xl text-base leading-relaxed text-on-surface-variant">
+                {election.description}
+              </p>
+              {hasVoted && votedChoice && (
+                <div className="mt-6 inline-flex items-center gap-4 rounded-[1.25rem] bg-surface-container-low px-5 py-4">
+                  <div>
+                    <p className="ledger-eyebrow">Your vote</p>
+                    <p className="mt-2 font-headline text-xl font-bold text-primary">
+                      {votedChoice}
+                    </p>
                   </div>
-                  <h1 className="font-headline text-4xl font-extrabold text-primary md:text-5xl">
-                    Vote Cast Successfully.
-                  </h1>
-                  <p className="mt-4 max-w-2xl text-base leading-relaxed text-on-surface-variant">
-                    Your ballot has been recorded. If coercion ever becomes a risk, you can nullify this ballot privately.
-                  </p>
-                  {votedChoice && (
-                    <div className="mt-8 inline-flex items-center gap-4 rounded-[1.25rem] bg-surface-container-low px-5 py-4">
-                      <div>
-                        <p className="ledger-eyebrow">Your vote</p>
-                        <p className="mt-2 font-headline text-xl font-bold text-primary">
-                          {votedChoice}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <>
-                  <div className="mb-6 flex flex-wrap items-center gap-3">
-                    <span className="rounded-full bg-secondary-container px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-on-secondary-container">
-                      Active ballot
-                    </span>
-                    <span className="text-xs font-semibold uppercase tracking-[0.16em] text-on-surface-variant">
-                      Ends {formatDistanceToNow(new Date(election.end_date), { addSuffix: true })}
-                    </span>
-                  </div>
-                  <h1 className="font-headline text-4xl font-extrabold text-primary md:text-5xl">
-                    {election.title}
-                  </h1>
-                  <p className="mt-4 max-w-3xl text-base leading-relaxed text-on-surface-variant">
-                    {election.description}
-                  </p>
-                </>
+                </div>
               )}
             </div>
           </section>
