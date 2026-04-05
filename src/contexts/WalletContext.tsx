@@ -2,8 +2,10 @@
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { clearStoredCredential } from '@/services/passkeyService';
+import { revokeStoredWorldIdSession, validateStoredWorldIdSession } from '@/services/worldIdSessionService';
 
 interface WalletContextType {
+  isAuthLoading: boolean;
   isWorldIDVerified: boolean;
   userId: string | null;
   justVerified: boolean;
@@ -16,6 +18,7 @@ interface WalletContextType {
 }
 
 const WalletContext = createContext<WalletContextType>({
+  isAuthLoading: true,
   isWorldIDVerified: false,
   userId: null,
   justVerified: false,
@@ -34,38 +37,59 @@ interface WalletProviderProps {
 }
 
 export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [isWorldIDVerified, setIsWorldIDVerified] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [justVerified, setJustVerified] = useState(false);
   const [derivedPublicKey, setDerivedPublicKey] = useState<{ x: string; y: string } | null>(null);
   const { toast } = useToast();
   
-  // Load identity from storage on component mount
+  // Load identity from a server-validated session on component mount
   useEffect(() => {
-    // Check if we have a stored user ID
-    const storedUserId = localStorage.getItem('worldid-user');
-    
-    if (storedUserId) {
-      console.log('User ID loaded from storage:', storedUserId);
-      setUserId(storedUserId);
-      setIsWorldIDVerified(true);
-      // Don't set justVerified to true for restored sessions
-      
-      // Note: derivedPublicKey is NOT restored from storage
-      // It must be re-derived from passkey on each session for security
-      
-      toast({
-        title: "Authentication loaded",
-        description: "Your human identity has been restored.",
-      });
-    } else {
-      console.log('No user ID found in storage');
-    }
-  }, [toast]); // Only run once on mount
+    let cancelled = false;
+
+    const restoreIdentity = async () => {
+      try {
+        const session = await validateStoredWorldIdSession();
+
+        if (cancelled) {
+          return;
+        }
+
+        if (session) {
+          setUserId(session.userId);
+          setIsWorldIDVerified(true);
+          toast({
+            title: "Authentication loaded",
+            description: "Your human identity has been restored.",
+          });
+        } else {
+          setUserId(null);
+          setIsWorldIDVerified(false);
+        }
+      } catch {
+        if (!cancelled) {
+          setUserId(null);
+          setIsWorldIDVerified(false);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsAuthLoading(false);
+        }
+      }
+    };
+
+    void restoreIdentity();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [toast]);
   
   // Function to reset identity (for logout)
-  const resetIdentity = () => {
+  const resetIdentity = async () => {
     console.log('Resetting identity...');
+    await revokeStoredWorldIdSession();
     localStorage.removeItem('worldid-user');
     clearStoredCredential(); // Also clear the passkey credential ID
     setUserId(null);
@@ -82,6 +106,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   
   // Expose context values
   const value = {
+    isAuthLoading,
     isWorldIDVerified,
     userId,
     justVerified,

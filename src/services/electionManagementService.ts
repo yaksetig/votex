@@ -1,21 +1,22 @@
 
-// Main election management service - now acts as a facade for the smaller services
-// This maintains backward compatibility while the codebase is refactored
+// Main election management service - facade re-exporting smaller services.
 
 // Re-export authentication functionality
 export {
-  authenticateElectionAuthorityByKey
+  signInAuthority,
+  signUpAuthority,
+  signOutAuthority,
+  getCurrentAuthority,
 } from './electionAuthorityAuthService';
+export type { AuthorityAuthResult } from './electionAuthorityAuthService';
 
 // Re-export session management functionality
-export type {
-  ElectionManagementSession
-} from './electionAuthoritySessionService';
 export {
-  createElectionAuthoritySession,
   validateElectionAuthoritySession,
-  clearElectionAuthoritySession
+  clearElectionAuthoritySession,
+  onAuthorityAuthStateChange,
 } from './electionAuthoritySessionService';
+export type { ElectionAuthoritySessionInfo } from './electionAuthoritySessionService';
 
 // Re-export election operations functionality
 export {

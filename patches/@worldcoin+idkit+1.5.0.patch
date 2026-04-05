@@ -1,0 +1,89 @@
+diff --git a/node_modules/@worldcoin/idkit/build/index.js b/node_modules/@worldcoin/idkit/build/index.js
+index 4468170..613635d 100644
+--- a/node_modules/@worldcoin/idkit/build/index.js
++++ b/node_modules/@worldcoin/idkit/build/index.js
+@@ -1830,6 +1830,17 @@ var HostAppVerificationState_default = memo(HostAppVerificationState);
+ 
+ // src/components/IDKitWidget/BaseWidget.tsx
+ import { jsx as jsx15, jsxs as jsxs11 } from "react/jsx-runtime";
++var hiddenDialogA11yStyles = {
++  position: "absolute",
++  width: 1,
++  height: 1,
++  padding: 0,
++  margin: -1,
++  overflow: "hidden",
++  clip: "rect(0, 0, 0, 0)",
++  whiteSpace: "nowrap",
++  border: 0
++};
+ var getParams2 = ({ open, processing, onOpenChange, stage, setStage, setOptions }) => ({
+   stage,
+   setStage,
+@@ -1890,34 +1901,38 @@ var IDKitWidget = ({ children, ...config }) => {
+             },
+             transition: { layout: { duration: 0.15 } },
+             className: "relative z-50 flex min-h-screen w-full flex-col bg-white pt-6 shadow focus:outline-none focus-visible:ring focus-visible:ring-purple-500/75 dark:bg-0d151d md:min-h-[35rem] md:max-w-md md:rounded-2xl",
+-            children: /* @__PURE__ */ jsxs11(Toast.Provider, { children: [
+-              /* @__PURE__ */ jsx15(Toast.Viewport, { className: "flex justify-center" }),
+-              /* @__PURE__ */ jsx15("div", { className: "mx-6 mb-12 flex items-center justify-between", children: /* @__PURE__ */ jsx15(Dialog.Close, { className: "flex items-center justify-center rounded-full text-black dark:text-white", children: /* @__PURE__ */ jsx15(XMarkIcon_default, { className: "size-5" }) }) }),
+-              /* @__PURE__ */ jsx15("div", { className: "relative mx-6 mb-6 flex flex-1 flex-col items-center justify-center", children: /* @__PURE__ */ jsx15(StageContent, {}) }),
+-              /* @__PURE__ */ jsxs11("div", { className: "flex items-center justify-between border-t border-f5f5f7 p-7 md:rounded-b-2xl", children: [
+-                /* @__PURE__ */ jsxs11(
+-                  "a",
+-                  {
+-                    href: "https://world.org/world-id",
+-                    target: "_blank",
+-                    rel: "noreferrer",
+-                    className: "flex items-center gap-1 text-sm text-9eafc0",
+-                    children: [
+-                      /* @__PURE__ */ jsx15(WorldcoinIcon_default, { className: "w-4 text-9eafc0 dark:text-white" }),
+-                      /* @__PURE__ */ jsx15("span", { children: __("Powered by Worldcoin") })
+-                    ]
+-                  }
+-                ),
+-                /* @__PURE__ */ jsx15(
+-                  "a",
+-                  {
+-                    href: "https://developer.worldcoin.org/privacy-statement",
+-                    target: "_blank",
+-                    rel: "noreferrer",
+-                    className: "text-sm text-9eafc0 hover:underline",
+-                    children: __("Terms & Privacy")
+-                  }
+-                )
++            children: /* @__PURE__ */ jsxs11(Fragment2, { children: [
++              /* @__PURE__ */ jsx15(Dialog.Title, { style: hiddenDialogA11yStyles, children: __("World ID Verification") }),
++              /* @__PURE__ */ jsx15(Dialog.Description, { style: hiddenDialogA11yStyles, children: __("Verify your World ID and approve the requested action.") }),
++              /* @__PURE__ */ jsxs11(Toast.Provider, { children: [
++                /* @__PURE__ */ jsx15(Toast.Viewport, { className: "flex justify-center" }),
++                /* @__PURE__ */ jsx15("div", { className: "mx-6 mb-12 flex items-center justify-between", children: /* @__PURE__ */ jsx15(Dialog.Close, { className: "flex items-center justify-center rounded-full text-black dark:text-white", children: /* @__PURE__ */ jsx15(XMarkIcon_default, { className: "size-5" }) }) }),
++                /* @__PURE__ */ jsx15("div", { className: "relative mx-6 mb-6 flex flex-1 flex-col items-center justify-center", children: /* @__PURE__ */ jsx15(StageContent, {}) }),
++                /* @__PURE__ */ jsxs11("div", { className: "flex items-center justify-between border-t border-f5f5f7 p-7 md:rounded-b-2xl", children: [
++                  /* @__PURE__ */ jsxs11(
++                    "a",
++                    {
++                      href: "https://world.org/world-id",
++                      target: "_blank",
++                      rel: "noreferrer",
++                      className: "flex items-center gap-1 text-sm text-9eafc0",
++                      children: [
++                        /* @__PURE__ */ jsx15(WorldcoinIcon_default, { className: "w-4 text-9eafc0 dark:text-white" }),
++                        /* @__PURE__ */ jsx15("span", { children: __("Powered by Worldcoin") })
++                      ]
++                    }
++                  ),
++                  /* @__PURE__ */ jsx15(
++                    "a",
++                    {
++                      href: "https://developer.worldcoin.org/privacy-statement",
++                      target: "_blank",
++                      rel: "noreferrer",
++                      className: "text-sm text-9eafc0 hover:underline",
++                      children: __("Terms & Privacy")
++                    }
++                  )
++                ] })
+               ] })
+             ] })
+           }

@@ -1,58 +1,51 @@
 
-export interface ElectionManagementSession {
-  authorityId: string;
-  sessionToken: string;
-  authenticatedAt: string;
-  expiresAt: string;
+import { supabase } from '@/integrations/supabase/client';
+
+export interface ElectionAuthoritySessionInfo {
+  valid: boolean;
+  authorityId?: string;
+  authUserId?: string;
 }
 
-// Create a secure session for authenticated election authority
-export function createElectionAuthoritySession(authorityId: string): ElectionManagementSession {
-  const sessionToken = generateSessionToken();
-  const authenticatedAt = new Date().toISOString();
-  const expiresAt = new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(); // 4 hours
-  
-  const session = {
-    authorityId,
-    sessionToken,
-    authenticatedAt,
-    expiresAt
-  };
-  
-  // Store session in localStorage
-  localStorage.setItem('election_authority_session', JSON.stringify(session));
-  
-  return session;
-}
-
-// Validate existing session
-export function validateElectionAuthoritySession(): { valid: boolean; authorityId?: string } {
+/**
+ * Validate the current authority session by checking the Supabase Auth JWT
+ * and resolving the linked election_authorities row.
+ *
+ * This replaces the old localStorage-based session.  The JWT is verified by
+ * Supabase on every API call, so there is no client-forgeable token.
+ */
+export async function validateElectionAuthoritySession(): Promise<ElectionAuthoritySessionInfo> {
   try {
-    const sessionData = localStorage.getItem('election_authority_session');
-    if (!sessionData) return { valid: false };
-    
-    const session: ElectionManagementSession = JSON.parse(sessionData);
-    
-    // Check if session is not expired
-    if (new Date() > new Date(session.expiresAt)) {
-      clearElectionAuthoritySession();
-      return { valid: false };
-    }
-    
-    return { valid: true, authorityId: session.authorityId };
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return { valid: false };
+
+    const { data: authority, error } = await supabase
+      .from('election_authorities')
+      .select('id')
+      .eq('auth_user_id', session.user.id)
+      .maybeSingle();
+
+    if (error || !authority) return { valid: false };
+
+    return { valid: true, authorityId: authority.id, authUserId: session.user.id };
   } catch {
     return { valid: false };
   }
 }
 
-// Clear session
-export function clearElectionAuthoritySession(): void {
-  localStorage.removeItem('election_authority_session');
+/**
+ * Clear the authority session (signs out of Supabase Auth).
+ */
+export async function clearElectionAuthoritySession(): Promise<void> {
+  await supabase.auth.signOut();
 }
 
-// Generate a random session token
-function generateSessionToken(): string {
-  const array = new Uint8Array(32);
-  crypto.getRandomValues(array);
-  return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+/**
+ * Subscribe to auth state changes.  Returns an unsubscribe function.
+ */
+export function onAuthorityAuthStateChange(
+  callback: (event: string, session: unknown) => void
+): () => void {
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(callback);
+  return () => subscription.unsubscribe();
 }

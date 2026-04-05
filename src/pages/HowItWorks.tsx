@@ -1,224 +1,134 @@
 import React from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Shield, Vote, KeyRound, Eye, Lock, UserCheck, AlertTriangle } from "lucide-react";
+import {
+  Eye,
+  Fingerprint,
+  KeyRound,
+  Lock,
+  ShieldCheck,
+  Vote,
+} from "lucide-react";
+
 const HowItWorks = () => {
-  return <div className="container mx-auto py-8 px-4 max-w-4xl">
-      <div className="text-center mb-12">
-        <h1 className="text-4xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-400">
-          How Votex Works
-        </h1>
-        <p className="text-muted-foreground text-lg">
-          A coercion-resistant voting system that protects your privacy
-        </p>
-      </div>
-
-      {/* What is Votex */}
-      <section className="mb-10">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-primary" />
-              What is Votex?
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-muted-foreground">
-            <p>
-              Votex is a privacy-preserving voting system designed to be <strong>coercion-resistant</strong>. 
-              This means that even if someone forces you to vote a certain way, you can secretly cancel 
-              that vote without anyone knowing.
+  return (
+    <div className="px-4 pb-24 pt-10 sm:px-6 md:pb-10">
+      <div className="mx-auto max-w-6xl space-y-10">
+        <section className="ledger-panel relative overflow-hidden p-8 md:p-12">
+          <div className="absolute -right-16 -top-16 h-64 w-64 rounded-full bg-primary-fixed-dim/60 blur-[100px]" />
+          <div className="relative z-10 max-w-3xl">
+            <span className="ledger-badge bg-secondary-container text-on-secondary-container">
+              <ShieldCheck className="h-4 w-4" />
+              Audit protocol overview
+            </span>
+            <h1 className="mt-5 font-headline text-5xl font-extrabold text-primary">
+              How Votex Works
+            </h1>
+            <p className="mt-5 text-lg leading-relaxed text-on-surface-variant">
+              A coercion-resistant voting system that combines World ID uniqueness checks, passkey-derived cryptographic keys, and privacy-preserving nullification.
             </p>
-            <p>
-              All votes are encrypted using advanced cryptography, and zero-knowledge proofs ensure 
-              that your actions remain private.
-            </p>
-          </CardContent>
-        </Card>
-      </section>
+          </div>
+        </section>
 
-      {/* Getting Started */}
-      <section className="mb-10">
-        <h2 className="text-2xl font-semibold mb-4">Getting Started</h2>
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <UserCheck className="h-5 w-5 text-green-500" />
-                1. Verify Your Identity
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-muted-foreground text-sm">
-              Sign in with World ID to prove you're a unique human. This prevents 
-              anyone from voting multiple times while keeping your identity private.
-            </CardContent>
-          </Card>
+        <section className="grid gap-6 md:grid-cols-2">
+          {[
+            {
+              icon: ShieldCheck,
+              title: "1. Verify unique humanity",
+              description:
+                "World ID proves that one real person is entering the system without exposing their personal identity to the election ledger.",
+            },
+            {
+              icon: KeyRound,
+              title: "2. Derive a voting key locally",
+              description:
+                "A BabyJubJub keypair is derived from the voter’s passkey. The private key never leaves the device and is used only for signing and nullification workflows.",
+            },
+            {
+              icon: Vote,
+              title: "3. Cast a signed ballot",
+              description:
+                "Each ballot is tied to a verified voter identity and a local signing key, allowing the system to enforce one-person-one-vote without deanonymizing the voter.",
+            },
+            {
+              icon: Lock,
+              title: "4. Preserve coercion resistance",
+              description:
+                "If a voter is pressured or threatened, they can later nullify their ballot using a zero-knowledge workflow that looks identical to a harmless decoy request.",
+            },
+          ].map(({ icon: Icon, title, description }) => (
+            <article key={title} className="ledger-panel p-7">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-on-primary">
+                <Icon className="h-6 w-6" />
+              </div>
+              <h2 className="mt-6 font-headline text-2xl font-bold text-primary">{title}</h2>
+              <p className="mt-3 text-sm leading-relaxed text-on-surface-variant">{description}</p>
+            </article>
+          ))}
+        </section>
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <KeyRound className="h-5 w-5 text-blue-500" />
-                2. Generate Your Keypair
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-muted-foreground text-sm">
-              A unique cryptographic keypair is generated for you. Your private key 
-              stays with you and is used to sign your votes and nullification requests.
-            </CardContent>
-          </Card>
-        </div>
-      </section>
-
-      {/* Casting a Vote */}
-      <section className="mb-10">
-        <h2 className="text-2xl font-semibold mb-4">Casting Your Vote</h2>
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Vote className="h-5 w-5 text-primary" />
-              How Voting Works
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4 text-muted-foreground">
-            <ol className="list-decimal list-inside space-y-3">
-              <li>
-                <strong>Browse Elections:</strong> View all available elections and their details.
-              </li>
-              <li>
-                <strong>Join an Election:</strong> Register to participate with your public key.
-              </li>
-              <li>
-                <strong>Cast Your Vote:</strong> Your vote is cast and no one knows who it came 
-                from due to the anonymous World authentication.
-              </li>
-              <li>
-                <strong>Cryptographic Proof:</strong> Your vote is signed with your private key, 
-                proving it came from a real human.
-              </li>
-            </ol>
-          </CardContent>
-        </Card>
-      </section>
-
-      {/* Vote Nullification */}
-      <section className="mb-10">
-        <h2 className="text-2xl font-semibold mb-4">Vote Nullification</h2>
-        <Card className="border-orange-500/30 bg-orange-500/5">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-orange-500" />
-              The Anti-Coercion Feature
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4 text-muted-foreground">
-            <p>
-              <strong>What if someone forces you to vote a certain way?</strong>
-            </p>
-            <p>
-              Votex allows you to <strong>nullify</strong> your vote in complete secrecy. When you 
-              nullify, your vote is cancelled and won't be counted in the final tally.
-            </p>
-            <div className="bg-background/50 rounded-lg p-4 space-y-2">
-              <p className="font-medium text-foreground">How it stays private:</p>
-              <ul className="list-disc list-inside space-y-1 text-sm">
-                <li>
-                  <strong>Zero-Knowledge Proofs:</strong> You prove you have the right to nullify 
-                  without revealing who you are.
-                </li>
-                <li>
-                  <strong>k-Anonymity:</strong> Your nullification request is mixed with others, 
-                  making it impossible to trace back to you.
-                </li>
-                <li>
-                  <strong>Encrypted Communication:</strong> All nullification data is encrypted 
-                  so only the election authority can process it.
-                </li>
-              </ul>
+        <section className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_360px]">
+          <div className="ledger-panel p-8">
+            <h2 className="font-headline text-3xl font-bold text-primary">Security guarantees</h2>
+            <div className="mt-8 grid gap-4 md:grid-cols-2">
+              {[
+                {
+                  icon: Lock,
+                  title: "End-to-end encryption",
+                  description: "Nullification payloads remain encrypted until the election authority processes the tally.",
+                },
+                {
+                  icon: Eye,
+                  title: "Vote secrecy",
+                  description: "The system proves voter eligibility without publishing a direct mapping between a person and a ballot.",
+                },
+                {
+                  icon: ShieldCheck,
+                  title: "Coercion resistance",
+                  description: "Actual and dummy nullifications are intentionally indistinguishable to outside observers.",
+                },
+                {
+                  icon: Fingerprint,
+                  title: "One person, one vote",
+                  description: "World ID prevents duplicate voter participation while keeping the ledger anonymous.",
+                },
+              ].map(({ icon: Icon, title, description }) => (
+                <div key={title} className="rounded-[1.5rem] border border-outline-variant/12 bg-surface-container-low p-5">
+                  <Icon className="h-5 w-5 text-surface-tint" />
+                  <h3 className="mt-4 font-headline text-xl font-bold text-primary">{title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-on-surface-variant">{description}</p>
+                </div>
+              ))}
             </div>
-            <p className="text-sm italic">
-              Even if a coercer is watching you vote, they can never know if you later nullified.
-            </p>
-          </CardContent>
-        </Card>
-      </section>
+          </div>
 
-      {/* Security Guarantees */}
-      <section className="mb-10">
-        <h2 className="text-2xl font-semibold mb-4">Security & Privacy Guarantees</h2>
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Lock className="h-5 w-5 text-primary" />
-                End-to-End Encryption
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-muted-foreground text-sm">The nullification payloads are end-to-end encrypted. Only the election authority can decrypt the final tally.</CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Eye className="h-5 w-5 text-primary" />
-                Vote Secrecy
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-muted-foreground text-sm">No one can see how you voted. The system uses the World ID ZK authentication to ensure voter privacy.</CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Shield className="h-5 w-5 text-primary" />
-                Coercion Resistance
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-muted-foreground text-sm">Even if coerced, you can always nullify privately. There's no way for a coercer to verify your final vote.</CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <UserCheck className="h-5 w-5 text-primary" />
-                One Person, One Vote
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-muted-foreground text-sm">World ID ensures one person one vote.</CardContent>
-          </Card>
-        </div>
-      </section>
-
-      {/* FAQ */}
-      <section>
-        <h2 className="text-2xl font-semibold mb-4">Frequently Asked Questions</h2>
-        <div className="space-y-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg">Can I change my vote?</CardTitle>
-            </CardHeader>
-            <CardContent className="text-muted-foreground text-sm">
-              You cannot change your vote, but you can nullify it. A nullified vote is not 
-              counted in the final tally.
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg">Who can see my vote?</CardTitle>
-            </CardHeader>
-            <CardContent className="text-muted-foreground text-sm">Even though the actual vote is posted transparently, it is not possible to know the identity of the voter behind it. 
-Only final tally is revealed, never individual votes.</CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg">What happens if I nullify?</CardTitle>
-            </CardHeader>
-            <CardContent className="text-muted-foreground text-sm">
-              Your original vote is cancelled and won't be counted. The system ensures 
-              no one can tell that you nullified, protecting you from retaliation.
-            </CardContent>
-          </Card>
-        </div>
-      </section>
-    </div>;
+          <aside className="space-y-6">
+            <div className="rounded-[2rem] bg-primary-container p-7 text-on-primary shadow-ledger-lg">
+              <p className="ledger-eyebrow text-on-primary-container">FAQ</p>
+              <div className="mt-5 space-y-5 text-sm">
+                <div>
+                  <h3 className="font-semibold text-white">Can I change my vote?</h3>
+                  <p className="mt-1 text-white/72">
+                    You cannot directly overwrite a ballot, but you can nullify it later if coercion or compromise occurs.
+                  </p>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-white">Who can see my vote?</h3>
+                  <p className="mt-1 text-white/72">
+                    The ledger reveals aggregate results and auditable proofs, not a plain-text mapping between identity and ballot.
+                  </p>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-white">What happens after nullification?</h3>
+                  <p className="mt-1 text-white/72">
+                    The final tally excludes votes whose nullification accumulators resolve to an invalid state during tally processing.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </aside>
+        </section>
+      </div>
+    </div>
+  );
 };
+
 export default HowItWorks;

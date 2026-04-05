@@ -6,7 +6,7 @@ import { KeypairResult } from "@/types/keypair";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Lock, RefreshCw } from "lucide-react";
-import { registerKeypair } from "@/services/keypairService";
+import { registerKeypair, storeKeypair } from "@/services/keypairService";
 
 interface Props {
   onKeypairGenerated: (keypair: KeypairResult) => void;
@@ -36,7 +36,7 @@ const GenerateKeypairButton: React.FC<Props> = ({ onKeypairGenerated, isRegenera
       }
       
       onKeypairGenerated(keypair);
-      localStorage.setItem("babyJubKeypair", JSON.stringify(storedKeypair));
+      storeKeypair(storedKeypair);
       
       // Register the keypair in the database
       const isRegistered = await registerKeypair(storedKeypair);

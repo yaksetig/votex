@@ -31,6 +31,7 @@ export type Database = {
       }
       election_authorities: {
         Row: {
+          auth_user_id: string | null
           created_at: string
           description: string | null
           id: string
@@ -40,6 +41,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          auth_user_id?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -49,6 +51,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          auth_user_id?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -62,29 +65,79 @@ export type Database = {
       election_authority_audit_log: {
         Row: {
           action: string
+          auth_user_id: string | null
           details: Json | null
-          election_id: string
+          election_id: string | null
           id: string
           performed_at: string
           performed_by: string
         }
         Insert: {
           action: string
+          auth_user_id?: string | null
           details?: Json | null
-          election_id: string
+          election_id?: string | null
           id?: string
           performed_at?: string
           performed_by: string
         }
         Update: {
           action?: string
+          auth_user_id?: string | null
           details?: Json | null
-          election_id?: string
+          election_id?: string | null
           id?: string
           performed_at?: string
           performed_by?: string
         }
         Relationships: []
+      }
+      delegations: {
+        Row: {
+          id: string
+          election_id: string
+          delegator_id: string
+          delegate_ct_c1_x: string
+          delegate_ct_c1_y: string
+          delegate_ct_c2_x: string
+          delegate_ct_c2_y: string
+          status: string
+          created_at: string
+          revoked_at: string | null
+        }
+        Insert: {
+          id?: string
+          election_id: string
+          delegator_id: string
+          delegate_ct_c1_x: string
+          delegate_ct_c1_y: string
+          delegate_ct_c2_x: string
+          delegate_ct_c2_y: string
+          status?: string
+          created_at?: string
+          revoked_at?: string | null
+        }
+        Update: {
+          id?: string
+          election_id?: string
+          delegator_id?: string
+          delegate_ct_c1_x?: string
+          delegate_ct_c1_y?: string
+          delegate_ct_c2_x?: string
+          delegate_ct_c2_y?: string
+          status?: string
+          created_at?: string
+          revoked_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delegations_election_id_fkey"
+            columns: ["election_id"]
+            isOneToOne: false
+            referencedRelation: "elections"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       election_participants: {
         Row: {
@@ -130,6 +183,7 @@ export type Database = {
           processed_by: string | null
           user_id: string
           vote_nullified: boolean
+          vote_weight: number
         }
         Insert: {
           election_id: string
@@ -139,6 +193,7 @@ export type Database = {
           processed_by?: string | null
           user_id: string
           vote_nullified?: boolean
+          vote_weight?: number
         }
         Update: {
           election_id?: string
@@ -148,6 +203,7 @@ export type Database = {
           processed_by?: string | null
           user_id?: string
           vote_nullified?: boolean
+          vote_weight?: number
         }
         Relationships: [
           {

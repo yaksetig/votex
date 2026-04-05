@@ -1,44 +1,47 @@
-import React, { useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { formatDistanceToNow, isPast } from "date-fns";
+import {
+  ArrowLeft,
+  CheckCircle2,
+  Copy,
+  Fingerprint,
+  Loader2,
+  ShieldCheck,
+  Users,
+  Vote as VoteIcon,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useWallet } from "@/contexts/WalletContext";
-import { authenticateWithAnyPasskey } from "@/services/passkeyService";
-import { deriveKeypairFromSecret, publicKeyToStrings, verifyDerivedKeypair } from "@/services/deterministicKeyService";
 import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { formatDistanceToNow, isPast } from "date-fns";
-import { ArrowLeft, AlertCircle, CheckCircle, VoteIcon, KeyRound, Fingerprint, Loader2 } from "lucide-react";
-import { signVote } from "@/services/signatureService";
-import { getStoredKeypair, validateAndMigrateKeypair } from "@/services/keypairService";
-import { StoredKeypair } from "@/types/keypair";
-import { 
-  registerElectionParticipant, 
-  getElectionParticipants, 
-  ElectionParticipant,
-  isUserParticipant 
-} from "@/services/electionParticipantsService";
-import { getElectionAuthorityForElection, initializeDefaultElectionAuthority } from "@/services/electionAuthorityService";
-import { storeNullificationBatch } from "@/services/nullificationService";
-import { generateKAnonymousNullifications, KAnonymityProgress } from "@/services/kAnonymityNullificationService";
 import NullificationDialog from "@/components/NullificationDialog";
 import KAnonymityProgressDialog from "@/components/KAnonymityProgressDialog";
+import DelegationDialog from "@/components/DelegationDialog";
+import { StoredKeypair } from "@/types/keypair";
+import {
+  ElectionParticipant,
+  getElectionParticipants,
+  isUserParticipant,
+  registerElectionParticipant,
+} from "@/services/electionParticipantsService";
+import { createDelegation, revokeDelegation, getActiveDelegation } from "@/services/delegationService";
+import { recordVote } from "@/services/voteTrackingService";
 import { Election } from "@/types/election";
+import type { KAnonymityProgress } from "@/services/kAnonymityNullificationService";
 
 const ElectionDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { userId, isWorldIDVerified, derivedPublicKey, setDerivedPublicKey } = useWallet();
-  
+  const { userId, isWorldIDVerified, setDerivedPublicKey } = useWallet();
+
   const [election, setElection] = useState<Election | null>(null);
   const [loading, setLoading] = useState(true);
   const [voteCounts, setVoteCounts] = useState({ option1: 0, option2: 0 });
-  const [selectedOption, setSelectedOption] = useState<string>("");
+  const [selectedOption, setSelectedOption] = useState("");
   const [hasVoted, setHasVoted] = useState(false);
+  const [voteReceipt, setVoteReceipt] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [nullifying, setNullifying] = useState(false);
   const [keypair, setKeypair] = useState<StoredKeypair | null>(null);
@@ -49,76 +52,185 @@ const ElectionDetail = () => {
   const [isDerivingKey, setIsDerivingKey] = useState(false);
   const [showProgressDialog, setShowProgressDialog] = useState(false);
   const [nullificationProgress, setNullificationProgress] = useState<KAnonymityProgress | null>(null);
+  const [hasDelegated, setHasDelegated] = useState(false);
+  const [showDelegationDialog, setShowDelegationDialog] = useState(false);
+  const [isDelegating, setIsDelegating] = useState(false);
 
   useEffect(() => {
-    fetchElectionData();
-    initializeDefaultElectionAuthority();
-    
-    // Validate keypair consistency with current base point
-    const { valid, cleared, keypair: validKeypair } = validateAndMigrateKeypair();
-    if (cleared) {
-      toast({
-        variant: "destructive",
-        title: "Keypair Outdated",
-        description: "Your keypair was generated with an older version. Please generate a new one from the dashboard."
-      });
-      setNeedsKeypair(true);
-    } else if (valid && validKeypair) {
-      setKeypair(validKeypair);
-    } else {
-      setNeedsKeypair(true);
-    }
-  }, [id]);
+    let cancelled = false;
 
-  // Re-check vote status when userId becomes available (identity restored)
+    const loadInitialElectionState = async () => {
+      await fetchElectionData();
+
+      try {
+        const [{ initializeDefaultElectionAuthority }, { validateAndMigrateKeypair }] = await Promise.all([
+          import("@/services/electionAuthorityService"),
+          import("@/services/keypairService"),
+        ]);
+
+        await initializeDefaultElectionAuthority();
+        if (cancelled) return;
+
+        const { valid, cleared, keypair: validKeypair } = validateAndMigrateKeypair();
+        if (cleared) {
+          toast({
+            variant: "destructive",
+            title: "Keypair outdated",
+            description: "Your keypair was generated with an older configuration. Derive a fresh one from your passkey.",
+          });
+          setNeedsKeypair(true);
+        } else if (valid && validKeypair) {
+          setKeypair(validKeypair);
+          setNeedsKeypair(false);
+        } else {
+          setNeedsKeypair(true);
+        }
+      } catch {
+        if (!cancelled) {
+          setNeedsKeypair(true);
+        }
+      }
+    };
+
+    void loadInitialElectionState();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id, toast]);
+
   useEffect(() => {
     if (userId && id) {
-      checkIfUserVoted();
-      checkParticipantStatus();
+      void checkIfUserVoted();
+      void checkParticipantStatus();
+      void checkDelegationStatus();
     }
   }, [userId, id]);
 
-  const checkParticipantStatus = async () => {
+  const checkDelegationStatus = async () => {
     if (!userId || !id) return;
-    
+    const delegation = await getActiveDelegation(id, userId);
+    setHasDelegated(!!delegation);
+  };
+
+  const handleDelegate = async (participantIndex: number) => {
+    if (!id || !userId || !election) return;
+    setIsDelegating(true);
     try {
-      const participantStatus = await isUserParticipant(id, userId);
-      setIsParticipant(participantStatus);
+      const { getElectionAuthorityForElection } = await import(
+        "@/services/electionAuthorityService"
+      );
+      const { EdwardsPoint } = await import("@/services/elGamalService");
+
+      const authority = await getElectionAuthorityForElection(id);
+      if (!authority) throw new Error("Failed to get election authority");
+
+      const authorityPk = new EdwardsPoint(
+        BigInt(authority.public_key_x),
+        BigInt(authority.public_key_y)
+      );
+
+      const success = await createDelegation(id, userId, participantIndex, authorityPk);
+      if (!success) throw new Error("Failed to store delegation");
+
+      setHasDelegated(true);
+      setShowDelegationDialog(false);
+      toast({
+        title: "Vote delegated",
+        description: "Your voting power has been privately delegated. The delegate will not know.",
+      });
     } catch (error) {
-      // Silent error handling
+      toast({
+        variant: "destructive",
+        title: "Delegation failed",
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
+    } finally {
+      setIsDelegating(false);
     }
   };
 
-  // Re-derive keypair from passkey for voting
+  const handleRevokeDelegation = async () => {
+    if (!id || !userId) return;
+    const success = await revokeDelegation(id, userId);
+    if (success) {
+      setHasDelegated(false);
+      toast({
+        title: "Delegation revoked",
+        description: "You can now vote directly or delegate to someone else.",
+      });
+    }
+  };
+
+  const electionClosed = useMemo(() => {
+    if (!election) return false;
+    return isPast(new Date(election.end_date)) || !!election.closed_manually_at;
+  }, [election]);
+
+  const fetchVoteReceipt = async () => {
+    if (!userId || !id) return;
+
+    const { data } = await supabase
+      .from("votes")
+      .select("id")
+      .eq("election_id", id)
+      .eq("voter", userId)
+      .limit(1)
+      .maybeSingle();
+
+    setVoteReceipt(data?.id ?? null);
+  };
+
+  const checkParticipantStatus = async () => {
+    if (!userId || !id) return;
+
+    try {
+      const participantStatus = await isUserParticipant(id, userId);
+      setIsParticipant(participantStatus);
+    } catch {
+      setIsParticipant(false);
+    }
+  };
+
   const rederiveKeypair = async () => {
     setIsDerivingKey(true);
+
     try {
-      const prfResult = await authenticateWithAnyPasskey();
-      const keypair = await deriveKeypairFromSecret(prfResult.secret);
-      
-      if (!verifyDerivedKeypair(keypair)) {
+      const [
+        { authenticateWithPreferredPasskey },
+        { deriveKeypairFromSecret, publicKeyToStrings, verifyDerivedKeypair },
+        { storeKeypair },
+      ] = await Promise.all([
+        import("@/services/passkeyService"),
+        import("@/services/deterministicKeyService"),
+        import("@/services/keypairService"),
+      ]);
+
+      const prfResult = await authenticateWithPreferredPasskey();
+      const derivedKeypair = await deriveKeypairFromSecret(prfResult.secret);
+
+      if (!verifyDerivedKeypair(derivedKeypair)) {
         throw new Error("Derived keypair verification failed");
       }
-      
-      const pkStrings = publicKeyToStrings(keypair.pk);
+
+      const pkStrings = publicKeyToStrings(derivedKeypair.pk);
       setDerivedPublicKey(pkStrings);
-      
-      // Store full keypair for voting
+
       const storedKeypair = {
-        k: keypair.sk.toString(),
-        Ax: keypair.pk.x.toString(),
-        Ay: keypair.pk.y.toString()
+        k: derivedKeypair.sk.toString(),
+        Ax: derivedKeypair.pk.x.toString(),
+        Ay: derivedKeypair.pk.y.toString(),
       };
-      localStorage.setItem("babyJubKeypair", JSON.stringify(storedKeypair));
+
+      storeKeypair(storedKeypair);
       setKeypair(storedKeypair);
       setNeedsKeypair(false);
-      
+
       toast({
-        title: "Keypair derived",
-        description: "You can now vote in this election.",
+        title: "Passkey unlocked",
+        description: "Your signing key has been re-derived locally and is ready for use.",
       });
     } catch (error) {
-      console.error("Error deriving keypair:", error);
       toast({
         variant: "destructive",
         title: "Derivation failed",
@@ -132,71 +244,50 @@ const ElectionDetail = () => {
   const fetchElectionData = async () => {
     try {
       setLoading(true);
-      
+
       const { data: electionData, error: electionError } = await supabase
         .from("elections")
         .select("*")
         .eq("id", id)
         .single();
 
-      if (electionError) throw electionError;
-      
-      if (!electionData) {
-        navigate("/elections");
-        return;
+      if (electionError || !electionData) {
+        throw electionError ?? new Error("Election not found");
       }
-      
+
       setElection(electionData);
-      
-      // Get vote counts from new tracking tables
-      const { data: yesVotes, error: yesError } = await supabase
-        .from("yes_votes")
-        .select("*")
-        .eq("election_id", id);
-        
-      const { data: noVotes, error: noError } = await supabase
-        .from("no_votes")
-        .select("*")
-        .eq("election_id", id);
-        
-      if (yesError || noError) {
-        console.error("Error fetching vote counts:", yesError || noError);
-        // Fallback to old votes table if needed
+
+      const [yesVotesResult, noVotesResult, participantsList] = await Promise.all([
+        supabase.from("yes_votes").select("*").eq("election_id", id),
+        supabase.from("no_votes").select("*").eq("election_id", id),
+        id ? getElectionParticipants(id) : Promise.resolve([]),
+      ]);
+
+      if (yesVotesResult.error || noVotesResult.error) {
         const { data: votes, error: votesError } = await supabase
           .from("votes")
           .select("choice")
           .eq("election_id", id);
-          
+
         if (votesError) throw votesError;
-        
-        const option1Count = votes?.filter(vote => vote.choice === electionData.option1).length || 0;
-        const option2Count = votes?.filter(vote => vote.choice === electionData.option2).length || 0;
-        
+
         setVoteCounts({
-          option1: option1Count,
-          option2: option2Count
+          option1: votes?.filter((vote) => vote.choice === electionData.option1).length || 0,
+          option2: votes?.filter((vote) => vote.choice === electionData.option2).length || 0,
         });
       } else {
-        // Use vote tracking tables
-        const validYesVotes = yesVotes?.filter(vote => !vote.nullified).length || 0;
-        const validNoVotes = noVotes?.filter(vote => !vote.nullified).length || 0;
-        
         setVoteCounts({
-          option1: validYesVotes,
-          option2: validNoVotes
+          option1: yesVotesResult.data?.filter((vote) => !vote.nullified).length || 0,
+          option2: noVotesResult.data?.filter((vote) => !vote.nullified).length || 0,
         });
       }
 
-      if (id) {
-        const participantsList = await getElectionParticipants(id);
-        setParticipants(participantsList);
-      }
-      
-    } catch (error) {
+      setParticipants(participantsList);
+    } catch {
       toast({
         variant: "destructive",
-        title: "Error",
-        description: "Failed to load election details."
+        title: "Election unavailable",
+        description: "The requested election could not be loaded.",
       });
     } finally {
       setLoading(false);
@@ -205,166 +296,124 @@ const ElectionDetail = () => {
 
   const checkIfUserVoted = async () => {
     if (!userId || !id) return;
-    
+
     try {
       const { data, error } = await supabase
         .from("votes")
-        .select("*")
+        .select("id")
         .eq("election_id", id)
         .eq("voter", userId);
-        
+
       if (error) throw error;
-      
-      setHasVoted(data && data.length > 0);
-    } catch (error) {
-      // Silent error handling
+
+      const voteExists = !!data && data.length > 0;
+      setHasVoted(voteExists);
+      setVoteReceipt(voteExists ? data?.[0]?.id ?? null : null);
+    } catch {
+      setHasVoted(false);
+      setVoteReceipt(null);
     }
   };
 
   const ensureUserIsParticipant = async (): Promise<boolean> => {
     if (!userId || !election || !keypair) return false;
-    
+
     try {
       if (isParticipant) {
         return true;
       }
-      
-      const participantRegistered = await registerElectionParticipant(
-        election.id,
-        userId,
-        keypair
-      );
-      
+
+      const participantRegistered = await registerElectionParticipant(election.id, userId, keypair);
       if (participantRegistered) {
         setIsParticipant(true);
         const updatedParticipants = await getElectionParticipants(election.id);
         setParticipants(updatedParticipants);
       }
-      
+
       return participantRegistered;
-    } catch (error) {
+    } catch {
       return false;
     }
   };
 
   const handleVote = async () => {
-    // Guard: Check hasVoted state first
     if (hasVoted) {
       toast({
         variant: "destructive",
-        title: "Already Voted",
-        description: "You have already cast your vote in this election."
+        title: "Already voted",
+        description: "This identity has already cast a ballot in the current election.",
       });
       return;
     }
-    
-    // Guard: Check if election is closed (expired or manually closed)
-    const electionClosed = isPast(new Date(election?.end_date)) || !!election?.closed_manually_at;
+
     if (electionClosed) {
       toast({
         variant: "destructive",
-        title: "Election Closed",
-        description: "This election is no longer accepting votes."
+        title: "Election closed",
+        description: "This election is no longer accepting new ballots.",
       });
       return;
     }
-    
+
     if (!selectedOption || !userId || !election || !keypair) {
       if (!keypair) {
         toast({
           variant: "destructive",
-          title: "Keypair Required",
-          description: "Please generate a cryptographic keypair from your dashboard first."
+          title: "Passkey required",
+          description: "Derive your keypair from your passkey before voting.",
         });
-        navigate("/dashboard");
       }
       return;
     }
-    
+
     try {
       setSubmitting(true);
-      
-      // Server-side duplicate check before attempting to vote
+
       const { data: existingVote } = await supabase
         .from("votes")
         .select("id")
         .eq("election_id", election.id)
         .eq("voter", userId)
         .single();
-        
+
       if (existingVote) {
         setHasVoted(true);
-        toast({
-          variant: "destructive",
-          title: "Already Voted",
-          description: "You have already cast your vote in this election."
-        });
+        setVoteReceipt(existingVote.id);
         return;
       }
-      
+
       const participantRegistered = await ensureUserIsParticipant();
-      
       if (!participantRegistered) {
         throw new Error("Failed to register as election participant");
       }
-      
-      const { signature, timestamp } = await signVote(
-        keypair,
-        election.id,
-        selectedOption
-      );
-      
-      // Record vote in both old and new systems for compatibility
-      const { error: oldVoteError } = await supabase.rpc("insert_vote", {
+
+      const { signVote } = await import("@/services/signatureService");
+      const { signature, timestamp } = await signVote(keypair, election.id, selectedOption);
+
+      const { error: voteError } = await supabase.rpc("insert_vote", {
         p_election_id: election.id,
         p_voter: userId,
         p_choice: selectedOption,
         p_nullifier: null,
         p_signature: signature,
-        p_timestamp: timestamp
+        p_timestamp: timestamp,
       });
-      
-      if (oldVoteError) throw oldVoteError;
-      
-      // Clean up: ensure voter is only in ONE tracking table
-      const oppositeTable = selectedOption === election.option1 ? 'no_votes' : 'yes_votes';
-      await supabase
-        .from(oppositeTable)
-        .delete()
-        .eq("election_id", election.id)
-        .eq("voter_id", userId);
-      
-      // Record in new tracking table - use option1 to determine table, not hardcoded "Yes"
-      const tableName = selectedOption === election.option1 ? 'yes_votes' : 'no_votes';
-      const { error: newVoteError } = await supabase
-        .from(tableName)
-        .upsert({
-          election_id: election.id,
-          voter_id: userId,
-          nullified: false,
-          nullification_count: 0
-        }, {
-          onConflict: 'election_id,voter_id'
-        });
-      
-      if (newVoteError) {
-        console.error("Error recording vote in tracking table:", newVoteError);
-        // Don't throw error here, vote was already recorded in main table
-      }
-      
+
+      if (voteError) throw voteError;
+
+      await recordVote(election.id);
+      await checkIfUserVoted();
+      await fetchElectionData();
+
       toast({
-        title: "Vote submitted",
-        description: "Your vote has been recorded successfully."
+        title: "Vote cast successfully",
+        description: "Your ballot has been recorded on the ledger.",
       });
-      
-      setHasVoted(true);
-      fetchElectionData();
-      
-    } catch (error) {
+    } catch {
       toast({
         variant: "destructive",
-        title: "Error",
-        description: "Failed to submit your vote. Please try again."
+        title: "Vote failed",
+        description: "Your ballot could not be submitted. Please try again.",
       });
     } finally {
       setSubmitting(false);
@@ -373,101 +422,101 @@ const ElectionDetail = () => {
 
   const performNullification = async (isActual: boolean) => {
     if (!userId || !election || !id || !keypair) return;
-    
-    // Guard: Check if election is closed (expired or manually closed)
-    const electionClosed = isPast(new Date(election.end_date)) || !!election.closed_manually_at;
+
     if (electionClosed) {
       toast({
         variant: "destructive",
-        title: "Election Closed",
-        description: "This election is no longer accepting nullifications."
+        title: "Election closed",
+        description: "Nullifications are no longer being accepted for this election.",
       });
       return;
     }
-    
+
     if (!hasVoted) {
       toast({
         variant: "destructive",
-        title: "Cannot Nullify",
-        description: "You can only nullify your vote after you have voted."
+        title: "No ballot to nullify",
+        description: "You must cast a vote before you can submit a nullification request.",
       });
       return;
     }
-    
+
     try {
       setNullifying(true);
       setShowNullificationDialog(false);
       setShowProgressDialog(true);
-      
+
       await ensureUserIsParticipant();
-      
+
+      const [
+        { getElectionAuthorityForElection },
+        { generateKAnonymousNullifications },
+        { storeNullificationBatchWithAccumulators },
+      ] = await Promise.all([
+        import("@/services/electionAuthorityService"),
+        import("@/services/kAnonymityNullificationService"),
+        import("@/services/nullificationService"),
+      ]);
+
       const authority = await getElectionAuthorityForElection(id);
       if (!authority) {
-        throw new Error("Failed to get election authority");
+        throw new Error("Failed to resolve the election authority");
       }
-      
-      // Generate k-anonymous nullifications with progress tracking
+
       const nullificationBatch = await generateKAnonymousNullifications(
         id,
         userId,
         keypair,
         { x: authority.public_key_x, y: authority.public_key_y },
         isActual,
-        6, // k = 6
+        6,
         (progress) => setNullificationProgress(progress)
       );
-      
-      // Store all nullifications atomically
-      const batchItems = nullificationBatch.map(item => ({
+
+      const batchItems = nullificationBatch.map((item) => ({
         userId: item.targetUserId,
         ciphertext: item.ciphertext,
-        zkp: item.zkp!
+        newAccumulator: item.newAccumulator,
+        accumulatorVersion: item.accumulatorVersion,
+        zkp: item.zkp!,
       }));
-      
-      const stored = await storeNullificationBatch(id, batchItems);
-      
+
+      const stored = await storeNullificationBatchWithAccumulators(id, batchItems);
       if (!stored) {
         throw new Error("Failed to store nullifications");
       }
-      
-      setShowProgressDialog(false);
-      
+
       toast({
-        title: `${isActual ? 'Actual' : 'Dummy'} Nullification Submitted`,
-        description: `Your nullification has been recorded with k-anonymity protection (${nullificationBatch.length} proofs).`
+        title: `${isActual ? "Actual" : "Dummy"} nullification submitted`,
+        description: `Your request was hidden across ${nullificationBatch.length} participant slots.`,
       });
-      
     } catch (error) {
-      console.error("Nullification error:", error);
-      setShowProgressDialog(false);
       toast({
         variant: "destructive",
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to submit nullification."
+        title: "Nullification failed",
+        description: error instanceof Error ? error.message : "The nullification request could not be submitted.",
       });
     } finally {
       setNullifying(false);
+      setShowProgressDialog(false);
       setNullificationProgress(null);
     }
   };
 
-  const handleNullifyVote = async () => {
-    setShowNullificationDialog(true);
-  };
-
-  const handleActualNullification = () => {
-    performNullification(true);
-  };
-
-  const handleDummyNullification = () => {
-    performNullification(false);
-  };
+  const totalVotes = voteCounts.option1 + voteCounts.option2;
+  const option1Percentage = totalVotes > 0 ? Math.round((voteCounts.option1 / totalVotes) * 100) : 0;
+  const option2Percentage = totalVotes > 0 ? Math.round((voteCounts.option2 / totalVotes) * 100) : 0;
+  const receiptLabel = voteReceipt ? `${voteReceipt.slice(0, 8)}...${voteReceipt.slice(-6)}` : "Pending";
 
   if (loading) {
     return (
-      <div className="container mx-auto py-8 px-4">
-        <div className="text-center py-10">
-          <div className="animate-pulse h-6 w-24 bg-muted rounded mx-auto"></div>
+      <div className="px-4 py-10 sm:px-6">
+        <div className="mx-auto max-w-6xl space-y-6">
+          <div className="ledger-panel h-56 animate-pulse" />
+          <div className="grid gap-6 lg:grid-cols-12">
+            <div className="ledger-panel h-[30rem] animate-pulse lg:col-span-7" />
+            <div className="ledger-panel h-[30rem] animate-pulse lg:col-span-5" />
+          </div>
         </div>
       </div>
     );
@@ -475,223 +524,321 @@ const ElectionDetail = () => {
 
   if (!election) {
     return (
-      <div className="container mx-auto py-8 px-4">
-        <Card className="max-w-2xl mx-auto">
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <AlertCircle className="mx-auto h-12 w-12 text-muted-foreground" />
-              <h3 className="mt-4 text-lg font-semibold">Election not found</h3>
-              <p className="mt-2 text-muted-foreground">
-                The election you're looking for doesn't exist or has been removed.
-              </p>
-              <Button 
-                className="mt-6" 
-                variant="outline"
-                onClick={() => navigate("/elections")}
-              >
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Elections
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="px-4 py-10 sm:px-6">
+        <div className="mx-auto max-w-3xl">
+          <div className="ledger-panel p-10 text-center">
+            <h1 className="font-headline text-3xl font-bold text-primary">Election not found</h1>
+            <p className="mt-4 text-on-surface-variant">
+              The requested ledger entry is unavailable or has been removed.
+            </p>
+            <Button variant="outline" className="mt-6" onClick={() => navigate("/elections")}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Elections
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }
 
-  const endDate = new Date(election.end_date);
-  const isExpired = isPast(endDate);
-  const isElectionClosed = isExpired || !!election.closed_manually_at;
-  const totalVotes = voteCounts.option1 + voteCounts.option2;
-  const option1Percentage = totalVotes > 0 ? Math.round((voteCounts.option1 / totalVotes) * 100) : 0;
-  const option2Percentage = totalVotes > 0 ? Math.round((voteCounts.option2 / totalVotes) * 100) : 0;
-
   return (
-    <div className="container mx-auto py-8 px-4">
-      <Button 
-        variant="ghost" 
-        className="mb-4"
-        onClick={() => navigate("/elections")}
-      >
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to Elections
-      </Button>
-      
-      <Card className="max-w-2xl mx-auto">
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle className="text-2xl">{election?.title}</CardTitle>
-            <Badge variant={isElectionClosed ? "destructive" : "default"}>
-              {isElectionClosed 
-                ? (election.closed_manually_at ? "Closed" : "Expired") 
-                : "Active"}
-            </Badge>
-          </div>
-          <CardDescription>
-            {isElectionClosed
-              ? (election.closed_manually_at 
-                  ? "Closed early by authority"
-                  : `Ended ${formatDistanceToNow(endDate, { addSuffix: true })}`)
-              : `Ends ${formatDistanceToNow(endDate, { addSuffix: true })}`}
-          </CardDescription>
-        </CardHeader>
-        
-        <CardContent className="space-y-6">
-          <div>
-            <h3 className="text-lg font-medium mb-2">Description</h3>
-            <p className="text-muted-foreground whitespace-pre-line">{election.description}</p>
-          </div>
-          
-          {needsKeypair && !keypair && isWorldIDVerified && (
-            <div className="flex flex-col items-center p-4 bg-amber-50 dark:bg-amber-950 rounded-md border border-amber-200 dark:border-amber-800">
-              <Fingerprint className="h-8 w-8 text-amber-500 mb-2" />
-              <h3 className="text-lg font-medium">Derive Your Keypair</h3>
-              <p className="text-center text-muted-foreground mb-3">
-                Authenticate with your passkey to derive your cryptographic keypair for voting.
-              </p>
-              <Button onClick={rederiveKeypair} disabled={isDerivingKey}>
-                {isDerivingKey ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Deriving...
-                  </>
-                ) : (
-                  <>
-                    <Fingerprint className="mr-2 h-4 w-4" />
-                    Sign in with Passkey
-                  </>
-                )}
-              </Button>
-            </div>
-          )}
-          
-          {needsKeypair && !keypair && !isWorldIDVerified && (
-            <div className="flex flex-col items-center p-4 bg-amber-50 dark:bg-amber-950 rounded-md border border-amber-200 dark:border-amber-800">
-              <KeyRound className="h-8 w-8 text-amber-500 mb-2" />
-              <h3 className="text-lg font-medium">Sign In Required</h3>
-              <p className="text-center text-muted-foreground mb-3">
-                Sign in to participate in this election.
-              </p>
-              <Button onClick={() => navigate("/dashboard")}>
-                Go to Dashboard
-              </Button>
-            </div>
-          )}
-          
-          {(election && (isElectionClosed || hasVoted)) ? (
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Results</h3>
-              <div className="space-y-3">
-                <div>
-                  <div className="flex justify-between mb-1">
-                    <span>{election.option1}</span>
-                    <span>{voteCounts.option1} votes ({voteCounts.option1 + voteCounts.option2 > 0 ? Math.round((voteCounts.option1 / (voteCounts.option1 + voteCounts.option2)) * 100) : 0}%)</span>
+    <>
+      <div className="px-4 pb-24 pt-10 sm:px-6 md:pb-10">
+        <div className="mx-auto max-w-6xl space-y-10">
+          <button
+            type="button"
+            onClick={() => navigate("/elections")}
+            className="inline-flex items-center gap-2 text-sm font-semibold text-on-surface-variant transition-colors hover:text-primary"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Elections
+          </button>
+
+          <section className="ledger-panel relative overflow-hidden p-8 md:p-12">
+            <div className="absolute -right-8 top-0 h-64 w-64 rounded-full bg-primary-fixed-dim/50 blur-[90px]" />
+            <div className="relative z-10">
+              {hasVoted ? (
+                <>
+                  <div className="mb-6 inline-flex items-center gap-3 rounded-full bg-blue-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-surface-tint">
+                    <CheckCircle2 className="h-4 w-4" />
+                    Transaction complete
                   </div>
-                  <div className="h-2 bg-muted rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-primary" 
-                      style={{ width: `${voteCounts.option1 + voteCounts.option2 > 0 ? Math.round((voteCounts.option1 / (voteCounts.option1 + voteCounts.option2)) * 100) : 0}%` }}
-                    ></div>
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between mb-1">
-                    <span>{election.option2}</span>
-                    <span>{voteCounts.option2} votes ({voteCounts.option1 + voteCounts.option2 > 0 ? Math.round((voteCounts.option2 / (voteCounts.option1 + voteCounts.option2)) * 100) : 0}%)</span>
-                  </div>
-                  <div className="h-2 bg-muted rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-destructive" 
-                      style={{ width: `${voteCounts.option1 + voteCounts.option2 > 0 ? Math.round((voteCounts.option2 / (voteCounts.option1 + voteCounts.option2)) * 100) : 0}%` }}
-                    ></div>
-                  </div>
-                </div>
-                <div className="text-center text-sm text-muted-foreground pt-2">
-                  Total votes: {voteCounts.option1 + voteCounts.option2}
-                </div>
-              </div>
-              
-              {hasVoted && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-center p-3 bg-primary/10 rounded-md">
-                    <CheckCircle className="h-5 w-5 mr-2 text-primary" />
-                    <span className="text-sm font-medium">You have voted in this election</span>
-                  </div>
-                  {!isElectionClosed && (
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      className="w-full bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
-                      onClick={handleNullifyVote}
-                      disabled={nullifying}
+                  <h1 className="font-headline text-4xl font-extrabold text-primary md:text-5xl">
+                    Vote Cast Successfully.
+                  </h1>
+                  <p className="mt-4 max-w-2xl text-base leading-relaxed text-on-surface-variant">
+                    Your cryptographic receipt has been broadcast to the ledger. If coercion ever becomes a risk, you can now nullify this ballot privately.
+                  </p>
+                  <div className="mt-8 inline-flex flex-wrap items-center gap-4 rounded-[1.25rem] bg-surface-container-low px-5 py-4">
+                    <div>
+                      <p className="ledger-eyebrow">Receipt hash</p>
+                      <code className="mt-2 inline-flex rounded-lg bg-surface-container-lowest px-3 py-2 text-sm font-semibold text-primary">
+                        {receiptLabel}
+                      </code>
+                    </div>
+                    <div className="hidden h-10 w-px bg-outline-variant/30 sm:block" />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (voteReceipt) {
+                          void navigator.clipboard.writeText(voteReceipt);
+                          toast({ title: "Receipt copied", description: "The ledger receipt has been copied to your clipboard." });
+                        }
+                      }}
+                      className="inline-flex items-center gap-2 text-sm font-semibold text-surface-tint"
                     >
-                      {nullifying ? "Processing..." : "Nullify Vote"}
-                    </Button>
+                      <Copy className="h-4 w-4" />
+                      Copy receipt
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="mb-6 flex flex-wrap items-center gap-3">
+                    <span className="rounded-full bg-secondary-container px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-on-secondary-container">
+                      Active ballot
+                    </span>
+                    <span className="text-xs font-semibold uppercase tracking-[0.16em] text-on-surface-variant">
+                      Ends {formatDistanceToNow(new Date(election.end_date), { addSuffix: true })}
+                    </span>
+                  </div>
+                  <h1 className="font-headline text-4xl font-extrabold text-primary md:text-5xl">
+                    {election.title}
+                  </h1>
+                  <p className="mt-4 max-w-3xl text-base leading-relaxed text-on-surface-variant">
+                    {election.description}
+                  </p>
+                </>
+              )}
+            </div>
+          </section>
+
+          <section className="grid gap-10 lg:grid-cols-12">
+            <div className="space-y-8 lg:col-span-7">
+              {needsKeypair && (
+                <div className="ledger-panel p-6">
+                  <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <h2 className="font-headline text-2xl font-bold text-primary">Unlock your ballot key</h2>
+                      <p className="mt-2 text-sm leading-relaxed text-on-surface-variant">
+                        Voting and nullification require the passkey-derived BabyJubJub keypair for this session.
+                      </p>
+                    </div>
+                    <button type="button" onClick={rederiveKeypair} className="ledger-button-primary" disabled={isDerivingKey}>
+                      {isDerivingKey ? <Loader2 className="h-4 w-4 animate-spin" /> : <Fingerprint className="h-4 w-4" />}
+                      {isDerivingKey ? "Deriving..." : "Unlock Passkey"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {!hasVoted ? (
+                <div className="ledger-panel p-8">
+                  <div className="flex flex-col gap-2">
+                    <h2 className="font-headline text-2xl font-bold text-primary">Cast your ballot</h2>
+                    <div className="h-1 w-12 rounded-full bg-surface-tint" />
+                  </div>
+
+                  <div className="mt-8 grid gap-4 sm:grid-cols-2">
+                    {[election.option1, election.option2].map((option, index) => {
+                      const selected = selectedOption === option;
+                      const count = index === 0 ? voteCounts.option1 : voteCounts.option2;
+                      const percentage = index === 0 ? option1Percentage : option2Percentage;
+                      return (
+                        <button
+                          key={option}
+                          type="button"
+                          onClick={() => setSelectedOption(option)}
+                          className={`rounded-[1.5rem] border p-6 text-left transition-all ${
+                            selected
+                              ? "border-surface-tint bg-primary-fixed shadow-[0_18px_36px_rgba(0,90,194,0.12)]"
+                              : "border-outline-variant/15 bg-surface-container-lowest hover:border-surface-tint/30"
+                          }`}
+                        >
+                          <span className="ledger-eyebrow">Option {index === 0 ? "A" : "B"}</span>
+                          <h3 className="mt-3 font-headline text-2xl font-bold text-primary">{option}</h3>
+                          <div className="mt-6 space-y-2">
+                            <div className="flex items-end justify-between">
+                              <span className="text-sm text-on-surface-variant">Current support</span>
+                              <span className="font-headline text-2xl font-extrabold text-surface-tint">{percentage}%</span>
+                            </div>
+                            <div className="h-3 rounded-full bg-surface-container">
+                              <div
+                                className="h-full rounded-full bg-gradient-to-r from-primary to-surface-tint"
+                                style={{ width: `${percentage}%` }}
+                              />
+                            </div>
+                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
+                              {count} verified vote{count === 1 ? "" : "s"}
+                            </p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {hasDelegated ? (
+                    <div className="mt-8 rounded-xl border border-blue-200 bg-blue-50 p-4">
+                      <p className="text-sm text-blue-800">
+                        <strong>You have delegated your vote.</strong> Your voting power has been
+                        privately transferred. The delegate will not know.
+                      </p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-3"
+                        onClick={handleRevokeDelegation}
+                      >
+                        Revoke Delegation
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="mt-8 flex flex-wrap gap-4">
+                      {isWorldIDVerified ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={handleVote}
+                            disabled={submitting || !selectedOption || needsKeypair || electionClosed}
+                            className="ledger-button-primary"
+                          >
+                            {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <VoteIcon className="h-4 w-4" />}
+                            {submitting ? "Broadcasting..." : "Commit Vote"}
+                          </button>
+                          <Button
+                            variant="outline"
+                            onClick={() => setShowDelegationDialog(true)}
+                            disabled={needsKeypair || electionClosed}
+                          >
+                            <Users className="mr-2 h-4 w-4" />
+                            Delegate Vote
+                          </Button>
+                        </>
+                      ) : (
+                        <button type="button" onClick={() => navigate("/dashboard")} className="ledger-button-primary">
+                          <ShieldCheck className="h-4 w-4" />
+                          Verify Identity First
+                        </button>
+                      )}
+                    </div>
                   )}
+                </div>
+              ) : (
+                <div className="space-y-8">
+                  <div className="ledger-panel p-6 md:p-8">
+                    <div className="flex flex-col gap-2">
+                      <h2 className="font-headline text-2xl font-bold text-primary">Submit a Nullification</h2>
+                      <div className="h-1 w-12 rounded-full bg-surface-tint" />
+                    </div>
+                    <p className="mt-5 leading-relaxed text-on-surface-variant">
+                      If you were coerced, use <strong className="text-primary">Actual Nullification</strong> to invalidate your vote. Use <strong className="text-primary">Dummy Nullification</strong> to simulate the same sequence and preserve plausible deniability.
+                    </p>
+
+                    <div className="mt-8 grid gap-4 sm:grid-cols-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowNullificationDialog(true)}
+                        className="group rounded-[1.5rem] border border-outline-variant/20 bg-surface-container-lowest p-8 transition-all hover:border-surface-tint/40"
+                      >
+                        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-surface-container-high transition-colors group-hover:bg-primary">
+                          <ShieldCheck className="h-8 w-8 text-on-surface-variant transition-colors group-hover:text-white" />
+                        </div>
+                        <h3 className="mt-5 font-headline text-xl font-bold text-primary">Actual Nullification</h3>
+                        <p className="mt-2 text-xs font-semibold uppercase tracking-[0.18em] text-outline">Type-0 protocol</p>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setShowNullificationDialog(true)}
+                        className="group rounded-[1.5rem] border border-outline-variant/20 bg-surface-container-lowest p-8 transition-all hover:border-surface-tint/40"
+                      >
+                        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-surface-container-high transition-colors group-hover:bg-primary">
+                          <Fingerprint className="h-8 w-8 text-on-surface-variant transition-colors group-hover:text-white" />
+                        </div>
+                        <h3 className="mt-5 font-headline text-xl font-bold text-primary">Dummy Nullification</h3>
+                        <p className="mt-2 text-xs font-semibold uppercase tracking-[0.18em] text-outline">Type-0 protocol</p>
+                      </button>
+                    </div>
+
+                    <div className="mt-8 rounded-[1.25rem] bg-tertiary-fixed/25 p-4">
+                      <p className="text-sm leading-relaxed text-on-surface-variant">
+                        <strong className="text-primary">Note:</strong> To a casual observer, actual and dummy nullifications trigger the same encrypted workflow and proof generation sequence.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
-          ) : (
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Cast Your Vote</h3>
-              <RadioGroup 
-                value={selectedOption}
-                onValueChange={setSelectedOption}
-                className="space-y-3"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value={election.option1} id="option1" />
-                  <Label htmlFor="option1">{election.option1}</Label>
+
+            <aside className="space-y-6 lg:col-span-5">
+              <div className="rounded-[2rem] bg-primary-container p-6 text-on-primary shadow-ledger-lg">
+                <h3 className="font-headline text-xl font-bold">Security Architecture</h3>
+                <ul className="mt-6 space-y-5 text-sm">
+                  <li className="flex gap-4">
+                    <ShieldCheck className="mt-0.5 h-5 w-5 text-primary-fixed-dim" />
+                    <div>
+                      <p className="font-semibold text-white">Zero-Knowledge Proofs</p>
+                      <p className="mt-1 text-white/72">Prove your right to nullify without revealing identity or vote selection.</p>
+                    </div>
+                  </li>
+                  <li className="flex gap-4">
+                    <Fingerprint className="mt-0.5 h-5 w-5 text-primary-fixed-dim" />
+                    <div>
+                      <p className="font-semibold text-white">k-Anonymity (k=6)</p>
+                      <p className="mt-1 text-white/72">Each nullification is mixed with decoys to obscure timing and intent.</p>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="ledger-panel p-6">
+                <p className="ledger-eyebrow">Election telemetry</p>
+                <div className="mt-5 space-y-5">
+                  <div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-on-surface-variant">Total verified votes</span>
+                      <span className="font-bold text-primary">{voteCounts.option1 + voteCounts.option2}</span>
+                    </div>
+                    <div className="mt-2 h-2 rounded-full bg-surface-container-high">
+                      <div className="h-full w-11/12 rounded-full bg-surface-tint" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="rounded-[1.25rem] bg-surface-container-low p-4">
+                      <p className="ledger-eyebrow">Participants</p>
+                      <p className="mt-2 font-headline text-3xl font-extrabold text-primary">{participants.length}</p>
+                    </div>
+                    <div className="rounded-[1.25rem] bg-surface-container-low p-4">
+                      <p className="ledger-eyebrow">Status</p>
+                      <p className="mt-2 font-headline text-2xl font-extrabold text-surface-tint">
+                        {electionClosed ? "Closed" : "Live"}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value={election.option2} id="option2" />
-                  <Label htmlFor="option2">{election.option2}</Label>
-                </div>
-              </RadioGroup>
-            </div>
-          )}
-        </CardContent>
-        
-        <CardFooter className="flex-col gap-4">
-          {/* Sign in prompt for unauthenticated users */}
-          {!isWorldIDVerified && !isElectionClosed && (
-            <div className="w-full text-center p-4 border rounded-lg bg-muted/50">
-              <p className="text-muted-foreground mb-3">
-                Sign in to vote in this election
-              </p>
-              <Button asChild>
-                <Link to="/dashboard">Authenticate with World ID</Link>
-              </Button>
-            </div>
-          )}
-          
-          {/* Vote button for authenticated users */}
-          {election && !isElectionClosed && !hasVoted && isWorldIDVerified && (
-            <Button 
-              className="w-full" 
-              disabled={!selectedOption || submitting || !keypair}
-              onClick={handleVote}
-            >
-              <VoteIcon className="mr-2 h-4 w-4" />
-              {submitting ? "Submitting..." : "Submit Vote"}
-            </Button>
-          )}
-        </CardFooter>
-      </Card>
+              </div>
+            </aside>
+          </section>
+        </div>
+      </div>
 
       <NullificationDialog
         open={showNullificationDialog}
         onOpenChange={setShowNullificationDialog}
-        onActualNullification={handleActualNullification}
-        onDummyNullification={handleDummyNullification}
+        onActualNullification={() => void performNullification(true)}
+        onDummyNullification={() => void performNullification(false)}
         isProcessing={nullifying}
       />
-
-      <KAnonymityProgressDialog
-        open={showProgressDialog}
-        progress={nullificationProgress}
+      <KAnonymityProgressDialog open={showProgressDialog} progress={nullificationProgress} />
+      <DelegationDialog
+        open={showDelegationDialog}
+        onOpenChange={setShowDelegationDialog}
+        participants={participants}
+        currentUserId={userId ?? ""}
+        onDelegate={handleDelegate}
+        isProcessing={isDelegating}
       />
-    </div>
+    </>
   );
 };
 

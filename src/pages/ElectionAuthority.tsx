@@ -1,12 +1,103 @@
+import React, { useEffect, useState } from "react";
+import {
+  BarChart3,
+  HelpCircle,
+  History,
+  LayoutDashboard,
+  LogOut,
+  ShieldCheck,
+  Vote,
+} from "lucide-react";
+import ElectionAuthorityLogin from "@/components/ElectionAuthorityLogin";
+import ElectionAuthorityDashboard from "@/components/ElectionAuthorityDashboard";
+import AuthorityElectionsList from "@/components/AuthorityElectionsList";
+import {
+  clearElectionAuthoritySession,
+  onAuthorityAuthStateChange,
+  validateElectionAuthoritySession,
+} from "@/services/electionAuthoritySessionService";
+import { getCurrentAuthority } from "@/services/electionAuthorityAuthService";
+import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
-import React, { useState, useEffect } from 'react';
-import ElectionAuthorityLogin from '@/components/ElectionAuthorityLogin';
-import ElectionAuthorityDashboard from '@/components/ElectionAuthorityDashboard';
-import AuthorityElectionsList from '@/components/AuthorityElectionsList';
-import { validateElectionAuthoritySession, clearElectionAuthoritySession } from '@/services/electionManagementService';
-import { Button } from '@/components/ui/button';
-import { LogOut, ArrowLeft } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+const AUTHORITY_NAV = [
+  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { id: "management", label: "Election Management", icon: Vote },
+  { id: "tally", label: "Tally Processing", icon: BarChart3 },
+  { id: "audit", label: "Audit Logs", icon: History },
+  { id: "security", label: "Security Settings", icon: ShieldCheck },
+];
+
+interface AuthorityShellProps {
+  authorityName: string;
+  activeItem: string;
+  onLogout: () => void;
+  children: React.ReactNode;
+}
+
+const AuthorityShell: React.FC<AuthorityShellProps> = ({
+  authorityName,
+  activeItem,
+  onLogout,
+  children,
+}) => {
+  return (
+    <div className="min-h-screen bg-background">
+      <aside className="fixed left-0 top-0 hidden h-screen w-72 border-r border-outline-variant/15 bg-slate-50 px-5 py-6 lg:flex lg:flex-col">
+        <div className="mb-10 px-2 pt-4">
+          <h1 className="text-lg font-black tracking-tight text-slate-900">Election Authority</h1>
+          <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.22em] text-surface-tint">
+            Secure Session Active
+          </p>
+        </div>
+
+        <div className="mb-8 rounded-[1.5rem] bg-primary-container p-4 text-on-primary">
+          <p className="ledger-eyebrow text-on-primary-container">Authenticated authority</p>
+          <p className="mt-2 font-headline text-xl font-bold text-white">{authorityName}</p>
+        </div>
+
+        <nav className="flex-1 space-y-1">
+          {AUTHORITY_NAV.map(({ id, label, icon: Icon }) => (
+            <div
+              key={id}
+              className={cn(
+                "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-transform duration-200",
+                activeItem === id
+                  ? "translate-x-1 bg-primary-fixed text-primary"
+                  : "text-on-surface-variant hover:translate-x-1 hover:bg-surface-container-low"
+              )}
+            >
+              <Icon className="h-4 w-4" />
+              {label}
+            </div>
+          ))}
+        </nav>
+
+        <div className="mt-auto space-y-3 border-t border-outline-variant/15 pt-4">
+          <button
+            type="button"
+            className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-container-low"
+          >
+            <HelpCircle className="h-4 w-4" />
+            Support
+          </button>
+          <button
+            type="button"
+            onClick={onLogout}
+            className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-error transition-colors hover:bg-error-container/60"
+          >
+            <LogOut className="h-4 w-4" />
+            Log Out
+          </button>
+        </div>
+      </aside>
+
+      <main className="px-4 py-8 lg:ml-72 lg:px-8">
+        <div className="mx-auto max-w-7xl">{children}</div>
+      </main>
+    </div>
+  );
+};
 
 const ElectionAuthority = () => {
   const [authorityId, setAuthorityId] = useState<string | null>(null);
@@ -16,21 +107,39 @@ const ElectionAuthority = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check if there's an existing valid session
-    const checkExistingSession = () => {
+    let cancelled = false;
+
+    const checkSession = async () => {
       try {
-        const sessionValidation = validateElectionAuthoritySession();
-        if (sessionValidation.valid && sessionValidation.authorityId) {
-          setAuthorityId(sessionValidation.authorityId);
+        const result = await validateElectionAuthoritySession();
+        if (!cancelled && result.valid && result.authorityId) {
+          setAuthorityId(result.authorityId);
+          const authority = await getCurrentAuthority();
+          if (authority && !cancelled) {
+            setAuthorityName(authority.authorityName);
+          }
         }
-      } catch (error) {
-        console.error('Error checking existing session:', error);
       } finally {
-        setIsCheckingSession(false);
+        if (!cancelled) {
+          setIsCheckingSession(false);
+        }
       }
     };
 
-    checkExistingSession();
+    void checkSession();
+
+    const unsubscribe = onAuthorityAuthStateChange((event) => {
+      if (event === "SIGNED_OUT") {
+        setAuthorityId(null);
+        setAuthorityName(null);
+        setSelectedElectionId(null);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, []);
 
   const handleLoginSuccess = (authId: string, authName: string) => {
@@ -38,8 +147,8 @@ const ElectionAuthority = () => {
     setAuthorityName(authName);
   };
 
-  const handleLogout = () => {
-    clearElectionAuthoritySession();
+  const handleLogout = async () => {
+    await clearElectionAuthoritySession();
     setAuthorityId(null);
     setAuthorityName(null);
     setSelectedElectionId(null);
@@ -49,61 +158,41 @@ const ElectionAuthority = () => {
     });
   };
 
-  const handleElectionSelect = (electionId: string) => {
-    setSelectedElectionId(electionId);
-  };
-
-  const handleBackToElectionsList = () => {
-    setSelectedElectionId(null);
-  };
-
   if (isCheckingSession) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg">Checking session...</div>
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="rounded-[2rem] border border-outline-variant/15 bg-surface-container-lowest px-8 py-10 text-center shadow-ledger">
+          <p className="ledger-eyebrow">Authority gateway</p>
+          <h1 className="mt-3 font-headline text-3xl font-bold text-primary">Checking session integrity</h1>
+        </div>
       </div>
     );
   }
 
-  // If not authenticated, show login
   if (!authorityId) {
     return <ElectionAuthorityLogin onLoginSuccess={handleLoginSuccess} />;
   }
 
-  // If authenticated but no election selected, show elections list
-  if (!selectedElectionId) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="bg-background shadow-sm border-b border-border">
-          <div className="container mx-auto py-4 px-4">
-            <div className="text-lg font-semibold">Election Authority Portal</div>
-          </div>
-        </div>
+  return (
+    <AuthorityShell
+      authorityName={authorityName || "Election Authority"}
+      activeItem={selectedElectionId ? "management" : "dashboard"}
+      onLogout={handleLogout}
+    >
+      {selectedElectionId ? (
+        <ElectionAuthorityDashboard
+          electionId={selectedElectionId}
+          authorityName={authorityName || "Election Authority"}
+          onBack={() => setSelectedElectionId(null)}
+        />
+      ) : (
         <AuthorityElectionsList
           authorityId={authorityId}
-          authorityName={authorityName || 'Election Authority'}
-          onElectionSelect={handleElectionSelect}
+          authorityName={authorityName || "Election Authority"}
+          onElectionSelect={setSelectedElectionId}
         />
-      </div>
-    );
-  }
-
-  // If election selected, show election management dashboard
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-background shadow-sm border-b border-border">
-        <div className="container mx-auto py-4 px-4 flex justify-between items-center">
-          <Button onClick={handleBackToElectionsList} variant="outline" size="sm">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Elections List
-          </Button>
-        </div>
-      </div>
-      <ElectionAuthorityDashboard
-        electionId={selectedElectionId}
-        onLogout={handleLogout}
-      />
-    </div>
+      )}
+    </AuthorityShell>
   );
 };
 

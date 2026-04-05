@@ -15,6 +15,7 @@ const PRF_DOMAIN_SALT = new TextEncoder().encode("votex:bjj:v1");
 
 // Storage key for credential ID
 const CREDENTIAL_STORAGE_KEY = "votex:passkey:credentialId";
+const LOOPBACK_IP_HOSTS = new Set(["127.0.0.1", "::1", "[::1]"]);
 
 export interface PasskeyCredential {
   credentialId: string;  // Base64 encoded credential ID
@@ -60,6 +61,20 @@ function base64ToBuffer(base64: string): ArrayBuffer {
  */
 function generateChallenge(): Uint8Array {
   return crypto.getRandomValues(new Uint8Array(32));
+}
+
+function getLoopbackLocalhostUrl(): string {
+  const { protocol, port, pathname, search, hash } = window.location;
+  const portSuffix = port ? `:${port}` : "";
+  return `${protocol}//localhost${portSuffix}${pathname}${search}${hash}`;
+}
+
+function assertSupportedWebAuthnOrigin(): void {
+  if (LOOPBACK_IP_HOSTS.has(window.location.hostname)) {
+    throw new Error(
+      `Passkeys require the local app to be opened on localhost. Open ${getLoopbackLocalhostUrl()} and try again.`
+    );
+  }
 }
 
 /**
@@ -135,6 +150,8 @@ export function clearStoredCredential(): void {
  * @throws Error if creation fails or PRF is not supported
  */
 export async function createPasskeyCredential(userId: Uint8Array): Promise<string> {
+  assertSupportedWebAuthnOrigin();
+
   const support = await checkPasskeySupport();
   if (!support.webauthnSupported) {
     throw new Error("WebAuthn is not supported on this device");
@@ -166,6 +183,7 @@ export async function createPasskeyCredential(userId: Uint8Array): Promise<strin
       { type: "public-key", alg: -257 }  // RS256 fallback
     ],
     authenticatorSelection: {
+      authenticatorAttachment: "platform",
       residentKey: "required",
       userVerification: "required"
     },
@@ -232,6 +250,8 @@ export async function createPasskeyCredential(userId: Uint8Array): Promise<strin
  * @throws Error if authentication fails or PRF is not supported
  */
 export async function deriveSecretFromPasskey(credentialId: string): Promise<PRFResult> {
+  assertSupportedWebAuthnOrigin();
+
   const challenge = generateChallenge();
   const credentialIdBuffer = base64ToBuffer(credentialId);
 
@@ -323,6 +343,8 @@ export async function deriveSecretFromPasskey(credentialId: string): Promise<PRF
  * @throws Error if authentication fails or is cancelled
  */
 export async function authenticateWithAnyPasskey(): Promise<PRFResult> {
+  assertSupportedWebAuthnOrigin();
+
   const challenge = generateChallenge();
 
   // Create proper ArrayBuffer for challenge
@@ -402,6 +424,29 @@ export async function authenticateWithAnyPasskey(): Promise<PRFResult> {
     }
     throw error;
   }
+}
+
+/**
+ * Prefer the last successfully used credential on this device, then fall back
+ * to the browser's discoverable-credential picker when needed.
+ */
+export async function authenticateWithPreferredPasskey(): Promise<PRFResult> {
+  const storedCredentialId = getStoredCredentialId();
+
+  if (storedCredentialId) {
+    try {
+      return await deriveSecretFromPasskey(storedCredentialId);
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        (error.message.includes("cancelled") || error.message.includes("timed out"))
+      ) {
+        throw error;
+      }
+    }
+  }
+
+  return await authenticateWithAnyPasskey();
 }
 
 /**

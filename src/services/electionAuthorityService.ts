@@ -269,13 +269,7 @@ export async function initializeDefaultElectionAuthority(): Promise<void> {
     );
     
     if (!defaultExists) {
-      await createElectionAuthorityWithPublicKey(
-        "Default Election Authority",
-        "Primary election authority for the platform",
-        "5299619240641551281634865583518297030282874472190772894086521144482721001553",
-        "16950150798460657717958625567821834550301663161624707787222815936182638968203"
-      );
-      logger.debug("Default election authority created successfully");
+      logger.warn("Default election authority is missing; expected to be bootstrapped by database migrations");
     } else {
       logger.debug("Default election authority already exists");
     }

@@ -3,54 +3,73 @@ import { supabase } from "@/integrations/supabase/client";
 import { EdwardsPoint } from '@/services/elGamalService';
 import { logger } from '@/services/logger';
 
-// Generate and store discrete log lookup table in Supabase
+// Generate and store discrete log lookup table in Supabase.
+// If the table already has entries but fewer than needed (e.g. initialized
+// with maxValue=2 for nullification but now delegation needs higher values),
+// the table is extended with the missing entries.
 export async function initializeDiscreteLogTable(maxValue: number = 100): Promise<boolean> {
   try {
     logger.debug(`Initializing discrete log table with max value: ${maxValue}`);
-    
-    // Check if table is already populated
-    const { data: existingData, error: checkError } = await supabase
+
+    // Find the current highest value in the table
+    const { data: maxRow, error: checkError } = await supabase
       .from('discrete_log_lookup')
       .select('discrete_log_value')
-      .limit(1);
-      
+      .order('discrete_log_value', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
     if (checkError) {
       logger.error('Error checking discrete log table:', checkError);
       return false;
     }
-    
-    if (existingData && existingData.length > 0) {
-      logger.debug('Discrete log table already initialized');
+
+    const currentMax = maxRow?.discrete_log_value ?? -1;
+
+    if (currentMax >= maxValue) {
+      logger.debug(`Discrete log table already covers 0..${currentMax} (need ${maxValue})`);
       return true;
     }
-    
-    // Generate the lookup table data
+
+    // Compute entries from (currentMax + 1) up to maxValue
+    const startFrom = currentMax + 1;
     const G = EdwardsPoint.base();
-    let current = EdwardsPoint.identity(); // Identity element (0*G)
+
+    // Compute startFrom * G by multiplying (avoids replaying the full chain)
+    let current =
+      startFrom === 0
+        ? EdwardsPoint.identity()
+        : G.multiply(BigInt(startFrom));
+
     const entries = [];
-    
-    for (let n = 0; n <= maxValue; n++) {
+
+    for (let n = startFrom; n <= maxValue; n++) {
       entries.push({
         point_string: current.toString(),
         discrete_log_value: n
       });
-      
+
       if (n < maxValue) {
         current = current.add(G);
       }
     }
-    
-    // Insert all entries into the database
+
+    if (entries.length === 0) {
+      return true;
+    }
+
     const { error: insertError } = await supabase
       .from('discrete_log_lookup')
       .insert(entries);
-      
+
     if (insertError) {
       logger.error('Error inserting discrete log entries:', insertError);
       return false;
     }
-    
-    logger.debug(`Successfully initialized discrete log table with ${entries.length} entries`);
+
+    logger.debug(
+      `Extended discrete log table: added entries ${startFrom}..${maxValue} (${entries.length} new)`
+    );
     return true;
   } catch (error) {
     logger.error('Error in initializeDiscreteLogTable:', error);

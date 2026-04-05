@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@400;600;700;800&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -5,70 +6,120 @@
 
 @layer base {
   :root {
-    --background: 230 25% 10%;
-    --foreground: 210 40% 98%;
+    --background: 210 33% 98%;
+    --foreground: 200 9% 11%;
 
-    --card: 230 25% 15%;
-    --card-foreground: 210 40% 98%;
+    --card: 0 0% 100%;
+    --card-foreground: 200 9% 11%;
 
-    --popover: 230 25% 15%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 200 9% 11%;
 
-    --primary: 266 73% 66%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 217 100% 11%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 212 18% 38%;
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 210 14% 93%;
+    --muted-foreground: 210 5% 45%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 210 14% 93%;
+    --accent-foreground: 217 100% 11%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 75% 42%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 266 73% 66%;
+    --border: 220 8% 78%;
+    --input: 220 8% 78%;
+    --ring: 212 100% 38%;
 
-    --radius: 0.5rem;
+    --radius: 1rem;
+
+    --sidebar-background: 210 33% 98%;
+    --sidebar-foreground: 200 9% 11%;
+    --sidebar-primary: 217 100% 11%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 14% 93%;
+    --sidebar-accent-foreground: 217 100% 11%;
+    --sidebar-border: 220 8% 78%;
+    --sidebar-ring: 212 100% 38%;
   }
-}
 
-@layer base {
   * {
     @apply border-border;
   }
 
+  html {
+    @apply scroll-smooth;
+  }
+
   body {
-    @apply bg-background text-foreground;
+    @apply min-h-screen bg-background font-body text-foreground antialiased;
+    background-image:
+      radial-gradient(circle at top left, rgba(173, 198, 255, 0.35), transparent 28%),
+      radial-gradient(circle at bottom right, rgba(210, 228, 251, 0.55), transparent 32%),
+      linear-gradient(180deg, #fbfcfd 0%, #f7f9fb 100%);
+  }
+
+  a {
+    @apply transition-colors;
   }
 }
 
 @layer components {
-  .crypto-card {
-    @apply bg-card rounded-lg border border-border p-5 transition-all hover:shadow-md;
+  .ledger-shell {
+    @apply min-h-screen bg-background text-foreground;
+    background-image:
+      radial-gradient(circle at top left, rgba(173, 198, 255, 0.35), transparent 28%),
+      radial-gradient(circle at bottom right, rgba(210, 228, 251, 0.55), transparent 32%),
+      linear-gradient(180deg, #fbfcfd 0%, #f7f9fb 100%);
   }
-  
-  .crypto-gradient-text {
-    @apply bg-gradient-crypto bg-clip-text text-transparent;
+
+  .ledger-topbar {
+    @apply sticky top-0 z-50 border-b border-outline-variant bg-white/80 backdrop-blur-xl;
   }
-  
-  .connect-button {
-    @apply relative overflow-hidden bg-gradient-crypto rounded-lg px-6 py-2 
-           font-medium text-white shadow-md transition-all
-           hover:shadow-lg hover:animate-pulse-glow;
+
+  .ledger-panel {
+    @apply rounded-[2rem] border border-outline-variant bg-surface-container-lowest shadow-ledger;
   }
-  
-  .vote-button-yes {
-    @apply bg-crypto-green text-white px-4 py-2 rounded-lg font-medium 
-           transition-all hover:opacity-90;
+
+  .ledger-subpanel {
+    @apply rounded-[1.5rem] border border-outline-variant bg-surface-container-low p-5;
   }
-  
-  .vote-button-no {
-    @apply bg-crypto-red text-white px-4 py-2 rounded-lg font-medium 
-           transition-all hover:opacity-90;
+
+  .ledger-glass {
+    background: rgba(255, 255, 255, 0.82);
+    backdrop-filter: blur(24px);
+  }
+
+  .ledger-grid-glow {
+    background-image:
+      radial-gradient(circle at top left, rgba(173, 198, 255, 0.45), transparent 32%),
+      radial-gradient(circle at bottom right, rgba(225, 194, 155, 0.28), transparent 28%);
+  }
+
+  .ledger-badge {
+    @apply inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em];
+  }
+
+  .ledger-eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-[0.18em] text-on-surface-variant;
+  }
+
+  .ledger-divider {
+    @apply h-px w-full bg-outline-variant;
+  }
+
+  .ledger-button-primary {
+    @apply inline-flex items-center gap-2 rounded-full bg-gradient-to-br from-primary to-primary-container px-5 py-3 text-sm font-semibold text-white shadow-ledger transition-all hover:brightness-110 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .ledger-button-secondary {
+    @apply inline-flex items-center gap-2 rounded-full border border-outline-variant bg-surface-container-high px-5 py-3 text-sm font-semibold text-on-surface transition-all hover:bg-surface-container-highest active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .ledger-input {
+    @apply rounded-xl border border-outline-variant bg-surface-container-low px-4 py-3 text-sm text-on-surface placeholder:text-on-surface-variant focus:border-surface-tint focus:outline-none focus:ring-2 focus:ring-surface-tint;
   }
 }

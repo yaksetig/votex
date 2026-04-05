@@ -9,7 +9,13 @@ export interface AuditLogEntry {
   details?: Json;
 }
 
-// Log election authority actions for audit trail
+/**
+ * Log an election authority action for the audit trail.
+ *
+ * `electionId` may be a UUID (for election-specific actions) or 'GLOBAL'
+ * for system-level events such as AUTHENTICATION.  'GLOBAL' is stored as
+ * NULL in the database because the column is UUID-typed.
+ */
 export async function logElectionAuthorityAction(
   electionId: string,
   action: string,
@@ -17,12 +23,22 @@ export async function logElectionAuthorityAction(
   details?: Json
 ): Promise<void> {
   try {
+    // Resolve the current auth user id (may be null if called before sign-in completes)
+    let authUserId: string | null = null;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      authUserId = session?.user?.id ?? null;
+    } catch {
+      // best-effort — don't block the audit write
+    }
+
     const { error } = await supabase
       .from('election_authority_audit_log')
       .insert({
-        election_id: electionId,
+        election_id: electionId === 'GLOBAL' ? null : electionId,
         action,
         performed_by: performedBy,
+        auth_user_id: authUserId,
         details
       });
 

@@ -1,6 +1,4 @@
 import { supabase } from "@/integrations/supabase/client";
-import { getElectionAuthorityForElection } from "@/services/electionAuthorityService";
-import { updateVoteNullification } from "@/services/voteTrackingService";
 import {
   decryptElGamalInExponent,
   ensureDiscreteLogTable,
@@ -9,12 +7,15 @@ import {
   getElectionAccumulators,
   accumulatorToCiphertext,
 } from "@/services/accumulatorService";
+import { resolveDelegations } from "@/services/delegationService";
+import { getElectionParticipants } from "@/services/electionParticipantsService";
 import { logger } from "@/services/logger";
 
 export interface TallyResult {
   userId: string;
   nullificationCount: number;
   voteNullified: boolean;
+  voteWeight: number;
 }
 
 export interface ElectionTallyResult {
@@ -35,48 +36,36 @@ export async function processElectionTally(
   try {
     logger.debug(`Processing election tally for election: ${electionId}`);
 
-    // Ensure discrete log table has at least 0 and 1
-    const tableInitialized = await ensureDiscreteLogTable(2);
+    // Ensure discrete log table covers nullification (0/1) plus delegation
+    // indices (up to participant count).
+    const participants = await getElectionParticipants(electionId);
+    const minTableSize = Math.max(2, participants.length);
+    const tableInitialized = await ensureDiscreteLogTable(minTableSize);
     if (!tableInitialized) {
       logger.error("Failed to initialize discrete log table");
       return null;
     }
 
-    // Fetch all XOR accumulators for this election
+    // --- Phase 1: Nullification processing ---
     const accumulators = await getElectionAccumulators(electionId);
     logger.debug(
       `Found ${accumulators.length} voter accumulators for election`
     );
 
     const privateKey = BigInt(authorityPrivateKey);
-    const results: TallyResult[] = [];
+    const nullificationMap = new Map<string, { count: number; nullified: boolean }>();
 
     for (const acc of accumulators) {
       const ciphertext = accumulatorToCiphertext(acc);
-
-      // Decrypt accumulator -> should be 0 or 1
       const decryptedValue = await decryptElGamalInExponent(
         ciphertext,
         privateKey
       );
 
-      // With XOR accumulator, the decrypted value is:
-      //   0 = vote valid (even number of actual nullifications)
-      //   1 = vote nullified (odd number of actual nullifications)
       const voteNullified = decryptedValue === 1;
-
-      // Update the vote tracking tables
-      await updateVoteNullification(
-        electionId,
-        acc.voter_id,
-        decryptedValue ?? 0,
-        voteNullified
-      );
-
-      results.push({
-        userId: acc.voter_id,
-        nullificationCount: decryptedValue ?? 0,
-        voteNullified,
+      nullificationMap.set(acc.voter_id, {
+        count: decryptedValue ?? 0,
+        nullified: voteNullified,
       });
 
       logger.debug(
@@ -84,7 +73,16 @@ export async function processElectionTally(
       );
     }
 
-    // Also handle voters who have no accumulator (never nullified)
+    // --- Phase 2: Delegation resolution ---
+    const { weightMap, delegatorIds } = await resolveDelegations(
+      electionId,
+      privateKey
+    );
+    logger.debug(
+      `Resolved ${delegatorIds.size} delegations across ${weightMap.size} delegates`
+    );
+
+    // --- Phase 3: Build final results ---
     const { data: yesVotes } = await supabase
       .from("yes_votes")
       .select("voter_id")
@@ -99,20 +97,45 @@ export async function processElectionTally(
       ...(noVotes?.map((v) => v.voter_id) || []),
     ];
     const uniqueVoters = [...new Set(allVoterIds)];
-    const processedVoterIds = new Set(accumulators.map((a) => a.voter_id));
+
+    const results: TallyResult[] = [];
 
     for (const voterId of uniqueVoters) {
-      if (!processedVoterIds.has(voterId)) {
-        // No accumulator means no nullifications -> vote is valid
+      const nullInfo = nullificationMap.get(voterId);
+      const voteNullified = nullInfo?.nullified ?? false;
+
+      // Delegators' direct votes are ignored — their power transferred
+      const isDelegator = delegatorIds.has(voterId);
+
+      // Delegates get extra weight from their delegators
+      const weight = isDelegator ? 0 : (weightMap.get(voterId) ?? 1);
+
+      results.push({
+        userId: voterId,
+        nullificationCount: nullInfo?.count ?? 0,
+        voteNullified: voteNullified || isDelegator,
+        voteWeight: weight,
+      });
+    }
+
+    // Include delegators who didn't vote directly (they have no
+    // yes_votes/no_votes row but should appear in the tally as delegated)
+    for (const delegatorId of delegatorIds) {
+      if (!uniqueVoters.includes(delegatorId)) {
         results.push({
-          userId: voterId,
+          userId: delegatorId,
           nullificationCount: 0,
-          voteNullified: false,
+          voteNullified: true, // their power was delegated away
+          voteWeight: 0,
         });
       }
     }
 
-    await storeTallyResults(electionId, results, processedBy);
+    const stored = await storeTallyResults(electionId, results, processedBy);
+    if (!stored) {
+      logger.error("Failed to persist tally results through the authority write path");
+      return null;
+    }
 
     return {
       electionId,
@@ -135,23 +158,34 @@ async function storeTallyResults(
   try {
     logger.debug(`Storing tally results for election: ${electionId}`);
 
-    const tallyData = results.map((result) => ({
-      election_id: electionId,
-      user_id: result.userId,
-      nullification_count: result.nullificationCount,
-      vote_nullified: result.voteNullified,
-      processed_by: processedBy || null,
-    }));
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
-    const { error } = await supabase
-      .from("election_tallies")
-      .upsert(tallyData, {
-        onConflict: "election_id,user_id",
-        ignoreDuplicates: false,
-      });
+    if (!session?.access_token) {
+      logger.error("Cannot persist tally results without an authenticated authority session");
+      return false;
+    }
+
+    const { data, error } = await supabase.functions.invoke("authority-tally-write", {
+      body: {
+        action: "store-results",
+        electionId,
+        processedBy: processedBy || null,
+        results,
+      },
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+      },
+    });
 
     if (error) {
       logger.error("Error storing tally results:", error);
+      return false;
+    }
+
+    if (data?.error) {
+      logger.error("Authority tally write was rejected:", data.error);
       return false;
     }
 
@@ -185,6 +219,7 @@ export async function getElectionTallyResults(
       userId: item.user_id,
       nullificationCount: item.nullification_count,
       voteNullified: item.vote_nullified,
+      voteWeight: item.vote_weight ?? 1,
     }));
   } catch (error) {
     logger.error("Error in getElectionTallyResults:", error);

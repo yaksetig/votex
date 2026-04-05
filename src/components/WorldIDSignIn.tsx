@@ -1,241 +1,469 @@
-/**
- * Unified World ID Sign In Component
- * 
- * Single entry point for all users:
- * - Returning users: World ID verification → signed in
- * - New users: World ID verification → passkey creation → registration complete
- */
-
-import React, { useState } from 'react';
-import { IDKitWidget, ISuccessResult } from '@worldcoin/idkit';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from "react";
+import { IDKitWidget, ISuccessResult } from "@worldcoin/idkit";
+import { useNavigate } from "react-router-dom";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Fingerprint,
+  HelpCircle,
+  KeyRound,
+  Loader2,
+  ShieldCheck,
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useWallet } from '@/contexts/WalletContext';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Shield, Loader2, AlertTriangle, Key, CheckCircle } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { authenticateWithAnyPasskey, createPasskeyCredential } from '@/services/passkeyService';
-import { deriveKeypairFromSecret, hashPublicKeyForSignal, publicKeyToStrings } from '@/services/deterministicKeyService';
+import { useWallet } from "@/contexts/WalletContext";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  authenticateWithPreferredPasskey,
+  createPasskeyCredential,
+  deriveSecretFromPasskey,
+} from "@/services/passkeyService";
+import {
+  deriveKeypairFromSecret,
+  hashPublicKeyForSignal,
+  publicKeyToStrings,
+  verifyDerivedKeypair,
+} from "@/services/deterministicKeyService";
+import { createWorldIdSession } from "@/services/worldIdSessionService";
 
-type SignInStep = 'ready' | 'verifying' | 'checking' | 'needs-passkey' | 'creating-passkey' | 'registering' | 'complete' | 'error';
+type SignInStep =
+  | "ready"
+  | "checking"
+  | "needs-passkey"
+  | "needs-existing-passkey"
+  | "authenticating"
+  | "creating-passkey"
+  | "registering"
+  | "complete"
+  | "error";
+
+type RegistrationMode = "new" | "existing" | null;
+
+const WORLD_ID_APP_ID = "app_e2fd2f8c99430ab200a093278e801c57";
 
 const WorldIDSignIn: React.FC = () => {
-  const [step, setStep] = useState<SignInStep>('ready');
+  const [step, setStep] = useState<SignInStep>("ready");
   const [error, setError] = useState<string | null>(null);
   const [worldIdProof, setWorldIdProof] = useState<ISuccessResult | null>(null);
-  
+  const [registrationMode, setRegistrationMode] = useState<RegistrationMode>(null);
   const { toast } = useToast();
-  const { setIsWorldIDVerified, setUserId, setJustVerified, setDerivedPublicKey } = useWallet();
+  const {
+    setDerivedPublicKey,
+    setIsWorldIDVerified,
+    setJustVerified,
+    setUserId,
+  } = useWallet();
   const navigate = useNavigate();
 
-  // Handle World ID verification success
+  const completeSession = async (
+    nullifierHash: string,
+    prfSecret: ArrayBuffer,
+    bootstrapVerifier: boolean,
+    publicKey?: { x: string; y: string }
+  ) => {
+    const session = await createWorldIdSession(
+      nullifierHash,
+      prfSecret,
+      bootstrapVerifier
+    );
+
+    localStorage.setItem("worldid-user", session.userId);
+    setUserId(session.userId);
+    setIsWorldIDVerified(true);
+    setJustVerified(true);
+    if (publicKey) {
+      setDerivedPublicKey(publicKey);
+    }
+  };
+
+  const handleReturningUserAuthentication = async (result: ISuccessResult) => {
+    setStep("authenticating");
+
+    const prfResult = await authenticateWithPreferredPasskey();
+    const keypair = await deriveKeypairFromSecret(prfResult.secret);
+
+    if (!verifyDerivedKeypair(keypair)) {
+      throw new Error("Derived keypair failed validation");
+    }
+
+    const publicKey = publicKeyToStrings(keypair.pk);
+    await completeSession(result.nullifier_hash, prfResult.secret, false, publicKey);
+
+    toast({
+      title: "Secure session restored",
+      description: "World ID and passkey authentication completed successfully.",
+    });
+
+    navigate("/elections", { replace: true });
+  };
+
   const handleWorldIDSuccess = async (result: ISuccessResult) => {
-    setStep('checking');
-    console.log("World ID verification successful, checking for existing registration...");
-    
+    setStep("checking");
+    setError(null);
+    setWorldIdProof(result);
+
     try {
-      // Look up nullifier_hash in world_id_keypairs
       const { data, error: queryError } = await supabase
-        .from('world_id_keypairs')
-        .select('nullifier_hash, public_key_x, public_key_y')
-        .eq('nullifier_hash', result.nullifier_hash)
-        .single();
-      
-      if (queryError || !data) {
-        // New user - need to create passkey
-        console.log("New user detected, prompting for passkey creation");
-        setWorldIdProof(result);
-        setStep('needs-passkey');
+        .from("world_id_keypairs")
+        .select("nullifier_hash")
+        .eq("nullifier_hash", result.nullifier_hash)
+        .maybeSingle();
+
+      if (queryError) {
+        throw queryError;
+      }
+
+      if (!data) {
+        setRegistrationMode("new");
+        setStep("needs-passkey");
+        toast({
+          title: "World ID confirmed",
+          description: "Create a passkey to finish registration and unlock voting.",
+        });
         return;
       }
-      
-      // Returning user - sign them in
-      console.log("Found existing registration, signing in...");
-      localStorage.setItem('worldid-user', result.nullifier_hash);
-      setUserId(result.nullifier_hash);
-      setIsWorldIDVerified(true);
-      setJustVerified(true);
-      
+
+      setRegistrationMode("existing");
+      setStep("needs-existing-passkey");
       toast({
-        title: "Welcome back!",
-        description: "Authenticate with your passkey when you're ready to vote.",
+        title: "Identity found",
+        description: "Use the passkey already bound to this voting identity.",
       });
-      
-      navigate('/elections');
-      
     } catch (err) {
-      console.error("Sign in error:", err);
-      setError(err instanceof Error ? err.message : "Failed to sign in");
-      setStep('error');
+      const message =
+        err instanceof Error ? err.message : "Failed to verify World ID session";
+      setError(message);
+      setStep("error");
     }
   };
 
-  // Handle passkey creation for new users
-  const handleCreatePasskey = async () => {
-    if (!worldIdProof) return;
-    
-    setStep('creating-passkey');
-    
+  const handleUseExistingPasskey = async () => {
+    if (!worldIdProof) {
+      return;
+    }
+
+    setError(null);
+
     try {
-      // Try to authenticate with existing passkey first, or create new one
-      let prfResult;
-      try {
-        prfResult = await authenticateWithAnyPasskey();
-      } catch {
-        // No existing passkey, create one
-        const userIdBytes = new TextEncoder().encode(worldIdProof.nullifier_hash);
-        await createPasskeyCredential(userIdBytes);
-        prfResult = await authenticateWithAnyPasskey();
-      }
-      
-      // Derive keypair
-      const keypair = await deriveKeypairFromSecret(prfResult.secret);
-      const pkStrings = publicKeyToStrings(keypair.pk);
-      const signal = await hashPublicKeyForSignal(keypair.pk);
-      
-      setStep('registering');
-      
-      // Register with backend
-      const { error: regError } = await supabase.functions.invoke('register-keypair', {
-        body: {
-          pk: pkStrings,
-          worldIdProof: worldIdProof,
-          signal: signal
-        }
-      });
-      
-      if (regError) throw regError;
-      
-      // Success - set up session
-      localStorage.setItem('worldid-user', worldIdProof.nullifier_hash);
-      setUserId(worldIdProof.nullifier_hash);
-      setIsWorldIDVerified(true);
-      setJustVerified(true);
-      setDerivedPublicKey(pkStrings);
-      
-      setStep('complete');
-      
-      toast({
-        title: "Registration complete!",
-        description: "You're ready to vote.",
-      });
-      
-      setTimeout(() => navigate('/elections'), 1500);
-      
+      await handleReturningUserAuthentication(worldIdProof);
     } catch (err) {
-      console.error("Passkey creation error:", err);
-      setError(err instanceof Error ? err.message : "Failed to create passkey");
-      setStep('error');
+      const message =
+        err instanceof Error ? err.message : "Failed to authenticate with the existing passkey";
+      setError(message);
+      setStep("error");
     }
   };
 
-  // Handle World ID error
-  const handleWorldIDError = (error: { code: string; detail?: string }) => {
-    console.error("World ID error:", error);
-    setError(error.detail || error.code || "World ID verification failed");
-    setStep('error');
+  const handleCreatePasskey = async () => {
+    if (!worldIdProof) {
+      return;
+    }
+
+    setStep("creating-passkey");
+    setError(null);
+
+    try {
+      let prfResult;
+      const userIdBytes = new TextEncoder().encode(worldIdProof.nullifier_hash);
+
+      try {
+        const credentialId = await createPasskeyCredential(userIdBytes);
+        prfResult = await deriveSecretFromPasskey(credentialId);
+      } catch (createError) {
+        if (
+          createError instanceof Error &&
+          createError.message === "A passkey already exists for this account"
+        ) {
+          prfResult = await authenticateWithPreferredPasskey();
+        } else {
+          throw createError;
+        }
+      }
+
+      const keypair = await deriveKeypairFromSecret(prfResult.secret);
+      if (!verifyDerivedKeypair(keypair)) {
+        throw new Error("Derived keypair failed validation");
+      }
+
+      const publicKey = publicKeyToStrings(keypair.pk);
+      const signal = await hashPublicKeyForSignal(keypair.pk);
+
+      setStep("registering");
+
+      const { data, error: registerError } = await supabase.functions.invoke(
+        "register-keypair",
+        {
+          body: {
+            action: "registration",
+            pk: publicKey,
+            signal,
+            worldIdProof: {
+              merkle_root: worldIdProof.merkle_root,
+              nullifier_hash: worldIdProof.nullifier_hash,
+              proof: worldIdProof.proof,
+              verification_level: worldIdProof.verification_level,
+            },
+          },
+        }
+      );
+
+      if (registerError) {
+        throw registerError;
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      await completeSession(worldIdProof.nullifier_hash, prfResult.secret, true, publicKey);
+      setStep("complete");
+
+      toast({
+        title: "Identity registration complete",
+        description: "Your passkey-backed voting identity is ready.",
+      });
+
+      window.setTimeout(() => {
+        navigate("/success", { replace: true });
+      }, 1200);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to create passkey session";
+      setError(message);
+      setStep("error");
+    }
   };
 
-  if (step === 'error') {
-    return (
-      <Card className="max-w-md mx-auto">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-destructive">
-            <AlertTriangle className="h-5 w-5" />
-            Error
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Alert variant="destructive">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-          <Button onClick={() => { setError(null); setStep('ready'); }} className="w-full">
-            Try Again
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
+  const handleWorldIDError = (worldIdError: { code: string; detail?: string }) => {
+    setError(worldIdError.detail || worldIdError.code || "World ID verification failed");
+    setStep("error");
+  };
 
-  if (step === 'complete') {
-    return (
-      <Card className="max-w-md mx-auto">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-primary">
-            <CheckCircle className="h-5 w-5" />
-            Registration Complete
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">Redirecting to elections...</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (step === 'needs-passkey') {
-    return (
-      <Card className="max-w-md mx-auto">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Key className="h-5 w-5 text-primary" />
-            Complete Registration
-          </CardTitle>
-          <CardDescription>
-            Create a passkey to secure your identity and enable voting.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button onClick={handleCreatePasskey} size="lg" className="w-full" variant="gradient">
-            <Key className="mr-2 h-4 w-4" />
-            Create Passkey
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
+  const stepOneComplete =
+    step === "needs-existing-passkey" ||
+    step === "needs-passkey" ||
+    step === "creating-passkey" ||
+    step === "registering" ||
+    step === "complete";
+  const showWorldIdButton = step === "ready" || (step === "error" && !worldIdProof);
+  const stepTwoEnabled =
+    step === "needs-existing-passkey" ||
+    step === "needs-passkey" ||
+    step === "creating-passkey" ||
+    step === "registering" ||
+    step === "complete" ||
+    (step === "error" && !!worldIdProof);
+  const isExistingRegistrationFlow = registrationMode === "existing";
 
   return (
-    <Card className="max-w-md mx-auto">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Shield className="h-5 w-5 text-primary" />
-          Sign in with World ID
-        </CardTitle>
-        <CardDescription>
-          Verify your identity to access elections.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {step === 'ready' && (
-          <IDKitWidget
-            app_id="app_e2fd2f8c99430ab200a093278e801c57"
-            action="registration"
-            onSuccess={handleWorldIDSuccess}
-            onError={handleWorldIDError}
-            autoClose
-          >
-            {({ open }) => (
-              <Button onClick={open} size="lg" className="w-full" variant="gradient">
-                <Shield className="mr-2 h-4 w-4" />
-                Verify with World ID
-              </Button>
-            )}
-          </IDKitWidget>
-        )}
+    <div className="relative flex min-h-[calc(100vh-72px)] items-center justify-center overflow-hidden px-4 py-8 sm:px-6">
+      <div className="absolute inset-0 ledger-grid-glow opacity-80" />
 
-        {(step === 'verifying' || step === 'checking' || step === 'creating-passkey' || step === 'registering') && (
-          <Button disabled size="lg" className="w-full">
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            {step === 'checking' && "Checking registration..."}
-            {step === 'creating-passkey' && "Creating passkey..."}
-            {step === 'registering' && "Completing registration..."}
-          </Button>
-        )}
-      </CardContent>
-    </Card>
+      <div className="relative z-10 w-full max-w-5xl">
+        <div className="text-center">
+          <span className="ledger-badge bg-secondary-container text-on-secondary-container">
+            <ShieldCheck className="h-4 w-4" />
+            Secure voting portal
+          </span>
+          <h1 className="mt-6 font-headline text-4xl font-extrabold tracking-tight text-primary md:text-6xl">
+            Verify Your <span className="text-surface-tint">Identity.</span>
+          </h1>
+          <p className="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-on-surface-variant">
+            Access your ballot through decentralized proof-of-personhood and a passkey-derived cryptographic identity.
+          </p>
+        </div>
+
+        <div className="mx-auto mt-10 max-w-2xl space-y-4">
+          {error && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          <section className="ledger-panel relative overflow-hidden p-8">
+            <div className="absolute right-0 top-0 p-6 opacity-[0.06]">
+              <Fingerprint className="h-28 w-28" />
+            </div>
+
+            <div className="relative z-10">
+              <div className="mb-6 flex items-center gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-on-primary font-headline font-bold">
+                  1
+                </div>
+                <div>
+                  <h2 className="font-headline text-2xl font-bold text-primary">
+                    Authenticate via World ID
+                  </h2>
+                  <p className="text-sm text-on-surface-variant">
+                    Verify that you are a unique human participant.
+                  </p>
+                </div>
+              </div>
+
+              {showWorldIdButton ? (
+                <IDKitWidget
+                  app_id={WORLD_ID_APP_ID}
+                  action="registration"
+                  onSuccess={handleWorldIDSuccess}
+                  onError={handleWorldIDError}
+                  autoClose
+                >
+                  {({ open }) => (
+                    <Button onClick={open} size="lg" className="w-full justify-center text-base" variant="gradient">
+                      <ShieldCheck className="h-5 w-5" />
+                      Verify with World ID
+                    </Button>
+                  )}
+                </IDKitWidget>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  className="flex w-full items-center justify-center gap-3 rounded-[1rem] bg-gradient-to-br from-primary to-primary-container px-6 py-4 text-lg font-bold text-white opacity-95"
+                >
+                  {stepOneComplete ? (
+                    <CheckCircle2 className="h-5 w-5" />
+                  ) : (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  )}
+                  {stepOneComplete
+                    ? "World ID Verified"
+                    : step === "authenticating"
+                      ? "Authenticating with Passkey..."
+                      : "Checking registration..."}
+                </button>
+              )}
+
+              <p className="mt-4 text-center text-[11px] font-bold uppercase tracking-[0.24em] text-outline">
+                Privacy-first zero knowledge proof
+              </p>
+            </div>
+          </section>
+
+          <section
+            className={[
+              "rounded-[2rem] border p-8 transition-all",
+              stepTwoEnabled
+                ? "border-outline-variant/12 bg-surface-container-lowest shadow-ledger"
+                : "border-dashed border-outline-variant bg-surface-container opacity-60",
+            ].join(" ")}
+          >
+            <div className="mb-6 flex items-center gap-4">
+              <div
+                className={[
+                  "flex h-12 w-12 items-center justify-center rounded-full font-headline font-bold",
+                  stepTwoEnabled
+                    ? "bg-surface-tint text-white"
+                    : "bg-outline-variant text-on-surface-variant",
+                ].join(" ")}
+              >
+                2
+              </div>
+              <div>
+                <h2 className="font-headline text-2xl font-bold text-primary">
+                  {isExistingRegistrationFlow ? "Use Existing Passkey" : "Register a Passkey"}
+                </h2>
+                <p className="text-sm text-on-surface-variant">
+                  {isExistingRegistrationFlow
+                    ? "Unlock with the passkey already bound to this voting identity."
+                    : "Create a biometric-backed passkey on this device and derive your local voting key."}
+                </p>
+              </div>
+            </div>
+
+              {step === "needs-existing-passkey" && (
+                <Button
+                  onClick={handleUseExistingPasskey}
+                  size="lg"
+                  className="w-full justify-center text-base"
+                >
+                  <KeyRound className="h-5 w-5" />
+                  Use Previously Generated Passkey
+                </Button>
+              )}
+
+              {(step === "needs-passkey" || (step === "error" && !!worldIdProof && registrationMode === "new")) && (
+                <Button
+                  onClick={handleCreatePasskey}
+                  size="lg"
+                  className="w-full justify-center text-base"
+                >
+                  <KeyRound className="h-5 w-5" />
+                  {step === "error" ? "Retry Local Passkey Setup" : "Create Passkey On This Device"}
+                </Button>
+              )}
+
+              {step === "error" && !!worldIdProof && registrationMode === "existing" && (
+                <Button
+                  onClick={handleUseExistingPasskey}
+                  size="lg"
+                  className="w-full justify-center text-base"
+                >
+                  <KeyRound className="h-5 w-5" />
+                  Retry Existing Passkey
+                </Button>
+              )}
+
+            {(step === "creating-passkey" || step === "registering") && (
+              <button
+                type="button"
+                disabled
+                className="flex w-full items-center justify-center gap-3 rounded-[1rem] bg-surface-container-high px-6 py-4 text-lg font-bold text-on-surface-variant"
+              >
+                <Loader2 className="h-5 w-5 animate-spin" />
+                {step === "creating-passkey"
+                  ? "Creating passkey..."
+                  : "Binding identity to passkey..."}
+              </button>
+            )}
+
+            {step === "complete" && (
+              <div className="flex items-center justify-center gap-3 rounded-[1rem] bg-primary-fixed px-6 py-4 text-lg font-bold text-primary">
+                <CheckCircle2 className="h-5 w-5" />
+                Identity Confirmed
+              </div>
+            )}
+
+            {!stepTwoEnabled && (
+              <button
+                type="button"
+                disabled
+                className="flex w-full items-center justify-center gap-3 rounded-[1rem] bg-surface-container-high px-6 py-4 text-lg font-bold text-on-surface-variant"
+              >
+                <KeyRound className="h-5 w-5" />
+                Setup Passkey
+              </button>
+            )}
+          </section>
+
+          <div className="rounded-[1.75rem] border border-outline-variant/12 bg-surface-container-low p-5">
+            <div className="flex items-start gap-4">
+              <ShieldCheck className="mt-1 h-5 w-5 text-surface-tint" />
+              <div>
+                <p className="font-headline text-lg font-bold text-primary">
+                  Cryptographic Integrity
+                </p>
+                <p className="mt-2 text-sm leading-relaxed text-on-secondary-container">
+                  Your cryptographic identity is derived from your passkey and used only locally for vote signing and protected session recovery. Server-side state stores only the verifier and session bindings needed to authenticate the same person later.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-center gap-6 pt-4 text-xs font-semibold uppercase tracking-[0.2em] text-outline">
+            <a href="#privacy">Privacy Policy</a>
+            <a href="#audit">Audit Protocol</a>
+            <button type="button" className="inline-flex items-center gap-2">
+              <HelpCircle className="h-4 w-4" />
+              Support
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 

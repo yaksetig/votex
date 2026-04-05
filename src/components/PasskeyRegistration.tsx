@@ -26,7 +26,7 @@ import { Shield, Key, Fingerprint, Loader2, CheckCircle2, AlertTriangle } from '
 import { 
   checkPasskeySupport, 
   getOrCreatePasskeySecret,
-  authenticateWithAnyPasskey,
+  authenticateWithPreferredPasskey,
   type PasskeySupport 
 } from '@/services/passkeyService';
 import { 
@@ -86,7 +86,7 @@ const PasskeyRegistration: React.FC<PasskeyRegistrationProps> = ({
       if (mode === 'signin') {
         // Try discoverable credential flow (shows all available passkeys)
         console.log("Attempting to authenticate with existing passkey...");
-        prfResult = await authenticateWithAnyPasskey();
+        prfResult = await authenticateWithPreferredPasskey();
       } else {
         // Force create new passkey
         console.log("Creating new passkey...");
@@ -109,14 +109,14 @@ const PasskeyRegistration: React.FC<PasskeyRegistrationProps> = ({
       
       console.log("Keypair derived, signal:", signal.slice(0, 20) + "...");
       
-      // Store full keypair in localStorage for voting/signing
+      // Keep keypair in session storage for SPA navigation (cleared on tab close)
+      const { storeKeypair } = await import("@/services/keypairService");
       const storedKeypair = {
         k: keypair.sk.toString(),
         Ax: keypair.pk.x.toString(),
         Ay: keypair.pk.y.toString()
       };
-      localStorage.setItem("babyJubKeypair", JSON.stringify(storedKeypair));
-      console.log("Full keypair stored in localStorage");
+      storeKeypair(storedKeypair);
       
       // Store for use in World ID verification
       setDerivedSignal(signal);
@@ -149,6 +149,7 @@ const PasskeyRegistration: React.FC<PasskeyRegistrationProps> = ({
       // Send to backend for storage
       const { data, error: invokeError } = await supabase.functions.invoke('register-keypair', {
         body: {
+          action: 'registration',
           pk: publicKey,
           worldIdProof: {
             merkle_root: result.merkle_root,
