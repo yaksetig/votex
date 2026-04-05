@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { BrowserRouter, Routes, Route } from "react-router-dom"
 import { WalletProvider } from "@/contexts/WalletContext"
+import { MiniKitProvider } from "@worldcoin/minikit-js/minikit-provider"
 import ProtectedRoute from "@/components/ProtectedRoute"
 import NavBar from "@/components/NavBar"
 
@@ -50,6 +51,7 @@ const App: React.FC = () => {
   }, [redirectUrl])
 
   return (
+    <MiniKitProvider>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <WalletProvider>
@@ -81,7 +83,7 @@ const App: React.FC = () => {
                 v7_startTransition: true,
               }}
             >
-              <div className="ledger-shell flex min-h-screen flex-col">
+              <div className="ledger-shell flex min-h-[100dvh] flex-col">
                 <NavBar />
                 <main className="flex-1">
                   <Suspense fallback={<RouteLoading />}>
@@ -104,6 +106,7 @@ const App: React.FC = () => {
         </WalletProvider>
       </TooltipProvider>
     </QueryClientProvider>
+    </MiniKitProvider>
   )
 }
 
