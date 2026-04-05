@@ -1,13 +1,13 @@
 /**
  * Register Keypair Edge Function
- * 
+ *
  * This function handles the registration of a BabyJubJub public key
  * bound to a World ID proof. It:
- * 1. Receives { pk: { x, y }, worldIdProof }
- * 2. Verifies the World ID proof signal matches Hash(pk)
+ * 1. Receives { pk: { x, y }, signal, idkitResult } (v4) or { pk, signal, worldIdProof } (v3 legacy)
+ * 2. Verifies the World ID proof via the v4 verify endpoint
  * 3. Checks if nullifier is already registered (rejects duplicates)
- * 4. Stores the binding: nullifier_hash → pk
- * 
+ * 4. Stores the binding: nullifier → pk
+ *
  * Security properties:
  * - Uses service role to bypass RLS for insert
  * - Verifies proof binding to prevent key substitution
@@ -22,10 +22,24 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const WORLD_ID_APP_ID =
-  Deno.env.get("WORLD_ID_APP_ID") ?? "app_e2fd2f8c99430ab200a093278e801c57";
+const WORLD_ID_RP_ID = Deno.env.get("WORLD_ID_RP_ID") ?? "rp_b3b4b36db636df22";
 const WORLD_ID_VERIFY_BASE_URL =
   Deno.env.get("WORLD_ID_VERIFY_BASE_URL") ?? "https://developer.world.org";
+
+/** v4 IDKit response format */
+interface IDKitResult {
+  protocol_version: string;  // "3.0" or "4.0"
+  nonce: string;
+  action: string;
+  environment: string;
+  responses: Array<{
+    identifier: string;
+    signal_hash: string;
+    proof: string | string[];  // string for v3, array for v4
+    merkle_root?: string;      // v3 only
+    nullifier: string;         // rp-scoped nullifier
+  }>;
+}
 
 interface RequestBody {
   action?: string;
@@ -36,7 +50,10 @@ interface RequestBody {
   };
   sessionToken?: string;
   verifierHash?: string;
-  worldIdProof: {
+  /** v4 flow: raw IDKit result forwarded as-is */
+  idkitResult?: IDKitResult;
+  /** v3 legacy flow (kept for backward compatibility) */
+  worldIdProof?: {
     merkle_root: string;
     nullifier_hash: string;
     proof: string;
@@ -45,6 +62,14 @@ interface RequestBody {
   signal: string;  // Hash(pk) - must match what was used in World ID verification
 }
 
+interface WorldIdV4VerifyResponse {
+  success: boolean;
+  action?: string;
+  detail?: string;
+  code?: string;
+}
+
+/** @deprecated kept for v3 legacy path */
 interface WorldIdVerifyResponse {
   success: boolean;
   action?: string;
@@ -113,29 +138,30 @@ async function verifySignalBinding(pk: { x: string; y: string }, claimedSignal: 
   return expectedSignal.toLowerCase() === claimedSignal.toLowerCase();
 }
 
-async function verifyWorldIdProof(
-  worldIdProof: RequestBody["worldIdProof"],
-  action: string,
-  signal: string
+/**
+ * Verify a World ID proof using the v4 verify endpoint.
+ * The IDKit result is forwarded as-is to the verification API.
+ */
+async function verifyWorldIdProofV4(
+  idkitResult: IDKitResult
 ): Promise<{ valid: boolean; detail?: string }> {
-  const response = await fetch(`${WORLD_ID_VERIFY_BASE_URL}/api/v2/verify/${WORLD_ID_APP_ID}`, {
+  const response = await fetch(`${WORLD_ID_VERIFY_BASE_URL}/api/v4/verify/${WORLD_ID_RP_ID}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      action,
-      merkle_root: worldIdProof.merkle_root,
-      nullifier_hash: worldIdProof.nullifier_hash,
-      proof: worldIdProof.proof,
-      signal_hash: computeSignalHash(signal),
-      verification_level: worldIdProof.verification_level,
+      protocol_version: idkitResult.protocol_version,
+      nonce: idkitResult.nonce,
+      action: idkitResult.action,
+      environment: idkitResult.environment,
+      responses: idkitResult.responses,
     }),
   });
 
-  let payload: WorldIdVerifyResponse | null = null;
+  let payload: WorldIdV4VerifyResponse | null = null;
   try {
-    payload = (await response.json()) as WorldIdVerifyResponse;
+    payload = (await response.json()) as WorldIdV4VerifyResponse;
   } catch {
     payload = null;
   }
@@ -143,28 +169,7 @@ async function verifyWorldIdProof(
   if (!response.ok) {
     return {
       valid: false,
-      detail: payload?.detail || payload?.code || "World ID verification request failed",
-    };
-  }
-
-  if (!payload?.success) {
-    return {
-      valid: false,
-      detail: payload?.detail || payload?.code || "World ID proof was rejected",
-    };
-  }
-
-  if (payload.action !== action) {
-    return {
-      valid: false,
-      detail: "Verified proof action did not match the expected action",
-    };
-  }
-
-  if (payload.nullifier_hash !== worldIdProof.nullifier_hash) {
-    return {
-      valid: false,
-      detail: "Verified proof nullifier did not match the submitted proof",
+      detail: payload?.detail || payload?.code || "World ID v4 verification request failed",
     };
   }
 
@@ -234,10 +239,11 @@ Deno.serve(async (req) => {
       pk,
       sessionToken,
       verifierHash,
+      idkitResult,
       worldIdProof,
       signal,
     }: RequestBody = await req.json();
-    
+
     // Validate required fields
     if (!pk?.x || !pk?.y) {
       return new Response(
@@ -245,14 +251,7 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-    
-    if (!worldIdProof?.nullifier_hash || !worldIdProof?.merkle_root || !worldIdProof?.proof || !worldIdProof?.verification_level) {
-      return new Response(
-        JSON.stringify({ error: "Missing World ID proof" }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
+
     if (!signal) {
       return new Response(
         JSON.stringify({ error: "Missing signal" }),
@@ -260,11 +259,65 @@ Deno.serve(async (req) => {
       );
     }
 
-    const verification = await verifyWorldIdProof(worldIdProof, action, signal);
-    if (!verification.valid) {
-      console.error("World ID proof verification failed:", verification.detail);
+    // Determine nullifier based on which proof format was provided
+    let nullifier: string;
+
+    if (idkitResult) {
+      // --- v4 flow: verify using raw IDKit result ---
+      if (!idkitResult.responses?.length || !idkitResult.responses[0].nullifier) {
+        return new Response(
+          JSON.stringify({ error: "Missing IDKit result or nullifier in responses" }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const verification = await verifyWorldIdProofV4(idkitResult);
+      if (!verification.valid) {
+        console.error("World ID v4 proof verification failed:", verification.detail);
+        return new Response(
+          JSON.stringify({ error: verification.detail || "World ID proof verification failed" }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      nullifier = idkitResult.responses[0].nullifier;
+    } else if (worldIdProof) {
+      // --- v3 legacy flow (backward compatibility) ---
+      if (!worldIdProof.nullifier_hash || !worldIdProof.merkle_root || !worldIdProof.proof || !worldIdProof.verification_level) {
+        return new Response(
+          JSON.stringify({ error: "Missing World ID proof fields" }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Build a v4-shaped payload from v3 fields and verify through the v4 endpoint
+      const legacyIdkitResult: IDKitResult = {
+        protocol_version: "3.0",
+        nonce: signal,
+        action: action,
+        environment: "production",
+        responses: [{
+          identifier: worldIdProof.verification_level,
+          signal_hash: computeSignalHash(signal),
+          proof: worldIdProof.proof,
+          merkle_root: worldIdProof.merkle_root,
+          nullifier: worldIdProof.nullifier_hash,
+        }],
+      };
+
+      const verification = await verifyWorldIdProofV4(legacyIdkitResult);
+      if (!verification.valid) {
+        console.error("World ID proof verification failed:", verification.detail);
+        return new Response(
+          JSON.stringify({ error: verification.detail || "World ID proof verification failed" }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      nullifier = worldIdProof.nullifier_hash;
+    } else {
       return new Response(
-        JSON.stringify({ error: verification.detail || "World ID proof verification failed" }),
+        JSON.stringify({ error: "Missing World ID proof: provide idkitResult (v4) or worldIdProof (v3)" }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -291,7 +344,7 @@ Deno.serve(async (req) => {
     const { data: existing, error: lookupError } = await supabase
       .from('world_id_keypairs')
       .select('id, public_key_x, public_key_y')
-      .eq('nullifier_hash', worldIdProof.nullifier_hash)
+      .eq('nullifier_hash', nullifier)
       .maybeSingle();
     
     if (lookupError) {
@@ -312,7 +365,7 @@ Deno.serve(async (req) => {
           const { error: verifierUpsertError } = await supabase
             .from('world_id_auth_verifiers')
             .upsert({
-              nullifier_hash: worldIdProof.nullifier_hash,
+              nullifier_hash: nullifier,
               verifier_hash: verifierHash
             });
 
@@ -365,7 +418,7 @@ Deno.serve(async (req) => {
         const recoverySession = await validateRecoverySession(
           supabase,
           sessionToken,
-          worldIdProof.nullifier_hash
+          nullifier
         );
 
         if (!recoverySession.valid) {
@@ -384,7 +437,7 @@ Deno.serve(async (req) => {
             public_key_x: pk.x,
             public_key_y: pk.y
           })
-          .eq('nullifier_hash', worldIdProof.nullifier_hash);
+          .eq('nullifier_hash', nullifier);
         
         if (updateError) {
           console.error("Database update error:", updateError);
@@ -398,7 +451,7 @@ Deno.serve(async (req) => {
           const { error: verifierUpsertError } = await supabase
             .from('world_id_auth_verifiers')
             .upsert({
-              nullifier_hash: worldIdProof.nullifier_hash,
+              nullifier_hash: nullifier,
               verifier_hash: verifierHash
             });
 
@@ -416,7 +469,7 @@ Deno.serve(async (req) => {
           .update({
             revoked_at: new Date().toISOString(),
           })
-          .eq("nullifier_hash", worldIdProof.nullifier_hash)
+          .eq("nullifier_hash", nullifier)
           .is("revoked_at", null);
         
         return new Response(
@@ -435,7 +488,7 @@ Deno.serve(async (req) => {
     const { error: insertError } = await supabase
       .from('world_id_keypairs')
       .insert({
-        nullifier_hash: worldIdProof.nullifier_hash,
+        nullifier_hash: nullifier,
         public_key_x: pk.x,
         public_key_y: pk.y
       });
@@ -452,7 +505,7 @@ Deno.serve(async (req) => {
       const { error: verifierInsertError } = await supabase
         .from('world_id_auth_verifiers')
         .upsert({
-          nullifier_hash: worldIdProof.nullifier_hash,
+          nullifier_hash: nullifier,
           verifier_hash: verifierHash
         });
 
@@ -465,7 +518,7 @@ Deno.serve(async (req) => {
       }
     }
     
-    console.log("Keypair registered successfully for nullifier:", worldIdProof.nullifier_hash.slice(0, 10) + "...");
+    console.log("Keypair registered successfully for nullifier:", nullifier.slice(0, 10) + "...");
     
     return new Response(
       JSON.stringify({ 

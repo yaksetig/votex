@@ -1,5 +1,10 @@
-import React, { useState } from "react";
-import { IDKitWidget, ISuccessResult } from "@worldcoin/idkit";
+import React, { useState, useEffect } from "react";
+import {
+  IDKitRequestWidget,
+  orbLegacy,
+  type IDKitResult,
+  type RpContext,
+} from "@worldcoin/idkit";
 import { useNavigate } from "react-router-dom";
 import {
   AlertTriangle,
@@ -42,12 +47,16 @@ type SignInStep =
 type RegistrationMode = "new" | "existing" | null;
 
 const WORLD_ID_APP_ID = "app_e2fd2f8c99430ab200a093278e801c57";
+const WORLD_ID_RP_ID = "rp_b3b4b36db636df22";
+const WORLD_ID_ACTION = "registration";
 
 const WorldIDSignIn: React.FC = () => {
   const [step, setStep] = useState<SignInStep>("ready");
   const [error, setError] = useState<string | null>(null);
-  const [worldIdProof, setWorldIdProof] = useState<ISuccessResult | null>(null);
+  const [idkitResult, setIdkitResult] = useState<IDKitResult | null>(null);
   const [registrationMode, setRegistrationMode] = useState<RegistrationMode>(null);
+  const [widgetOpen, setWidgetOpen] = useState(false);
+  const [rpContext, setRpContext] = useState<RpContext | null>(null);
   const { toast } = useToast();
   const {
     setDerivedPublicKey,
@@ -56,6 +65,36 @@ const WorldIDSignIn: React.FC = () => {
     setUserId,
   } = useWallet();
   const navigate = useNavigate();
+
+  // Fetch RP signature on mount
+  useEffect(() => {
+    async function fetchRpSignature() {
+      try {
+        const { data, error: invokeError } = await supabase.functions.invoke(
+          "rp-signature",
+          {
+            body: { action: WORLD_ID_ACTION },
+          }
+        );
+
+        if (invokeError || !data) {
+          console.error("Failed to fetch RP signature:", invokeError);
+          return;
+        }
+
+        setRpContext({
+          rp_id: WORLD_ID_RP_ID,
+          nonce: data.nonce,
+          created_at: data.created_at,
+          expires_at: data.expires_at,
+          signature: data.sig,
+        });
+      } catch (err) {
+        console.error("Error fetching RP signature:", err);
+      }
+    }
+    fetchRpSignature();
+  }, []);
 
   const completeSession = async (
     nullifierHash: string,
@@ -78,7 +117,21 @@ const WorldIDSignIn: React.FC = () => {
     }
   };
 
-  const handleReturningUserAuthentication = async (result: ISuccessResult) => {
+  /** Extract nullifier from v4 IDKit result */
+  const getNullifier = (result: IDKitResult): string => {
+    const responses = (result as Record<string, unknown>).responses as Array<{ nullifier?: string; nullifier_hash?: string }> | undefined;
+    if (responses?.[0]?.nullifier) {
+      return responses[0].nullifier;
+    }
+    // Fallback for v3 legacy shape
+    const nullifierHash = (result as Record<string, unknown>).nullifier_hash as string | undefined;
+    if (nullifierHash) {
+      return nullifierHash;
+    }
+    throw new Error("No nullifier found in IDKit result");
+  };
+
+  const handleReturningUserAuthentication = async (result: IDKitResult) => {
     setStep("authenticating");
 
     const prfResult = await authenticateWithPreferredPasskey();
@@ -89,7 +142,8 @@ const WorldIDSignIn: React.FC = () => {
     }
 
     const publicKey = publicKeyToStrings(keypair.pk);
-    await completeSession(result.nullifier_hash, prfResult.secret, false, publicKey);
+    const nullifier = getNullifier(result);
+    await completeSession(nullifier, prfResult.secret, false, publicKey);
 
     toast({
       title: "Secure session restored",
@@ -99,16 +153,29 @@ const WorldIDSignIn: React.FC = () => {
     navigate("/elections", { replace: true });
   };
 
-  const handleWorldIDSuccess = async (result: ISuccessResult) => {
+  /** Called by IDKitRequestWidget to verify the proof on our backend */
+  const handleVerify = async (result: IDKitResult) => {
+    // This is called before onSuccess — if it throws, onSuccess won't fire
+    // We don't do full verification here since that happens during registration
+    // Just validate the result shape
+    const responses = (result as Record<string, unknown>).responses as Array<{ nullifier?: string }> | undefined;
+    if (!responses?.[0]?.nullifier) {
+      throw new Error("Invalid IDKit result: missing nullifier");
+    }
+  };
+
+  const handleWorldIDSuccess = async (result: IDKitResult) => {
     setStep("checking");
     setError(null);
-    setWorldIdProof(result);
+    setIdkitResult(result);
 
     try {
+      const nullifier = getNullifier(result);
+
       const { data, error: queryError } = await supabase
         .from("world_id_keypairs")
         .select("nullifier_hash")
-        .eq("nullifier_hash", result.nullifier_hash)
+        .eq("nullifier_hash", nullifier)
         .maybeSingle();
 
       if (queryError) {
@@ -140,14 +207,14 @@ const WorldIDSignIn: React.FC = () => {
   };
 
   const handleUseExistingPasskey = async () => {
-    if (!worldIdProof) {
+    if (!idkitResult) {
       return;
     }
 
     setError(null);
 
     try {
-      await handleReturningUserAuthentication(worldIdProof);
+      await handleReturningUserAuthentication(idkitResult);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to authenticate with the existing passkey";
@@ -157,7 +224,7 @@ const WorldIDSignIn: React.FC = () => {
   };
 
   const handleCreatePasskey = async () => {
-    if (!worldIdProof) {
+    if (!idkitResult) {
       return;
     }
 
@@ -196,15 +263,10 @@ const WorldIDSignIn: React.FC = () => {
         "register-keypair",
         {
           body: {
-            action: "registration",
+            action: WORLD_ID_ACTION,
             pk: publicKey,
             signal,
-            worldIdProof: {
-              merkle_root: worldIdProof.merkle_root,
-              nullifier_hash: worldIdProof.nullifier_hash,
-              proof: worldIdProof.proof,
-              verification_level: worldIdProof.verification_level,
-            },
+            idkitResult: idkitResult,
           },
         }
       );
@@ -217,7 +279,8 @@ const WorldIDSignIn: React.FC = () => {
         throw new Error(data.error);
       }
 
-      await completeSession(worldIdProof.nullifier_hash, prfResult.secret, true, publicKey);
+      const nullifier = getNullifier(idkitResult);
+      await completeSession(nullifier, prfResult.secret, true, publicKey);
       setStep("complete");
 
       toast({
@@ -236,8 +299,9 @@ const WorldIDSignIn: React.FC = () => {
     }
   };
 
-  const handleWorldIDError = (worldIdError: { code: string; detail?: string }) => {
-    setError(worldIdError.detail || worldIdError.code || "World ID verification failed");
+  const handleWorldIDError = (errorCode: unknown) => {
+    const code = typeof errorCode === "string" ? errorCode : String(errorCode);
+    setError(code || "World ID verification failed");
     setStep("error");
   };
 
@@ -247,14 +311,14 @@ const WorldIDSignIn: React.FC = () => {
     step === "creating-passkey" ||
     step === "registering" ||
     step === "complete";
-  const showWorldIdButton = step === "ready" || (step === "error" && !worldIdProof);
+  const showWorldIdButton = step === "ready" || (step === "error" && !idkitResult);
   const stepTwoEnabled =
     step === "needs-existing-passkey" ||
     step === "needs-passkey" ||
     step === "creating-passkey" ||
     step === "registering" ||
     step === "complete" ||
-    (step === "error" && !!worldIdProof);
+    (step === "error" && !!idkitResult);
   const isExistingRegistrationFlow = registrationMode === "existing";
 
   return (
@@ -303,21 +367,41 @@ const WorldIDSignIn: React.FC = () => {
                 </div>
               </div>
 
-              {showWorldIdButton ? (
-                <IDKitWidget
-                  app_id={WORLD_ID_APP_ID}
-                  action="registration"
-                  onSuccess={handleWorldIDSuccess}
-                  onError={handleWorldIDError}
-                  autoClose
+              {showWorldIdButton && rpContext ? (
+                <>
+                  <Button
+                    onClick={() => setWidgetOpen(true)}
+                    size="lg"
+                    className="w-full justify-center text-base"
+                    variant="gradient"
+                  >
+                    <ShieldCheck className="h-5 w-5" />
+                    Verify with World ID
+                  </Button>
+                  <IDKitRequestWidget
+                    open={widgetOpen}
+                    onOpenChange={setWidgetOpen}
+                    app_id={WORLD_ID_APP_ID}
+                    action={WORLD_ID_ACTION}
+                    rp_context={rpContext}
+                    allow_legacy_proofs={true}
+                    preset={orbLegacy({})}
+                    handleVerify={handleVerify}
+                    onSuccess={handleWorldIDSuccess}
+                    onError={handleWorldIDError}
+                    autoClose
+                  />
+                </>
+              ) : showWorldIdButton && !rpContext ? (
+                <Button
+                  disabled
+                  size="lg"
+                  className="w-full justify-center text-base"
+                  variant="gradient"
                 >
-                  {({ open }) => (
-                    <Button onClick={open} size="lg" className="w-full justify-center text-base" variant="gradient">
-                      <ShieldCheck className="h-5 w-5" />
-                      Verify with World ID
-                    </Button>
-                  )}
-                </IDKitWidget>
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  Initializing...
+                </Button>
               ) : (
                 <button
                   type="button"
@@ -385,7 +469,7 @@ const WorldIDSignIn: React.FC = () => {
                 </Button>
               )}
 
-              {(step === "needs-passkey" || (step === "error" && !!worldIdProof && registrationMode === "new")) && (
+              {(step === "needs-passkey" || (step === "error" && !!idkitResult && registrationMode === "new")) && (
                 <Button
                   onClick={handleCreatePasskey}
                   size="lg"
@@ -396,7 +480,7 @@ const WorldIDSignIn: React.FC = () => {
                 </Button>
               )}
 
-              {step === "error" && !!worldIdProof && registrationMode === "existing" && (
+              {step === "error" && !!idkitResult && registrationMode === "existing" && (
                 <Button
                   onClick={handleUseExistingPasskey}
                   size="lg"
