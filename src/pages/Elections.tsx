@@ -215,7 +215,7 @@ const Elections = () => {
       <div className="mx-auto max-w-7xl space-y-10">
         <section className="flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
           <div className="max-w-3xl">
-            <h1 className="font-headline text-5xl font-extrabold tracking-tight text-primary md:text-6xl">
+            <h1 className="font-headline text-3xl font-extrabold tracking-tight text-primary sm:text-5xl md:text-6xl">
               Active Elections
             </h1>
             <p className="mt-4 max-w-2xl text-lg leading-relaxed text-on-surface-variant">
@@ -260,9 +260,9 @@ const Elections = () => {
         )}
 
         <section className="grid gap-6 md:grid-cols-12">
-          <div className="rounded-[2rem] bg-surface-container-low p-8 md:col-span-8">
+          <div className="rounded-[1.5rem] bg-surface-container-low p-4 sm:rounded-[2rem] sm:p-8 md:col-span-8">
             {featuredElection ? (
-              <div className="relative overflow-hidden rounded-[1.75rem] bg-surface-container-lowest p-8 shadow-ledger">
+              <div className="relative overflow-hidden rounded-[1.25rem] bg-surface-container-lowest p-5 shadow-ledger sm:rounded-[1.75rem] sm:p-8">
                 <div className="absolute -right-16 -top-16 h-72 w-72 rounded-full bg-surface-tint/10 blur-[120px]" />
                 <div className="relative z-10 flex h-full flex-col justify-between">
                   <div>
@@ -276,7 +276,7 @@ const Elections = () => {
                       </span>
                     </div>
 
-                    <h2 className="mt-6 max-w-2xl font-headline text-4xl font-bold text-primary">
+                    <h2 className="mt-4 max-w-2xl font-headline text-2xl font-bold text-primary sm:mt-6 sm:text-4xl">
                       {featuredElection.title}
                     </h2>
                     <p className="mt-4 max-w-2xl text-sm leading-relaxed text-on-surface-variant">
@@ -345,7 +345,7 @@ const Elections = () => {
           </div>
 
           <div className="space-y-6 md:col-span-4">
-            <div className="rounded-[2rem] bg-primary-container p-8 text-on-primary shadow-ledger-lg">
+            <div className="rounded-[1.5rem] bg-primary-container p-5 text-on-primary shadow-ledger-lg sm:rounded-[2rem] sm:p-8">
               <ShieldCheck className="h-10 w-10 text-primary-fixed-dim" />
               <h3 className="mt-5 font-headline text-2xl font-bold text-white">
                 Cryptographic Integrity
@@ -480,9 +480,9 @@ const Elections = () => {
               {archivedElections.map((election) => (
                 <article
                   key={election.id}
-                  className="flex items-center gap-6 rounded-[2rem] border border-outline-variant/12 bg-surface-container-lowest p-6 shadow-ledger"
+                  className="flex items-start gap-4 rounded-[1.5rem] border border-outline-variant/12 bg-surface-container-lowest p-4 shadow-ledger sm:items-center sm:gap-6 sm:rounded-[2rem] sm:p-6"
                 >
-                  <div className="flex h-20 w-20 items-center justify-center rounded-[1.5rem] bg-surface-container-high text-on-surface-variant">
+                  <div className="hidden h-20 w-20 shrink-0 items-center justify-center rounded-[1.5rem] bg-surface-container-high text-on-surface-variant sm:flex">
                     <ShieldCheck className="h-8 w-8" />
                   </div>
                   <div className="flex-1">

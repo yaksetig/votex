@@ -560,7 +560,7 @@ const ElectionDetail = () => {
             Back to Elections
           </button>
 
-          <section className="ledger-panel relative overflow-hidden p-8 md:p-12">
+          <section className="ledger-panel relative overflow-hidden p-5 sm:p-8 md:p-12">
             <div className="absolute -right-8 top-0 h-64 w-64 rounded-full bg-primary-fixed-dim/50 blur-[90px]" />
             <div className="relative z-10">
               <div className="mb-6 flex flex-wrap items-center gap-3">
@@ -580,7 +580,7 @@ const ElectionDetail = () => {
                   </span>
                 )}
               </div>
-              <h1 className="font-headline text-4xl font-extrabold text-primary md:text-5xl">
+              <h1 className="font-headline text-2xl font-extrabold text-primary sm:text-4xl md:text-5xl">
                 {election.title}
               </h1>
               <p className="mt-4 max-w-3xl text-base leading-relaxed text-on-surface-variant">
@@ -599,7 +599,7 @@ const ElectionDetail = () => {
             </div>
           </section>
 
-          <section className="grid gap-10 lg:grid-cols-12">
+          <section className="grid gap-6 sm:gap-10 lg:grid-cols-12">
             <div className="space-y-8 lg:col-span-7">
               {needsKeypair && (
                 <div className="ledger-panel p-6">
@@ -619,9 +619,9 @@ const ElectionDetail = () => {
               )}
 
               {electionClosed ? (
-                <div className="ledger-panel p-6 md:p-8">
+                <div className="ledger-panel p-5 sm:p-6 md:p-8">
                   <div className="flex flex-col gap-2">
-                    <h2 className="font-headline text-2xl font-bold text-primary">Final Results</h2>
+                    <h2 className="font-headline text-xl font-bold text-primary sm:text-2xl">Final Results</h2>
                     <div className="h-1 w-12 rounded-full bg-surface-tint" />
                   </div>
 
@@ -669,9 +669,9 @@ const ElectionDetail = () => {
                   </div>
                 </div>
               ) : !hasVoted ? (
-                <div className="ledger-panel p-8">
+                <div className="ledger-panel p-5 sm:p-8">
                   <div className="flex flex-col gap-2">
-                    <h2 className="font-headline text-2xl font-bold text-primary">Cast your ballot</h2>
+                    <h2 className="font-headline text-xl font-bold text-primary sm:text-2xl">Cast your ballot</h2>
                     <div className="h-1 w-12 rounded-full bg-surface-tint" />
                   </div>
 
@@ -761,9 +761,9 @@ const ElectionDetail = () => {
                 </div>
               ) : (
                 <div className="space-y-8">
-                  <div className="ledger-panel p-6 md:p-8">
+                  <div className="ledger-panel p-5 sm:p-6 md:p-8">
                     <div className="flex flex-col gap-2">
-                      <h2 className="font-headline text-2xl font-bold text-primary">Submit a Nullification</h2>
+                      <h2 className="font-headline text-xl font-bold text-primary sm:text-2xl">Submit a Nullification</h2>
                       <div className="h-1 w-12 rounded-full bg-surface-tint" />
                     </div>
                     <p className="mt-5 leading-relaxed text-on-surface-variant">
@@ -774,13 +774,13 @@ const ElectionDetail = () => {
                       <button
                         type="button"
                         onClick={() => setShowNullificationDialog(true)}
-                        className="group flex w-full items-center gap-5 rounded-[1.5rem] border border-outline-variant/20 bg-surface-container-lowest p-8 transition-all hover:border-surface-tint/40"
+                        className="group flex w-full items-center gap-4 rounded-[1.25rem] border border-outline-variant/20 bg-surface-container-lowest p-5 transition-all hover:border-surface-tint/40 sm:gap-5 sm:rounded-[1.5rem] sm:p-8"
                       >
-                        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-surface-container-high transition-colors group-hover:bg-primary">
-                          <ShieldCheck className="h-8 w-8 text-on-surface-variant transition-colors group-hover:text-white" />
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-surface-container-high transition-colors group-hover:bg-primary sm:h-16 sm:w-16">
+                          <ShieldCheck className="h-6 w-6 text-on-surface-variant transition-colors group-hover:text-white sm:h-8 sm:w-8" />
                         </div>
                         <div className="text-left">
-                          <h3 className="font-headline text-xl font-bold text-primary">Nullify Vote</h3>
+                          <h3 className="font-headline text-lg font-bold text-primary sm:text-xl">Nullify Vote</h3>
                           <p className="mt-1 text-sm text-on-surface-variant">Invalidate your ballot or submit a decoy for plausible deniability</p>
                         </div>
                       </button>
@@ -797,8 +797,8 @@ const ElectionDetail = () => {
             </div>
 
             <aside className="space-y-6 lg:col-span-5">
-              <div className="rounded-[2rem] bg-primary-container p-6 text-on-primary shadow-ledger-lg">
-                <h3 className="font-headline text-xl font-bold">Security Architecture</h3>
+              <div className="rounded-[1.5rem] bg-primary-container p-5 text-on-primary shadow-ledger-lg sm:rounded-[2rem] sm:p-6">
+                <h3 className="font-headline text-lg font-bold sm:text-xl">Security Architecture</h3>
                 <ul className="mt-6 space-y-5 text-sm">
                   <li className="flex gap-4">
                     <ShieldCheck className="mt-0.5 h-5 w-5 text-primary-fixed-dim" />

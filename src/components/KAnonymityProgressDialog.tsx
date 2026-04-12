@@ -23,15 +23,15 @@ const KAnonymityProgressDialog: React.FC<KAnonymityProgressDialogProps> = ({
   return (
     <Dialog open={open}>
       <DialogContent
-        className="max-w-md border-none bg-transparent p-0 shadow-none"
+        className="max-w-md border-none bg-transparent p-0 shadow-none sm:h-auto sm:max-h-[90vh]"
         onPointerDownOutside={(event) => event.preventDefault()}
       >
         <DialogTitle className="sr-only">Generating Proofs</DialogTitle>
         <DialogDescription className="sr-only">
           Progress dialog for k-anonymity nullification proof generation.
         </DialogDescription>
-        <div className="overflow-hidden rounded-[2rem] border border-outline-variant/12 bg-surface-container-lowest shadow-[0_30px_90px_rgba(0,20,54,0.22)]">
-          <div className="p-8">
+        <div className="flex min-h-full flex-col justify-center overflow-hidden rounded-none bg-surface-container-lowest sm:min-h-0 sm:rounded-[2rem] sm:border sm:border-outline-variant/12 sm:shadow-[0_30px_90px_rgba(0,20,54,0.22)]">
+          <div className="p-5 sm:p-8">
             <div className="mb-8 flex items-start justify-between gap-4">
               <div>
                 <p className="ledger-eyebrow">Cryptographic sealing in progress</p>

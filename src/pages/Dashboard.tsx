@@ -75,7 +75,7 @@ const Dashboard = () => {
   return (
     <div className="px-4 pb-24 pt-10 sm:px-6 md:pb-10">
       <div className="mx-auto max-w-6xl space-y-8">
-        <section className="ledger-panel relative overflow-hidden p-8 md:p-12">
+        <section className="ledger-panel relative overflow-hidden p-5 sm:p-8 md:p-12">
           <div className="absolute -left-8 top-0 h-64 w-64 rounded-full bg-primary-fixed-dim/55 blur-[100px]" />
           <div className="absolute -bottom-16 right-0 h-64 w-64 rounded-full bg-secondary-fixed/70 blur-[120px]" />
 
@@ -85,7 +85,7 @@ const Dashboard = () => {
                 <ShieldCheck className="h-4 w-4" />
                 Identity vault
               </span>
-              <h1 className="mt-5 font-headline text-4xl font-extrabold tracking-tight text-primary md:text-6xl">
+              <h1 className="mt-5 font-headline text-2xl font-extrabold tracking-tight text-primary sm:text-4xl md:text-6xl">
                 Your Secure Voting Identity
               </h1>
               <p className="mt-4 text-lg leading-relaxed text-on-surface-variant">
@@ -162,14 +162,14 @@ const Dashboard = () => {
         </section>
 
         <section className="grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_360px]">
-          <div className="ledger-panel p-8">
+          <div className="ledger-panel p-5 sm:p-8">
             <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-white">
-                <KeyRound className="h-5 w-5" />
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-white sm:h-12 sm:w-12">
+                <KeyRound className="h-4 w-4 sm:h-5 sm:w-5" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="ledger-eyebrow">Cryptographic key material</p>
-                <h2 className="mt-1 font-headline text-3xl font-extrabold text-primary">
+                <h2 className="mt-1 font-headline text-xl font-extrabold text-primary sm:text-3xl">
                   Public key details
                 </h2>
               </div>
@@ -216,7 +216,7 @@ const Dashboard = () => {
           </div>
 
           <aside className="space-y-6">
-            <div className="rounded-[2rem] bg-primary-container p-7 text-on-primary shadow-ledger-lg">
+            <div className="rounded-[1.5rem] bg-primary-container p-5 text-on-primary shadow-ledger-lg sm:rounded-[2rem] sm:p-7">
               <p className="ledger-eyebrow text-on-primary-container">Integrity note</p>
               <h3 className="mt-3 font-headline text-2xl font-bold text-white">
                 The private key never leaves your device
