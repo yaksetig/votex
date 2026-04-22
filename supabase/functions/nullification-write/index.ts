@@ -51,6 +51,24 @@ interface ParticipantRow {
   public_key_y: string;
 }
 
+interface PreparedNullificationItem {
+  accumulatorVersion: number;
+  currentAccumulator: JsonCiphertext;
+  ciphertext: JsonCiphertext;
+  newAccumulator: JsonCiphertext;
+  nullifierZkp: NullificationProofPayload;
+  previousAccumulator: AccumulatorRow | null;
+  userId: string;
+}
+
+interface AppliedNullificationWrite {
+  insertedAccumulator: boolean;
+  newVersion: number;
+  nullificationId?: string;
+  previousAccumulator: AccumulatorRow | null;
+  userId: string;
+}
+
 function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -121,6 +139,158 @@ function accumulatorFromRow(row: AccumulatorRow): JsonCiphertext {
       y: row.acc_c2_y,
     },
   };
+}
+
+async function rollbackAppliedWrites(
+  supabase: ReturnType<typeof createClient>,
+  electionId: string,
+  appliedWrites: AppliedNullificationWrite[]
+) {
+  for (const write of [...appliedWrites].reverse()) {
+    if (write.nullificationId) {
+      const { error: deleteNullificationError } = await supabase
+        .from("nullifications")
+        .delete()
+        .eq("id", write.nullificationId);
+
+      if (deleteNullificationError) {
+        console.error("Rollback failed to delete nullification:", deleteNullificationError);
+      }
+    }
+
+    if (write.insertedAccumulator) {
+      const { error: deleteAccumulatorError } = await supabase
+        .from("nullification_accumulators")
+        .delete()
+        .eq("election_id", electionId)
+        .eq("voter_id", write.userId)
+        .eq("version", write.newVersion);
+
+      if (deleteAccumulatorError) {
+        console.error("Rollback failed to delete inserted accumulator:", deleteAccumulatorError);
+      }
+
+      continue;
+    }
+
+    if (write.previousAccumulator) {
+      const { error: restoreAccumulatorError } = await supabase
+        .from("nullification_accumulators")
+        .update({
+          acc_c1_x: write.previousAccumulator.acc_c1_x,
+          acc_c1_y: write.previousAccumulator.acc_c1_y,
+          acc_c2_x: write.previousAccumulator.acc_c2_x,
+          acc_c2_y: write.previousAccumulator.acc_c2_y,
+          updated_at: new Date().toISOString(),
+          version: write.previousAccumulator.version,
+        })
+        .eq("election_id", electionId)
+        .eq("voter_id", write.userId)
+        .eq("version", write.newVersion);
+
+      if (restoreAccumulatorError) {
+        console.error("Rollback failed to restore accumulator:", restoreAccumulatorError);
+      }
+    }
+  }
+}
+
+async function persistNullificationBatch(
+  supabase: ReturnType<typeof createClient>,
+  electionId: string,
+  items: PreparedNullificationItem[]
+): Promise<{ conflict?: string; success: true }> {
+  const appliedWrites: AppliedNullificationWrite[] = [];
+  const writeTimestamp = new Date().toISOString();
+
+  try {
+    for (const item of items) {
+      if (item.previousAccumulator) {
+        const { data: updatedRows, error: updateAccumulatorError } = await supabase
+          .from("nullification_accumulators")
+          .update({
+            acc_c1_x: item.newAccumulator.c1.x,
+            acc_c1_y: item.newAccumulator.c1.y,
+            acc_c2_x: item.newAccumulator.c2.x,
+            acc_c2_y: item.newAccumulator.c2.y,
+            updated_at: writeTimestamp,
+            version: item.accumulatorVersion + 1,
+          })
+          .eq("election_id", electionId)
+          .eq("voter_id", item.userId)
+          .eq("version", item.accumulatorVersion)
+          .select("version");
+
+        if (updateAccumulatorError) {
+          throw updateAccumulatorError;
+        }
+
+        if (!updatedRows || updatedRows.length === 0) {
+          return {
+            conflict: `Accumulator version mismatch for participant ${item.userId}`,
+            success: true,
+          };
+        }
+      } else {
+        const { error: insertAccumulatorError } = await supabase
+          .from("nullification_accumulators")
+          .insert({
+            acc_c1_x: item.newAccumulator.c1.x,
+            acc_c1_y: item.newAccumulator.c1.y,
+            acc_c2_x: item.newAccumulator.c2.x,
+            acc_c2_y: item.newAccumulator.c2.y,
+            created_at: writeTimestamp,
+            election_id: electionId,
+            updated_at: writeTimestamp,
+            version: 1,
+            voter_id: item.userId,
+          });
+
+        if (insertAccumulatorError) {
+          if (insertAccumulatorError.code === "23505") {
+            return {
+              conflict: `Accumulator bootstrap mismatch for participant ${item.userId}`,
+              success: true,
+            };
+          }
+
+          throw insertAccumulatorError;
+        }
+      }
+
+      const appliedWrite: AppliedNullificationWrite = {
+        insertedAccumulator: !item.previousAccumulator,
+        newVersion: item.accumulatorVersion + 1,
+        previousAccumulator: item.previousAccumulator,
+        userId: item.userId,
+      };
+      appliedWrites.push(appliedWrite);
+
+      const { data: insertedNullification, error: insertNullificationError } = await supabase
+        .from("nullifications")
+        .insert({
+          created_at: writeTimestamp,
+          election_id: electionId,
+          nullifier_ciphertext: item.ciphertext,
+          nullifier_zkp: item.nullifierZkp,
+          user_id: item.userId,
+        })
+        .select("id")
+        .single();
+
+      if (insertNullificationError) {
+        throw insertNullificationError;
+      }
+
+      appliedWrite.nullificationId = insertedNullification.id;
+    }
+  } catch (error) {
+    console.error("Failed to persist nullification batch, attempting rollback:", error);
+    await rollbackAppliedWrites(supabase, electionId, appliedWrites);
+    throw error;
+  }
+
+  return { success: true };
 }
 
 Deno.serve(async (req) => {
@@ -255,7 +425,7 @@ Deno.serve(async (req) => {
       (accumulators || []).map((row) => [row.voter_id, row as AccumulatorRow])
     );
 
-    const rpcItems = [];
+    const preparedItems: PreparedNullificationItem[] = [];
     for (const item of body.nullifications) {
       if (!item.userId || typeof item.accumulatorVersion !== "number" || !item.zkp) {
         return jsonResponse(400, { error: "Nullification batch contains an incomplete item" });
@@ -304,36 +474,33 @@ Deno.serve(async (req) => {
         });
       }
 
-      rpcItems.push({
-        userId: item.userId,
+      preparedItems.push({
         accumulatorVersion: item.accumulatorVersion,
         ciphertext: parsed.ciphertext,
         currentAccumulator,
         newAccumulator: computeAccumulatorUpdate(parsed),
         nullifierZkp: item.zkp,
+        previousAccumulator: accumulatorsByUserId.get(item.userId) ?? null,
+        userId: item.userId,
       });
     }
 
-    const { data, error } = await supabase.rpc("submit_nullification_batch", {
-      p_election_id: body.electionId,
-      p_items: rpcItems,
-      p_submitter_id: session.userId,
+    const persistResult = await persistNullificationBatch(
+      supabase,
+      body.electionId,
+      preparedItems
+    );
+
+    if (persistResult.conflict) {
+      return jsonResponse(409, {
+        error: persistResult.conflict,
+      });
+    }
+
+    return jsonResponse(200, {
+      processedRows: preparedItems.length,
+      success: true,
     });
-
-    if (error) {
-      console.error("submit_nullification_batch RPC error:", error);
-      const conflict =
-        error.message.includes("Accumulator version mismatch") ||
-        error.message.includes("Accumulator state mismatch") ||
-        error.message.includes("bootstrap mismatch") ||
-        error.message.includes("duplicate key");
-
-      return jsonResponse(conflict ? 409 : 500, {
-        error: error.message || "Failed to persist nullification batch",
-      });
-    }
-
-    return jsonResponse(200, data ?? { success: true });
   } catch (error) {
     console.error("nullification-write error:", error);
     return jsonResponse(500, { error: "Internal server error" });
