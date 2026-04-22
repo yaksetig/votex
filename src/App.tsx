@@ -15,6 +15,7 @@ const Elections = lazy(() => import("@/pages/Elections"))
 const ElectionDetail = lazy(() => import("@/pages/ElectionDetail"))
 const ElectionAuthority = lazy(() => import("@/pages/ElectionAuthority"))
 const HowItWorks = lazy(() => import("@/pages/HowItWorks"))
+const FAQ = lazy(() => import("@/pages/FAQ"))
 const NotFound = lazy(() => import("@/pages/NotFound"))
 
 const queryClient = new QueryClient()
@@ -94,6 +95,7 @@ const App: React.FC = () => {
                       <Route path="/elections/:id/authority" element={<ProtectedRoute><ElectionAuthority /></ProtectedRoute>} />
                       <Route path="/election_authority" element={<ProtectedRoute><ElectionAuthority /></ProtectedRoute>} />
                       <Route path="/how-it-works" element={<HowItWorks />} />
+                      <Route path="/faq" element={<FAQ />} />
                       <Route path="*" element={<NotFound />} />
                     </Routes>
                   </Suspense>

@@ -12,20 +12,32 @@ const HowItWorks = () => {
   return (
     <div className="px-4 pb-24 pt-10 sm:px-6 md:pb-10">
       <div className="mx-auto max-w-6xl space-y-10">
-        <section className="ledger-panel relative overflow-hidden p-8 md:p-12">
-          <div className="absolute -right-16 -top-16 h-64 w-64 rounded-full bg-primary-fixed-dim/60 blur-[100px]" />
-          <div className="relative z-10 max-w-3xl">
-            <span className="ledger-badge bg-secondary-container text-on-secondary-container">
-              <ShieldCheck className="h-4 w-4" />
-              Audit protocol overview
-            </span>
-            <h1 className="mt-5 font-headline text-5xl font-extrabold text-primary">
-              How Votex Works
-            </h1>
-            <p className="mt-5 text-lg leading-relaxed text-on-surface-variant">
-              A coercion-resistant voting system that combines World ID uniqueness checks, passkey-derived cryptographic keys, and privacy-preserving nullification.
-            </p>
+        <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="ledger-panel relative overflow-hidden p-8 md:p-12">
+            <div className="absolute -right-16 -top-16 h-64 w-64 rounded-full bg-primary-fixed-dim/60 blur-[100px]" />
+            <div className="relative z-10 max-w-3xl">
+              <span className="ledger-badge bg-secondary-container text-on-secondary-container">
+                <ShieldCheck className="h-4 w-4" />
+                How it works
+              </span>
+              <h1 className="mt-5 font-headline text-5xl font-extrabold text-primary">
+                How Votex Works
+              </h1>
+              <p className="mt-5 text-lg leading-relaxed text-on-surface-variant">
+                A coercion-resistant voting system that combines World ID uniqueness checks, passkey-derived cryptographic keys, and privacy-preserving nullification.
+              </p>
+            </div>
           </div>
+
+          <aside className="rounded-[1.5rem] bg-primary-container p-6 text-on-primary shadow-ledger-lg sm:rounded-[2rem] sm:p-8">
+            <ShieldCheck className="h-10 w-10 text-primary-fixed-dim" />
+            <h2 className="mt-5 font-headline text-2xl font-bold text-white">
+              Cryptographic Integrity
+            </h2>
+            <p className="mt-3 text-sm leading-relaxed text-white/74">
+              Every election uses signed ballots, proof-of-personhood, and tally-side nullification processing to preserve auditability without exposing individual choices.
+            </p>
+          </aside>
         </section>
 
         <section className="grid gap-6 md:grid-cols-2">
@@ -65,7 +77,7 @@ const HowItWorks = () => {
           ))}
         </section>
 
-        <section className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_360px]">
+        <section>
           <div className="ledger-panel p-8">
             <h2 className="font-headline text-3xl font-bold text-primary">Security guarantees</h2>
             <div className="mt-8 grid gap-4 md:grid-cols-2">
@@ -99,32 +111,6 @@ const HowItWorks = () => {
               ))}
             </div>
           </div>
-
-          <aside className="space-y-6">
-            <div className="rounded-[2rem] bg-primary-container p-7 text-on-primary shadow-ledger-lg">
-              <p className="ledger-eyebrow text-on-primary-container">FAQ</p>
-              <div className="mt-5 space-y-5 text-sm">
-                <div>
-                  <h3 className="font-semibold text-white">Can I change my vote?</h3>
-                  <p className="mt-1 text-white/72">
-                    You cannot directly overwrite a ballot, but you can nullify it later if coercion or compromise occurs.
-                  </p>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-white">Who can see my vote?</h3>
-                  <p className="mt-1 text-white/72">
-                    The ledger reveals aggregate results and auditable proofs, not a plain-text mapping between identity and ballot.
-                  </p>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-white">What happens after nullification?</h3>
-                  <p className="mt-1 text-white/72">
-                    The final tally excludes votes whose nullification accumulators resolve to an invalid state during tally processing.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </aside>
         </section>
       </div>
     </div>

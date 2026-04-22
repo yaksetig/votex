@@ -6,7 +6,6 @@ import {
   ChevronRight,
   Filter,
   Plus,
-  ShieldCheck,
   Timer,
   Users,
 } from "lucide-react";
@@ -190,12 +189,16 @@ const Elections = () => {
   const secondaryActiveElections = featuredElection
     ? activeElections.filter((election) => election.id !== featuredElection.id)
     : activeElections;
+  const visibleElectionCount = activeElections.length + archivedElections.length;
 
   if (loading) {
     return (
       <div className="px-4 pb-24 pt-10 sm:px-6 md:pb-10">
         <div className="mx-auto max-w-7xl space-y-6">
-          <div className="ledger-panel h-56 animate-pulse" />
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+            <div className="ledger-panel h-56 animate-pulse" />
+            <div className="ledger-panel h-56 animate-pulse" />
+          </div>
           <div className="grid gap-6 md:grid-cols-12">
             <div className="ledger-panel h-[28rem] md:col-span-8 animate-pulse" />
             <div className="ledger-panel h-[28rem] md:col-span-4 animate-pulse" />
@@ -213,41 +216,75 @@ const Elections = () => {
   return (
     <div className="px-4 pb-24 pt-10 sm:px-6 md:pb-10">
       <div className="mx-auto max-w-7xl space-y-10">
-        <section className="flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
-          <div className="max-w-3xl">
-            <h1 className="font-headline text-3xl font-extrabold tracking-tight text-primary sm:text-5xl md:text-6xl">
-              Active Elections
-            </h1>
-            <p className="mt-4 max-w-2xl text-lg leading-relaxed text-on-surface-variant">
-              Browse secure, cryptographically verified binary elections. Every ballot contributes to an auditable ledger without exposing the voter behind it.
-            </p>
+        <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="flex flex-col justify-end">
+            <div className="max-w-3xl">
+              <h1 className="font-headline text-3xl font-extrabold tracking-tight text-primary sm:text-5xl md:text-6xl">
+                Active Elections
+              </h1>
+              <p className="mt-4 max-w-2xl text-lg leading-relaxed text-on-surface-variant">
+                Browse secure, cryptographically verified binary elections. Every ballot contributes to an auditable ledger without exposing the voter behind it.
+              </p>
+            </div>
+
+            <div className="mt-8 flex flex-wrap gap-3">
+              <button type="button" className="ledger-button-secondary">
+                <Filter className="h-4 w-4" />
+                All Status
+              </button>
+              {isWorldIDVerified && (
+                <button
+                  type="button"
+                  onClick={() => setShowForm((current) => !current)}
+                  className="ledger-button-primary"
+                >
+                  <Plus className="h-4 w-4" />
+                  {showForm ? "Close Composer" : "Create Election"}
+                </button>
+              )}
+            </div>
           </div>
 
-          <div className="flex flex-wrap gap-3">
-            <button type="button" className="ledger-button-secondary">
-              <Filter className="h-4 w-4" />
-              All Status
-            </button>
-            {isWorldIDVerified ? (
-              <button
-                type="button"
-                onClick={() => setShowForm((current) => !current)}
-                className="ledger-button-primary"
-              >
-                <Plus className="h-4 w-4" />
-                {showForm ? "Close Composer" : "Create Election"}
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => navigate("/dashboard")}
-                className="ledger-button-primary"
-              >
-                Secure Sign In
-                <ArrowRight className="h-4 w-4" />
-              </button>
-            )}
-          </div>
+          <aside className="relative overflow-hidden rounded-[1.5rem] border border-outline-variant/12 bg-surface-container-lowest p-5 shadow-ledger sm:rounded-[2rem] sm:p-6">
+            <div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-primary-fixed-dim/35 blur-[80px]" />
+            <div className="relative z-10">
+              <p className="ledger-eyebrow">Election browser</p>
+              <div className="mt-5 grid grid-cols-2 gap-4">
+                <div className="rounded-[1.5rem] bg-primary p-5 text-on-primary shadow-ledger">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-white/70">
+                    Live now
+                  </p>
+                  <p className="mt-4 font-headline text-5xl font-extrabold text-white">
+                    {activeElections.length}
+                  </p>
+                </div>
+                <div className="rounded-[1.5rem] bg-surface-container-low p-5">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant">
+                    Archived
+                  </p>
+                  <p className="mt-4 font-headline text-5xl font-extrabold text-primary">
+                    {archivedElections.length}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 rounded-[1.5rem] border border-outline-variant/12 bg-surface-container-low px-5 py-4">
+                <div className="flex items-end justify-between gap-4">
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant">
+                      Visible elections
+                    </p>
+                    <p className="mt-2 text-sm leading-relaxed text-on-surface-variant">
+                      Active ballots appear first. Closed elections stay available for audit review and final result inspection.
+                    </p>
+                  </div>
+                  <p className="shrink-0 font-headline text-4xl font-extrabold text-surface-tint">
+                    {visibleElectionCount.toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </aside>
         </section>
 
         {showForm && (
@@ -259,8 +296,8 @@ const Elections = () => {
           </section>
         )}
 
-        <section className="grid gap-6 md:grid-cols-12">
-          <div className="rounded-[1.5rem] bg-surface-container-low p-4 sm:rounded-[2rem] sm:p-8 md:col-span-8">
+        <section>
+          <div className="rounded-[1.5rem] bg-surface-container-low p-4 sm:rounded-[2rem] sm:p-8">
             {featuredElection ? (
               <div className="relative overflow-hidden rounded-[1.25rem] bg-surface-container-lowest p-5 shadow-ledger sm:rounded-[1.75rem] sm:p-8">
                 <div className="absolute -right-16 -top-16 h-72 w-72 rounded-full bg-surface-tint/10 blur-[120px]" />
@@ -342,36 +379,6 @@ const Elections = () => {
                 </div>
               </div>
             )}
-          </div>
-
-          <div className="space-y-6 md:col-span-4">
-            <div className="rounded-[1.5rem] bg-primary-container p-5 text-on-primary shadow-ledger-lg sm:rounded-[2rem] sm:p-8">
-              <ShieldCheck className="h-10 w-10 text-primary-fixed-dim" />
-              <h3 className="mt-5 font-headline text-2xl font-bold text-white">
-                Cryptographic Integrity
-              </h3>
-              <p className="mt-3 text-sm leading-relaxed text-white/74">
-                Every election uses signed ballots, proof-of-personhood, and tally-side nullification processing to preserve auditability without exposing individual choices.
-              </p>
-              <button
-                type="button"
-                onClick={() => navigate("/how-it-works")}
-                className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-on-primary-container"
-              >
-                View Audit Protocol
-                <ArrowRight className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="ledger-panel p-6">
-              <p className="ledger-eyebrow">Election browser</p>
-              <h3 className="mt-3 font-headline text-2xl font-bold text-primary">
-                {activeElections.length} live, {archivedElections.length} archived
-              </h3>
-              <p className="mt-3 text-sm leading-relaxed text-on-surface-variant">
-                Active ballots appear first. Closed elections remain in the archive for audit review and final result inspection.
-              </p>
-            </div>
           </div>
         </section>
 

@@ -42,6 +42,14 @@ const NavBar = () => {
     return null;
   }
 
+  const desktopLinkClass = (active: boolean) =>
+    cn(
+      "border-b-2 pb-1 transition-colors",
+      active
+        ? "border-surface-tint text-surface-tint"
+        : "border-transparent text-on-surface-variant hover:text-primary"
+    );
+
   return (
     <>
       <header className="ledger-topbar">
@@ -57,36 +65,21 @@ const NavBar = () => {
             <nav className="hidden items-center gap-6 text-sm font-semibold md:flex">
               <NavLink
                 to="/elections"
-                className={({ isActive }) =>
-                  cn(
-                    "border-b-2 pb-1 transition-colors",
-                    isActive ? "border-surface-tint text-surface-tint" : "border-transparent text-on-surface-variant hover:text-primary"
-                  )
-                }
+                className={({ isActive }) => desktopLinkClass(isActive)}
               >
                 Elections
               </NavLink>
               <NavLink
                 to="/how-it-works"
-                className={({ isActive }) =>
-                  cn(
-                    "border-b-2 pb-1 transition-colors",
-                    isActive ? "border-surface-tint text-surface-tint" : "border-transparent text-on-surface-variant hover:text-primary"
-                  )
-                }
+                className={({ isActive }) => desktopLinkClass(isActive)}
               >
-                Audit Protocol
+                How It Works
               </NavLink>
               <NavLink
-                to="/dashboard"
-                className={({ isActive }) =>
-                  cn(
-                    "border-b-2 pb-1 transition-colors",
-                    isActive ? "border-surface-tint text-surface-tint" : "border-transparent text-on-surface-variant hover:text-primary"
-                  )
-                }
+                to="/faq"
+                className={({ isActive }) => desktopLinkClass(isActive)}
               >
-                My Profile
+                FAQ
               </NavLink>
             </nav>
           </div>
