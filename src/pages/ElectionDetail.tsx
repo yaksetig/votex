@@ -325,10 +325,6 @@ const ElectionDetail = () => {
     if (!userId || !election || !keypair) return false;
 
     try {
-      if (isParticipant) {
-        return true;
-      }
-
       const participantRegistered = await registerElectionParticipant(election.id, userId, keypair);
       if (participantRegistered) {
         setIsParticipant(true);

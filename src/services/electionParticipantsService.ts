@@ -19,7 +19,46 @@ export async function registerElectionParticipant(
 ): Promise<boolean> {
   try {
     console.log(`Attempting to register participant ${participantId} for election ${electionId}`);
-    
+
+    const { data: existingParticipant, error: fetchError } = await supabase
+      .from("election_participants")
+      .select("id, public_key_x, public_key_y")
+      .eq("election_id", electionId)
+      .eq("participant_id", participantId)
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error("Error fetching participant registration:", fetchError);
+      return false;
+    }
+
+    if (existingParticipant) {
+      const keyChanged =
+        existingParticipant.public_key_x !== keypair.Ax ||
+        existingParticipant.public_key_y !== keypair.Ay;
+
+      if (!keyChanged) {
+        console.log("Participant already registered with current keypair");
+        return true;
+      }
+
+      const { error: updateError } = await supabase
+        .from("election_participants")
+        .update({
+          public_key_x: keypair.Ax,
+          public_key_y: keypair.Ay,
+        })
+        .eq("id", existingParticipant.id);
+
+      if (updateError) {
+        console.error("Error updating participant keypair:", updateError);
+        return false;
+      }
+
+      console.log("Updated participant to current keypair");
+      return true;
+    }
+
     const { error } = await supabase
       .from("election_participants")
       .insert({
@@ -30,11 +69,6 @@ export async function registerElectionParticipant(
       });
 
     if (error) {
-      // If it's a unique constraint violation, that's okay - user already registered
-      if (error.code === '23505') {
-        console.log("User already registered as participant for this election");
-        return true;
-      }
       console.error("Error registering election participant:", error);
       return false;
     }
