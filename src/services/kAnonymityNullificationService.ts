@@ -202,7 +202,11 @@ export async function generateKAnonymousNullifications(
           accumulator.c2.x.toString(),
           accumulator.c2.y.toString(),
         ],
-        pk_voter: [voterKeypair.Ax, voterKeypair.Ay],
+        // Bind each proof to the targeted participant slot. For dummy
+        // nullifications (x=0) the circuit does not require knowledge of
+        // that participant's secret key, but for a real nullification
+        // (x=1) this forces the proof to match the submitter's own slot.
+        pk_voter: [participant.public_key_x, participant.public_key_y],
         pk_authority: [authorityPublicKey.x, authorityPublicKey.y],
         x: x.toString(),
         r: r.toString(),

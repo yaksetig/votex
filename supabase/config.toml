@@ -1,4 +1,7 @@
 project_id = "uficgolgcwvgxqlubpso"
 
+[functions.nullification-write]
+verify_jwt = false
+
 [functions.register-keypair]
 verify_jwt = false

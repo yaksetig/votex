@@ -1,9 +1,9 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import { ElGamalCiphertext } from "@/services/elGamalService";
 import { Groth16Proof } from "@/types/proof";
-import { Json } from "@/integrations/supabase/types";
-import { updateAccumulator } from "@/services/accumulatorService";
 import { logger } from "@/services/logger";
+import { getStoredWorldIdSessionToken } from "@/services/worldIdSessionService";
 
 export interface NullificationProof {
   proof: Groth16Proof;
@@ -26,43 +26,17 @@ export async function storeNullification(
   ciphertext: ElGamalCiphertext,
   zkp?: NullificationProof
 ): Promise<boolean> {
-  try {
-    logger.debug(
-      `Storing nullification for user ${userId} in election ${electionId}`
-    );
-
-    const nullifierData = {
-      c1: {
-        x: ciphertext.c1.x.toString(),
-        y: ciphertext.c1.y.toString(),
-      },
-      c2: {
-        x: ciphertext.c2.x.toString(),
-        y: ciphertext.c2.y.toString(),
-      },
-    };
-
-    const { error } = await supabase.from("nullifications").insert({
-      election_id: electionId,
-      user_id: userId,
-      nullifier_ciphertext: nullifierData,
-      nullifier_zkp: (zkp as unknown as Json) || null,
-    });
-
-    if (error) {
-      logger.error("Error storing nullification:", error);
-      return false;
-    }
-
-    logger.debug("Successfully stored nullification");
-    return true;
-  } catch (error) {
-    logger.error("Error in storeNullification:", error);
-    return false;
-  }
+  void electionId;
+  void userId;
+  void ciphertext;
+  void zkp;
+  logger.error(
+    "Direct nullification inserts are disabled; use storeNullificationBatchWithAccumulators"
+  );
+  return false;
 }
 
-// Batch store nullifications AND update accumulators atomically
+// Batch store nullifications through the trusted server-side write path.
 export async function storeNullificationBatchWithAccumulators(
   electionId: string,
   nullifications: Array<{
@@ -75,51 +49,40 @@ export async function storeNullificationBatchWithAccumulators(
 ): Promise<boolean> {
   try {
     logger.debug(
-      `Storing batch of ${nullifications.length} XOR nullifications for election ${electionId}`
+      `Submitting batch of ${nullifications.length} XOR nullifications for election ${electionId}`
     );
 
-    // Insert nullification rows
-    const records = nullifications.map((n) => ({
-      election_id: electionId,
-      user_id: n.userId,
-      nullifier_ciphertext: {
-        c1: {
-          x: n.ciphertext.c1.x.toString(),
-          y: n.ciphertext.c1.y.toString(),
-        },
-        c2: {
-          x: n.ciphertext.c2.x.toString(),
-          y: n.ciphertext.c2.y.toString(),
-        },
-      },
-      nullifier_zkp: n.zkp as unknown as Json,
-    }));
-
-    const { error } = await supabase.from("nullifications").insert(records);
-
-    if (error) {
-      logger.error("Error storing nullification batch:", error);
+    const sessionToken = getStoredWorldIdSessionToken();
+    if (!sessionToken) {
+      logger.error("Cannot submit nullification batch without an active voter session");
       return false;
     }
 
-    // Update each accumulator with optimistic locking
-    for (const n of nullifications) {
-      const updated = await updateAccumulator(
+    const { data, error } = await supabase.functions.invoke("nullification-write", {
+      body: {
+        action: "submit-batch",
         electionId,
-        n.userId,
-        n.newAccumulator,
-        n.accumulatorVersion
-      );
-      if (!updated) {
-        logger.error(
-          `Failed to update accumulator for voter ${n.userId} (version conflict)`
-        );
-        return false;
-      }
+        sessionToken,
+        nullifications: nullifications.map((n) => ({
+          accumulatorVersion: n.accumulatorVersion,
+          userId: n.userId,
+          zkp: n.zkp,
+        })),
+      },
+    });
+
+    if (error) {
+      logger.error("Error submitting nullification batch:", error);
+      return false;
+    }
+
+    if (data?.error) {
+      logger.error("Nullification write was rejected:", data.error);
+      return false;
     }
 
     logger.debug(
-      `Successfully stored batch of ${nullifications.length} nullifications and updated accumulators`
+      `Successfully stored batch of ${nullifications.length} nullifications via the trusted write path`
     );
     return true;
   } catch (error) {
@@ -137,42 +100,12 @@ export async function storeNullificationBatch(
     zkp: { proof: Groth16Proof; publicSignals: string[] };
   }>
 ): Promise<boolean> {
-  try {
-    logger.debug(
-      `Storing batch of ${nullifications.length} nullifications for election ${electionId}`
-    );
-
-    const records = nullifications.map((n) => ({
-      election_id: electionId,
-      user_id: n.userId,
-      nullifier_ciphertext: {
-        c1: {
-          x: n.ciphertext.c1.x.toString(),
-          y: n.ciphertext.c1.y.toString(),
-        },
-        c2: {
-          x: n.ciphertext.c2.x.toString(),
-          y: n.ciphertext.c2.y.toString(),
-        },
-      },
-      nullifier_zkp: n.zkp as unknown as Json,
-    }));
-
-    const { error } = await supabase.from("nullifications").insert(records);
-
-    if (error) {
-      logger.error("Error storing nullification batch:", error);
-      return false;
-    }
-
-    logger.debug(
-      `Successfully stored batch of ${nullifications.length} nullifications`
-    );
-    return true;
-  } catch (error) {
-    logger.error("Error in storeNullificationBatch:", error);
-    return false;
-  }
+  void electionId;
+  void nullifications;
+  logger.error(
+    "Legacy batch nullification inserts are disabled; use storeNullificationBatchWithAccumulators"
+  );
+  return false;
 }
 
 // Get nullifications for an election (for election authority use)
