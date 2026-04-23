@@ -333,8 +333,11 @@ const ElectionDetail = () => {
       }
 
       return participantRegistered;
-    } catch {
-      return false;
+    } catch (error) {
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error("Failed to register as election participant");
     }
   };
 
@@ -411,11 +414,14 @@ const ElectionDetail = () => {
         title: "Vote cast successfully",
         description: "Your ballot has been recorded on the ledger.",
       });
-    } catch {
+    } catch (error) {
       toast({
         variant: "destructive",
         title: "Vote failed",
-        description: "Your ballot could not be submitted. Please try again.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Your ballot could not be submitted. Please try again.",
       });
     } finally {
       setSubmitting(false);

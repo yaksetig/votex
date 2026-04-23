@@ -42,21 +42,11 @@ export async function registerElectionParticipant(
         return true;
       }
 
-      const { error: updateError } = await supabase
-        .from("election_participants")
-        .update({
-          public_key_x: keypair.Ax,
-          public_key_y: keypair.Ay,
-        })
-        .eq("id", existingParticipant.id);
-
-      if (updateError) {
-        console.error("Error updating participant keypair:", updateError);
-        return false;
-      }
-
-      console.log("Updated participant to current keypair");
-      return true;
+      throw new Error(
+        "This election already has a different key bound to your participant slot. " +
+          "That looks like stale participant data from an older key flow. " +
+          "Do not auto-update it from the client; reset the participant data and retry."
+      );
     }
 
     const { error } = await supabase
@@ -77,7 +67,10 @@ export async function registerElectionParticipant(
     return true;
   } catch (error) {
     console.error("Error in registerElectionParticipant:", error);
-    return false;
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error("Failed to register election participant");
   }
 }
 
