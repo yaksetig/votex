@@ -10,12 +10,11 @@ Online voting is hard (I wrote a bit about this [here](https://myaksetig.substac
 
 ### Real-World Coercion (or Bribing) Examples
  * An abusive person in a relationship can vote on behalf of their partner.
- * A professor running for a Dean position in a university colludes with the IT manager of the unviversity to see how each PhD student cast their vote. (Professor can subsequently work towards cancelling the funding of said students)
+ * A professor running for a Dean position in a university colludes with the IT manager of the university to see how each PhD student cast their vote. (Professor can subsequently work towards cancelling the funding of said students)
  * Blockchain nodes pay users to vote a specific way that favours the nodes. Users, acting rationally, cast the vote and make extra money. 
 
 
 ## How does Votex tackle coercion and bribing? 
-We take things a step further and assume that the user that is coerced/bribed actually gives the adversary a copy of their voting key. In other words, the bad actor can vote on behalf of the victim. However, we give users the ability to 'nullify' their vote. As long as the user is able to safely generate and register the initial keypair, they are set. 
 We take things a step further and assume that the user that is coerced/bribed actually gives the adversary a copy of their voting key. In other words, the bad actor can vote on behalf of the victim. However, we give users the ability to 'nullify' their vote. As long as the user is able to safely generate and register the initial keypair, they are set. Our mechanism to prevent coercion is different. We allow the adversary to vote on behalf of the user and even have full knowledge of said key and introduce a nullification stage where users can nullify their vote by publishing a ZK-SNARK. There are different ways to go about this nullification and we cover them in thorough detail in our paper (see additional docs section below) 
 
 ## Doesn't MACI solve this? 
@@ -33,7 +32,12 @@ Our app is live on the following URL: [https://votex.world](https://votex.world)
 You have to log in and prove that you are a human. The web app will display a QR code. Scan the QR code using your World App and prove that you are human.  
 
 ### Step II
-You have to create a voting key. Go to dashboard and generate a new Baby jubjub keypair. 
+You have to create a voting key. On the dashboard, unlock your passkey: Votex
+derives your BabyJubJub voting keypair deterministically from your passkey's
+WebAuthn PRF secret. The private key is reconstructed in memory only when needed
+and is never sent to or stored on the server — the server only ever sees the
+public key, proof bindings, and session tokens. (Create your passkey during the
+World ID sign-in step if you don't have one yet.)
 
 ### Step III
 Go to the Elections tab and click "Create Election". 
@@ -43,6 +47,43 @@ Choose the title of the election. This should be short and catchy to ensure peop
 
 ### Step V
 Click "Create Election". Your election is now live for everyone to see. 
+
+## Local Development
+
+Prerequisites: Node 20, [Deno](https://deno.com/) (for the Supabase edge
+functions), the [Supabase CLI](https://supabase.com/docs/guides/cli), and
+optionally `circom` + `snarkjs` (for circuit work).
+
+```sh
+npm install            # install dependencies
+npm run dev            # start the Vite dev server (http://localhost:8080)
+npm test               # run the browser/node test suite (vitest)
+npm run lint           # eslint
+npx tsc -b             # typecheck (strict; follows project references)
+npm run build          # production build
+
+# Edge functions (Deno):
+deno check supabase/functions/*/index.ts
+deno test --allow-env supabase/functions/
+
+# Circuit static analysis:
+npm run analyze:circuits
+```
+
+### Configuration
+
+- The Supabase URL and **public** anon key are committed in
+  `src/integrations/supabase/client.ts` (the anon key is intended to be public;
+  access is governed by RLS).
+- `ALLOWED_ORIGIN` (Supabase secret): set to the deployed app origin to scope
+  edge-function CORS; defaults to `*` for local development.
+- `VITE_CIRCUIT_FILES_URL` (optional): overrides where the browser loads circuit
+  artifacts from (defaults to `/circuits/`).
+
+The database schema lives in `supabase/migrations/`. Apply it to a linked
+project with `supabase db push`; edge functions deploy with
+`supabase functions deploy`. See `CRYPTOGRAPHY.md` for the protocol design and
+`docs/TRUSTED_SETUP_RUNBOOK.md` for the ZK trusted-setup procedure.
 
 ## Additional Docs
 * 2022 Short Paper - https://eprint.iacr.org/2022/1212.pdf

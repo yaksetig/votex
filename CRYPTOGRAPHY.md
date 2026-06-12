@@ -432,6 +432,17 @@ This keeps the final decrypted state binary:
 
 The design is unusual, but it matches the current circuit and tally code.
 
+**Re-nullification toggling is intentional.** Because the accumulator is an
+encrypted XOR, each real nullification (`x = 1`) flips the voter's bit. A second
+real nullification flips it back (`1 → 0`), making the vote valid again. This is
+a feature, not a gap: a coerced voter can privately flip their validity bit in
+either direction, and an observer (including the coercer) cannot tell from the
+accumulator state which direction any given flip went, nor whether a given voter
+is currently nullified, without the authority key. The write path therefore does
+**not** enforce one-shot nullification — doing so would break this property.
+Server-side, the trusted write path still requires a fresh valid proof and the
+correct current accumulator version for every flip (see §9.5).
+
 ## 8. Decryption and Discrete Log Recovery
 
 The authority does not solve general discrete logs on demand.
@@ -439,12 +450,11 @@ The authority does not solve general discrete logs on demand.
 Instead:
 
 1. decryption computes `mG = C2 - sk*C1`
-2. the point string is looked up in a database table
-3. the table maps known points to small integer message values
+2. the discrete log of `mG` is recovered by walking `n*G` for small `n` and
+   matching the point string, memoized for the session
 
 Files:
 
-- `src/services/discreteLogService.ts`
 - `src/services/elGamalTallyService.ts`
 
 Decision:
@@ -457,7 +467,15 @@ Used for:
 - nullification results (`0` or `1`)
 - delegation indices (`0..participantCount-1`)
 
-This is an important nonstandard design choice. The tally pipeline depends on the existence and correctness of the lookup table.
+This is an important nonstandard design choice, but the recovery now happens
+**locally** in the tally code. Earlier versions read the point→value mapping
+from an openly-writable `discrete_log_lookup` table; that table let anyone with
+the anon key plant incorrect mappings and corrupt a tally (tally-decode
+poisoning). The table's INSERT policy was locked to the service role
+(migration `20260611100300`), and the tally path no longer trusts it — it
+computes the mapping itself. The discrete log is tiny (0/1 for nullification
+bits, bounded by participant count for delegation indices), so the local walk
+costs milliseconds.
 
 ## 9. Nullification Proofs
 
@@ -492,17 +510,10 @@ The worker path allows multiple proofs to be generated in parallel in the browse
 
 ## 9.3 Standalone verification helper
 
-The repo also keeps:
-
-- `src/services/zkProofService.ts`
-
-This provides:
-
-- standalone proof generation
-- standalone proof verification
-- circuit artifact availability checks
-
-This file is not the main proving path, but it is the main standalone verification helper in the repo.
+Client-side proof verification lives in `src/services/parallelZkProofService.ts`
+(`verifyNullificationProof`). It is a convenience/standalone helper only — it is
+**not** relied on for soundness, because a client cannot be trusted to verify
+its own proof. The authoritative verification happens server-side (see §9.5).
 
 ## 9.4 Artifact loading model
 
@@ -511,30 +522,56 @@ Circuit artifacts are loaded from:
 - `/circuits/` by default
 - or `VITE_CIRCUIT_FILES_URL` if configured
 
-That means proof generation and verification trust:
+The *client-loaded* artifacts (`nullification_xor.wasm`, `..._final.zkey`,
+`verification_key_xor.json`, loadable from `/circuits/` or
+`VITE_CIRCUIT_FILES_URL`) are trusted only by the proving browser. Swapping them
+can only break or self-DoS the local prover; it cannot forge an accepted
+nullification, because the authoritative verification key is hard-coded into the
+edge function and is not read from these files (see §9.5).
 
-- the integrity of `nullification_xor.wasm`
-- the integrity of `nullification_xor_final.zkey`
-- the integrity of `verification_key_xor.json`
+## 9.5 Server-side proof verification (authoritative)
 
-This is a meaningful trust boundary because the witness includes private voter material such as `sk_voter`.
+Nullifications are written exclusively through the `nullification-write` edge
+function, which **verifies every Groth16 proof before any state changes** and
+binds the proof's public signals to the real protocol state:
 
-## 9.5 What is unusual here
+- `supabase/functions/nullification-write/index.ts` calls
+  `verifyNullificationProofPayload` (`_shared/nullification.ts`) against a
+  verification key hard-coded in `_shared/verificationKeyXor.ts` — it is not
+  read from the database or any client-supplied file, so it cannot be swapped at
+  the trust boundary.
+- The verified public signals are checked by byte equality against the
+  registered authority key, the targeted participant's registered key, and the
+  stored accumulator ciphertext and version. A prover therefore cannot inject
+  adversarial points or target another voter's slot without that voter's key.
+- Persistence goes through the transactional `submit_nullification_batch`
+  SECURITY DEFINER RPC (migration `20260422000000`), which takes `FOR UPDATE`
+  row locks and is all-or-nothing. The `nullifications` and
+  `nullification_accumulators` tables reject all direct client writes; the RPC
+  is granted only to the service role.
 
-Two things are unusual enough to call out:
+> Historical note: earlier revisions of this document stated that the write path
+> "does not verify the proof." That is **no longer accurate** — the
+> `nullification-write` function makes verification mandatory. The client-side
+> helper in `parallelZkProofService.ts` is not relied on for soundness.
 
-1. the proof is generated client-side in browser workers
-2. the current write path shown in this repo does not verify the proof before updating accumulator state
+The remaining real caveat is the **trusted setup** (see §9.6), not the write
+path.
 
-`src/services/nullificationService.ts` stores the proof JSON and updates accumulators, but does not call `verifyNullificationProof()`, and there is no checked-in edge function or RPC in this snapshot that verifies nullification proofs on write.
+## 9.6 Trusted setup (documented limitation)
 
-So the repo has:
+`public/circuits/nullification_xor_final.zkey` was produced by `circuits/compile.sh`
+as a **single-contributor** Groth16 phase-2 setup: one `snarkjs zkey contribute`
+seeded from local `/dev/urandom`, with no multi-party ceremony, no public
+randomness beacon, and no published transcript. Phase 1 reuses the legitimate
+Hermez `powersOfTau28_hez_final_16`.
 
-- proof generation
-- proof verification helper
-- but no visible mandatory verification step on the storage path
-
-That is one of the most important caveats in the current implementation.
+Groth16 soundness depends on the phase-2 toxic waste being discarded. Whoever ran
+`compile.sh` and retained that entropy could, in principle, forge a proof the
+server would accept — bypassing the `sk_voter * G == pk_voter` ownership
+constraint. For a research/prototype deployment this is an accepted, documented
+limitation. Before any production use, run a real multi-party ceremony and
+publish the transcript; the procedure is in `docs/TRUSTED_SETUP_RUNBOOK.md`.
 
 ## 10. Delegation Privacy
 
@@ -590,11 +627,11 @@ Notable custom or unusual decisions:
 - the repo derives a second scalar from the same seed to preserve compatibility with custom BabyJub ElGamal and circuit ownership checks
 - the ElGamal/BabyJub arithmetic is locally implemented rather than delegated to a well-known library
 - private key material is cached in `sessionStorage` for the session lifetime
-- decryption relies on a database-backed discrete-log lookup table
+- decryption relies on small-bounded discrete-log recovery (computed locally at tally time)
 - the World ID RP-signature logic is reimplemented locally in an edge function
-- nullification proving is browser-side and artifact-driven
+- nullification proving is browser-side and artifact-driven, but verification is mandatory server-side
 - ElGamal/nullification randomness is generated by modular reduction of 32 random bytes instead of rejection sampling
-- the nullification write path shown in the repo does not visibly enforce proof verification
+- the Groth16 trusted setup is a single-contributor ceremony (documented limitation, see §9.6)
 
 These are not all bugs, but they are all design decisions that materially affect the security model.
 
@@ -613,22 +650,23 @@ These are not all bugs, but they are all design decisions that materially affect
 ### World ID and session binding
 
 - `src/components/WorldIDSignIn.tsx`
-- `src/components/WorldIdRequestWidget.tsx`
 - `src/services/worldIdSessionService.ts`
 - `supabase/functions/rp-signature/index.ts`
 - `supabase/functions/register-keypair/index.ts`
-- `supabase/functions/worldid-session/index.ts`
+- `supabase/functions/worldid-session/index.ts` (+ `handler.ts`)
+- `supabase/functions/register-participant/index.ts`
 
 ### Encryption, nullification, delegation, tally
 
 - `src/services/elGamalService.ts`
-- `src/services/discreteLogService.ts`
 - `src/services/elGamalTallyService.ts`
 - `src/services/accumulatorService.ts`
 - `src/services/nullificationService.ts`
 - `src/services/kAnonymityNullificationService.ts`
 - `src/services/delegationService.ts`
 - `src/services/tallyService.ts`
+- `supabase/functions/nullification-write/index.ts` (authoritative proof verification)
+- `supabase/functions/delegation-write/index.ts`
 
 ### ZK artifacts
 
@@ -638,8 +676,9 @@ These are not all bugs, but they are all design decisions that materially affect
 - `circuits/ZKLEAN_MODELING.md`
 - `circuits/compile.sh`
 - `src/services/parallelZkProofService.ts`
-- `src/services/zkProofService.ts`
 - `src/workers/zkProofWorker.ts`
+- `supabase/functions/_shared/nullification.ts` (server-side proof verification)
+- `supabase/functions/_shared/verificationKeyXor.ts` (hard-coded verification key)
 - `public/circuits/nullification_xor.wasm`
 - `public/circuits/nullification_xor_final.zkey`
 - `public/circuits/verification_key_xor.json`
@@ -648,9 +687,6 @@ These are not all bugs, but they are all design decisions that materially affect
 
 - `circuits/nullification.circom`
   - legacy additive circuit kept for reference
-- `src/services/babyJubjubService.ts`
-  - helper for random local keypair generation
-  - present in the repo, but not part of the active passkey-backed identity flow
 
 ## 14. Circuit Static Analysis
 
@@ -679,19 +715,23 @@ The zkLean modeling path is documented in `circuits/ZKLEAN_MODELING.md`.
 
 ## 15. Open Questions / Limits of What This Repo Shows
 
-This document is based on the checked-in repository, so there are some hard limits:
+1. Vote casting is now server-enforced. The unvalidated `insert_vote` RPC was
+   dropped (migration `20260611100400`); votes go through the
+   `vote-tracking-write` `cast-vote` action, which validates the World ID
+   session and verifies the EdDSA vote signature against the voter's registered
+   participant key before inserting. Direct client inserts to `votes` are
+   blocked by RLS.
 
-1. The `insert_vote` RPC implementation is not present in repo source.
-   - The client signs votes and calls the RPC.
-   - The generated Supabase types confirm the RPC exists.
-   - The actual server-side vote-signature enforcement cannot be audited from this snapshot.
+2. Nullification proof verification is enforced on the write path (see §9.5).
 
-2. The nullification verification helper exists, but write-path enforcement is not visible.
-   - The repo clearly knows how to verify a proof.
-   - The current storage path does not visibly require that verification.
+3. The main remaining cryptographic caveat is the single-contributor trusted
+   setup (§9.6).
 
-3. Authorization properties depend partly on database policies and edge-function behavior outside the core crypto modules.
-   - This document focuses on cryptographic behavior, not full database-policy review.
+4. Authorization properties depend partly on database RLS policies and
+   edge-function behavior. The full schema is now codified under
+   `supabase/migrations/` (including the previously dashboard-only base tables),
+   and the lockdown migrations route every sensitive write through a
+   session-validating or ownership-checking edge function.
 
 ## 16. Bottom Line
 
@@ -711,7 +751,7 @@ The least standard parts are:
 
 - custom Edwards arithmetic and ElGamal
 - custom message prehash convention for EdDSA
-- database-backed discrete-log recovery
-- the currently visible nullification storage path
+- small-bounded discrete-log recovery (computed locally)
+- the single-contributor Groth16 trusted setup (§9.6)
 
 If this document is kept up to date, it should be treated as the reference map for the repo's active cryptographic decisions.

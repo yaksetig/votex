@@ -9,8 +9,11 @@
 --    verifies the EdDSA vote signature against the voter's registered key,
 --    and checks the election is open.
 --
--- 2. elections INSERT was open. Creation is now gated on the caller being an
---    authenticated election authority (completes VTX-015).
+-- 2. elections INSERT: this migration originally gated creation on the caller
+--    being an authenticated authority, but that was reverted by
+--    20260611100500 because open creation is the intended product flow and was
+--    not a flagged vulnerability. The policy below is superseded; see that
+--    migration.
 --
 -- 3. The legacy pre-World-ID keypairs table (open INSERT, referenced only by
 --    dead code) is dropped.
