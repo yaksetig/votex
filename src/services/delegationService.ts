@@ -18,6 +18,7 @@ import {
 } from "@/services/elGamalService";
 import { decryptElGamalInExponent } from "@/services/elGamalTallyService";
 import { getElectionParticipants, ElectionParticipant } from "@/services/electionParticipantsService";
+import { getStoredWorldIdSessionToken } from "@/services/worldIdSessionService";
 import { logger } from "@/services/logger";
 
 interface StoredDelegation {
@@ -46,36 +47,46 @@ interface DelegationResolution {
 /**
  * Create a private delegation.
  *
+ * The write goes through the delegation-write edge function; the delegator
+ * identity comes from the validated World ID session, never the client.
+ *
  * @param electionId     Election to delegate within
- * @param delegatorId    World ID nullifier hash of the delegator
  * @param delegateIndex  Index of the delegate in the ordered participant list
  * @param authorityPk    Election authority's ElGamal public key
  */
 export async function createDelegation(
   electionId: string,
-  delegatorId: string,
   delegateIndex: number,
   authorityPk: EdwardsPoint
 ): Promise<boolean> {
   try {
     logger.debug(
-      `Creating delegation: election=${electionId}, delegator=${delegatorId}, index=${delegateIndex}`
+      `Creating delegation: election=${electionId}, index=${delegateIndex}`
     );
+
+    const sessionToken = getStoredWorldIdSessionToken();
+    if (!sessionToken) {
+      logger.error("Cannot create delegation without a stored voter session");
+      return false;
+    }
 
     // Encrypt the delegate index with the authority's public key
     const ct = elgamalEncrypt(authorityPk, delegateIndex);
 
-    const { error } = await supabase.from("delegations").insert({
-      election_id: electionId,
-      delegator_id: delegatorId,
-      delegate_ct_c1_x: ct.c1.x.toString(),
-      delegate_ct_c1_y: ct.c1.y.toString(),
-      delegate_ct_c2_x: ct.c2.x.toString(),
-      delegate_ct_c2_y: ct.c2.y.toString(),
+    const { data, error } = await supabase.functions.invoke("delegation-write", {
+      body: {
+        action: "create",
+        electionId,
+        sessionToken,
+        ciphertext: {
+          c1: { x: ct.c1.x.toString(), y: ct.c1.y.toString() },
+          c2: { x: ct.c2.x.toString(), y: ct.c2.y.toString() },
+        },
+      },
     });
 
-    if (error) {
-      logger.error("Error creating delegation:", error);
+    if (error || !data?.success) {
+      logger.error("Error creating delegation:", error ?? data);
       return false;
     }
 
@@ -88,25 +99,26 @@ export async function createDelegation(
 }
 
 /**
- * Revoke an active delegation so the voter can vote directly again.
+ * Revoke the session holder's active delegation so they can vote directly again.
  */
-export async function revokeDelegation(
-  electionId: string,
-  delegatorId: string
-): Promise<boolean> {
+export async function revokeDelegation(electionId: string): Promise<boolean> {
   try {
-    const { error } = await supabase
-      .from("delegations")
-      .update({
-        status: "revoked",
-        revoked_at: new Date().toISOString(),
-      })
-      .eq("election_id", electionId)
-      .eq("delegator_id", delegatorId)
-      .eq("status", "active");
+    const sessionToken = getStoredWorldIdSessionToken();
+    if (!sessionToken) {
+      logger.error("Cannot revoke delegation without a stored voter session");
+      return false;
+    }
 
-    if (error) {
-      logger.error("Error revoking delegation:", error);
+    const { data, error } = await supabase.functions.invoke("delegation-write", {
+      body: {
+        action: "revoke",
+        electionId,
+        sessionToken,
+      },
+    });
+
+    if (error || !data?.success) {
+      logger.error("Error revoking delegation:", error ?? data);
       return false;
     }
 

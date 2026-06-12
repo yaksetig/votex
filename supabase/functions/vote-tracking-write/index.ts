@@ -1,74 +1,34 @@
+// Vote write path.
+//
+// cast-vote: inserts the canonical votes row after validating the World ID
+//   session, verifying the EdDSA vote signature against the voter's registered
+//   key, and checking the election is open. Replaces the unvalidated
+//   insert_vote() RPC (dropped in 20260611100400), then syncs the tracking row.
+// sync-vote: legacy action that only syncs the tracking tables from an
+//   existing canonical vote.
+
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { corsHeaders } from "../_shared/cors.ts";
+import { jsonResponse } from "../_shared/http.ts";
+import { validateWorldIdSession } from "../_shared/session.ts";
+import { verifyPoseidonSignature } from "../_shared/eddsa.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+// Reject vote signatures whose embedded timestamp is too far from server time.
+const VOTE_TIMESTAMP_SKEW_MS = 10 * 60 * 1000;
 
-interface SyncVoteRequest {
-  action?: "sync-vote";
+interface VoteWriteRequest {
+  action?: "sync-vote" | "cast-vote";
   electionId: string;
   sessionToken: string;
+  choice?: string;
+  signature?: string;
+  timestamp?: number;
 }
 
-interface SessionValidationResult {
-  valid: boolean;
-  detail?: string;
-  userId?: string;
-}
-
-function jsonResponse(status: number, body: unknown): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      ...corsHeaders,
-      "Content-Type": "application/json",
-    },
-  });
-}
-
-async function sha256Hex(value: string): Promise<string> {
-  const encoded = new TextEncoder().encode(value);
-  const digest = await crypto.subtle.digest("SHA-256", encoded);
-  return Array.from(new Uint8Array(digest))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-async function validateWorldIdSession(
-  supabase: ReturnType<typeof createClient>,
-  sessionToken: string
-): Promise<SessionValidationResult> {
-  const tokenHash = await sha256Hex(sessionToken);
-  const { data: session, error: sessionError } = await supabase
-    .from("world_id_sessions")
-    .select("expires_at, nullifier_hash, revoked_at")
-    .eq("token_hash", tokenHash)
-    .maybeSingle();
-
-  if (sessionError) {
-    console.error("Session lookup error:", sessionError);
-    return { valid: false, detail: "Failed to validate voter session" };
-  }
-
-  if (!session || session.revoked_at) {
-    return { valid: false, detail: "Voter session is invalid or revoked" };
-  }
-
-  if (new Date(session.expires_at).getTime() <= Date.now()) {
-    await supabase
-      .from("world_id_sessions")
-      .update({
-        revoked_at: new Date().toISOString(),
-      })
-      .eq("token_hash", tokenHash);
-
-    return { valid: false, detail: "Voter session has expired" };
-  }
-
-  return { valid: true, userId: session.nullifier_hash };
-}
+// Without generated DB types the esm.sh client degrades table rows to
+// `never`, so the helper takes the client untyped.
+// deno-lint-ignore no-explicit-any
+type SupabaseClient = any;
 
 function resolveTrackingTable(
   voteChoice: string,
@@ -93,15 +53,93 @@ function isTrackingRowFinalized(row: {
   return !!row && (row.nullified || row.nullification_count !== 0);
 }
 
+// Sync the yes_votes/no_votes tracking row for a voter's canonical vote.
+async function syncTrackingRow(
+  supabase: SupabaseClient,
+  electionId: string,
+  userId: string,
+  choice: string,
+  option1: string,
+  option2: string
+): Promise<Response | null> {
+  const tableResolution = resolveTrackingTable(choice, option1, option2);
+
+  if (!tableResolution) {
+    return jsonResponse(400, {
+      error: "Canonical vote choice does not match this election's options",
+    });
+  }
+
+  const { targetTable, oppositeTable } = tableResolution;
+
+  const [{ data: targetRow, error: targetLookupError }, { data: oppositeRow, error: oppositeLookupError }] =
+    await Promise.all([
+      supabase
+        .from(targetTable)
+        .select("id, nullified, nullification_count")
+        .eq("election_id", electionId)
+        .eq("voter_id", userId)
+        .maybeSingle(),
+      supabase
+        .from(oppositeTable)
+        .select("id, nullified, nullification_count")
+        .eq("election_id", electionId)
+        .eq("voter_id", userId)
+        .maybeSingle(),
+    ]);
+
+  if (targetLookupError || oppositeLookupError) {
+    console.error("Tracking row lookup error:", targetLookupError || oppositeLookupError);
+    return jsonResponse(500, { error: "Failed to load tracking rows" });
+  }
+
+  if (isTrackingRowFinalized(targetRow) || isTrackingRowFinalized(oppositeRow)) {
+    return jsonResponse(409, {
+      error: "Vote tracking has already been finalized and cannot be reset",
+    });
+  }
+
+  if (oppositeRow) {
+    const { error: deleteError } = await supabase
+      .from(oppositeTable)
+      .delete()
+      .eq("id", oppositeRow.id);
+
+    if (deleteError) {
+      console.error("Opposite tracking row delete error:", deleteError);
+      return jsonResponse(500, { error: "Failed to clean up stale tracking row" });
+    }
+  }
+
+  if (!targetRow) {
+    const { error: insertError } = await supabase
+      .from(targetTable)
+      .insert({
+        election_id: electionId,
+        voter_id: userId,
+        nullified: false,
+        nullification_count: 0,
+      });
+
+    if (insertError) {
+      console.error("Tracking row insert error:", insertError);
+      return jsonResponse(500, { error: "Failed to create tracking row" });
+    }
+  }
+
+  return null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const body = (await req.json()) as SyncVoteRequest;
+    const body = (await req.json()) as VoteWriteRequest;
+    const action = body.action ?? "sync-vote";
 
-    if (body.action && body.action !== "sync-vote") {
+    if (action !== "sync-vote" && action !== "cast-vote") {
       return jsonResponse(400, { error: "Unsupported action" });
     }
 
@@ -125,7 +163,7 @@ Deno.serve(async (req) => {
 
     const { data: election, error: electionError } = await supabase
       .from("elections")
-      .select("id, option1, option2")
+      .select("id, option1, option2, end_date, closed_manually_at")
       .eq("id", body.electionId)
       .maybeSingle();
 
@@ -138,6 +176,111 @@ Deno.serve(async (req) => {
       return jsonResponse(404, { error: "Election not found" });
     }
 
+    if (action === "cast-vote") {
+      if (!body.choice || !body.signature || typeof body.timestamp !== "number") {
+        return jsonResponse(400, {
+          error: "Missing choice, signature, or timestamp",
+        });
+      }
+
+      if (
+        election.closed_manually_at ||
+        new Date(election.end_date).getTime() <= Date.now()
+      ) {
+        return jsonResponse(409, { error: "Election is closed" });
+      }
+
+      if (body.choice !== election.option1 && body.choice !== election.option2) {
+        return jsonResponse(400, {
+          error: "Choice does not match this election's options",
+        });
+      }
+
+      if (Math.abs(Date.now() - body.timestamp) > VOTE_TIMESTAMP_SKEW_MS) {
+        return jsonResponse(400, { error: "Vote signature timestamp is stale" });
+      }
+
+      const { data: participant, error: participantError } = await supabase
+        .from("election_participants")
+        .select("public_key_x, public_key_y")
+        .eq("election_id", body.electionId)
+        .eq("participant_id", session.userId)
+        .maybeSingle();
+
+      if (participantError) {
+        console.error("Participant lookup error:", participantError);
+        return jsonResponse(500, { error: "Failed to load participant" });
+      }
+
+      if (!participant) {
+        return jsonResponse(409, {
+          error: "Voter is not a registered participant in this election",
+        });
+      }
+
+      const expectedMessage = `${body.electionId}:${body.choice}:${body.timestamp}`;
+      let signatureValid = false;
+      try {
+        signatureValid = await verifyPoseidonSignature(
+          body.signature,
+          { x: participant.public_key_x, y: participant.public_key_y },
+          expectedMessage
+        );
+      } catch (error) {
+        console.error("Vote signature verification error:", error);
+        signatureValid = false;
+      }
+
+      if (!signatureValid) {
+        return jsonResponse(401, { error: "Vote signature verification failed" });
+      }
+
+      const { data: insertedVote, error: voteInsertError } = await supabase
+        .from("votes")
+        .insert({
+          election_id: body.electionId,
+          voter: session.userId,
+          choice: body.choice,
+          signature: body.signature,
+          timestamp: body.timestamp,
+          nullifier: null,
+        })
+        .select("id")
+        .single();
+
+      if (voteInsertError) {
+        // 23505 = unique violation on votes(election_id, voter)
+        if (voteInsertError.code === "23505") {
+          return jsonResponse(409, {
+            error: "A vote has already been cast for this identity in this election",
+          });
+        }
+
+        console.error("Vote insert error:", voteInsertError);
+        return jsonResponse(500, { error: "Failed to record vote" });
+      }
+
+      const trackingFailure = await syncTrackingRow(
+        supabase,
+        body.electionId,
+        session.userId,
+        body.choice,
+        election.option1,
+        election.option2
+      );
+
+      if (trackingFailure) {
+        return trackingFailure;
+      }
+
+      return jsonResponse(200, {
+        success: true,
+        voteId: insertedVote.id,
+        userId: session.userId,
+      });
+    }
+
+    // sync-vote: backfill tracking from the existing canonical vote
     const { data: vote, error: voteError } = await supabase
       .from("votes")
       .select("choice")
@@ -158,78 +301,21 @@ Deno.serve(async (req) => {
       });
     }
 
-    const tableResolution = resolveTrackingTable(
+    const trackingFailure = await syncTrackingRow(
+      supabase,
+      body.electionId,
+      session.userId,
       vote.choice,
       election.option1,
       election.option2
     );
 
-    if (!tableResolution) {
-      return jsonResponse(400, {
-        error: "Canonical vote choice does not match this election's options",
-      });
-    }
-
-    const { targetTable, oppositeTable } = tableResolution;
-
-    const [{ data: targetRow, error: targetLookupError }, { data: oppositeRow, error: oppositeLookupError }] =
-      await Promise.all([
-        supabase
-          .from(targetTable)
-          .select("id, nullified, nullification_count")
-          .eq("election_id", body.electionId)
-          .eq("voter_id", session.userId)
-          .maybeSingle(),
-        supabase
-          .from(oppositeTable)
-          .select("id, nullified, nullification_count")
-          .eq("election_id", body.electionId)
-          .eq("voter_id", session.userId)
-          .maybeSingle(),
-      ]);
-
-    if (targetLookupError || oppositeLookupError) {
-      console.error("Tracking row lookup error:", targetLookupError || oppositeLookupError);
-      return jsonResponse(500, { error: "Failed to load tracking rows" });
-    }
-
-    if (isTrackingRowFinalized(targetRow) || isTrackingRowFinalized(oppositeRow)) {
-      return jsonResponse(409, {
-        error: "Vote tracking has already been finalized and cannot be reset",
-      });
-    }
-
-    if (oppositeRow) {
-      const { error: deleteError } = await supabase
-        .from(oppositeTable)
-        .delete()
-        .eq("id", oppositeRow.id);
-
-      if (deleteError) {
-        console.error("Opposite tracking row delete error:", deleteError);
-        return jsonResponse(500, { error: "Failed to clean up stale tracking row" });
-      }
-    }
-
-    if (!targetRow) {
-      const { error: insertError } = await supabase
-        .from(targetTable)
-        .insert({
-          election_id: body.electionId,
-          voter_id: session.userId,
-          nullified: false,
-          nullification_count: 0,
-        });
-
-      if (insertError) {
-        console.error("Tracking row insert error:", insertError);
-        return jsonResponse(500, { error: "Failed to create tracking row" });
-      }
+    if (trackingFailure) {
+      return trackingFailure;
     }
 
     return jsonResponse(200, {
       success: true,
-      table: targetTable,
       userId: session.userId,
     });
   } catch (error) {

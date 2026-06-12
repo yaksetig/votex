@@ -25,7 +25,6 @@ import {
   registerElectionParticipant,
 } from "@/services/electionParticipantsService";
 import { createDelegation, revokeDelegation, getActiveDelegation } from "@/services/delegationService";
-import { recordVote } from "@/services/voteTrackingService";
 import { Election } from "@/types/election";
 import type { KAnonymityProgress } from "@/services/kAnonymityNullificationService";
 import { KEYPAIR_VERSION } from "@/services/eddsaService";
@@ -131,7 +130,7 @@ const ElectionDetail = () => {
         BigInt(authority.public_key_y)
       );
 
-      const success = await createDelegation(id, userId, participantIndex, authorityPk);
+      const success = await createDelegation(id, participantIndex, authorityPk);
       if (!success) throw new Error("Failed to store delegation");
 
       setHasDelegated(true);
@@ -153,7 +152,7 @@ const ElectionDetail = () => {
 
   const handleRevokeDelegation = async () => {
     if (!id || !userId) return;
-    const success = await revokeDelegation(id, userId);
+    const success = await revokeDelegation(id);
     if (success) {
       setHasDelegated(false);
       toast({
@@ -395,18 +394,9 @@ const ElectionDetail = () => {
       const { signVote } = await import("@/services/signatureService");
       const { signature, timestamp } = await signVote(keypair, election.id, selectedOption);
 
-      const { error: voteError } = await supabase.rpc("insert_vote", {
-        p_election_id: election.id,
-        p_voter: userId,
-        p_choice: selectedOption,
-        p_nullifier: null,
-        p_signature: signature,
-        p_timestamp: timestamp,
-      });
+      const { castVote } = await import("@/services/voteTrackingService");
+      await castVote(election.id, selectedOption, signature, timestamp);
 
-      if (voteError) throw voteError;
-
-      await recordVote(election.id);
       await checkIfUserVoted();
       await fetchElectionData();
 

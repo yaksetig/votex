@@ -1,9 +1,13 @@
+// The @types/circomlibjs package esm.sh attaches is incomplete (no buildEddsa),
+// so the module is imported untyped.
+// @ts-expect-error: circomlibjs ships no accurate type definitions
 import { buildEddsa } from "https://esm.sh/circomlibjs@0.1.7?bundle";
 
 const CURVE_ORDER =
   2736030358979909402780800718157159386076813972158567259200215660948447373041n;
 
-type EddsaInstance = Awaited<ReturnType<typeof buildEddsa>>;
+// deno-lint-ignore no-explicit-any
+type EddsaInstance = any;
 
 interface ParsedSignature {
   R8: {
@@ -14,12 +18,10 @@ interface ParsedSignature {
   message: string;
 }
 
-let eddsaPromise: Promise<EddsaInstance> | null = null;
+let eddsaPromise: Promise<EddsaInstance> | undefined;
 
 function getEddsa(): Promise<EddsaInstance> {
-  if (!eddsaPromise) {
-    eddsaPromise = buildEddsa();
-  }
+  eddsaPromise ??= buildEddsa() as Promise<EddsaInstance>;
   return eddsaPromise;
 }
 

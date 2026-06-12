@@ -73,6 +73,52 @@ export async function getElectionVoteData(electionId: string): Promise<VoteData 
   }
 }
 
+// Cast a vote. The server function validates the World ID session, verifies
+// the EdDSA vote signature against the voter's registered key, inserts the
+// canonical votes row, and syncs the tracking tables in one call. Throws on
+// rejection so the UI can show the server's reason.
+export async function castVote(
+  electionId: string,
+  choice: string,
+  signature: string,
+  timestamp: number
+): Promise<{ voteId: string }> {
+  const sessionToken = getStoredWorldIdSessionToken();
+  if (!sessionToken) {
+    throw new Error("No active voter session; sign in with World ID first");
+  }
+
+  const { data, error } = await supabase.functions.invoke("vote-tracking-write", {
+    body: {
+      action: "cast-vote",
+      electionId,
+      sessionToken,
+      choice,
+      signature,
+      timestamp,
+    },
+  });
+
+  if (error) {
+    const context = (error as { context?: Response }).context;
+    if (context) {
+      const body = (await context.json().catch(() => null)) as
+        | { error?: string }
+        | null;
+      if (body?.error) {
+        throw new Error(body.error);
+      }
+    }
+    throw new Error(error.message || "Failed to cast vote");
+  }
+
+  if (!data?.success || !data?.voteId) {
+    throw new Error(data?.error || "Vote was rejected");
+  }
+
+  return { voteId: data.voteId };
+}
+
 // Sync a canonical vote from the main votes table into the tracking tables.
 // The write is performed through a server function that validates the active
 // World ID session token and derives the voter id from that session.
