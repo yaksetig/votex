@@ -17,7 +17,7 @@ import {
   ElGamalCiphertext,
 } from "@/services/elGamalService";
 import { decryptElGamalInExponent } from "@/services/elGamalTallyService";
-import { getElectionParticipants, ElectionParticipant } from "@/services/electionParticipantsService";
+import { getElectionParticipants } from "@/services/electionParticipantsService";
 import { getStoredWorldIdSessionToken } from "@/services/worldIdSessionService";
 import { logger } from "@/services/logger";
 

@@ -211,7 +211,6 @@ describe("XOR gate computation", () => {
 
   it("gate output points are on curve", () => {
     const acc = identityCiphertext();
-    const r = randomScalar(CURVE_ORDER);
     const s = randomScalar(CURVE_ORDER);
 
     const gate = computeXorGate(1, acc, authorityPublicKey, s);

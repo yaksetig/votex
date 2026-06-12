@@ -10,7 +10,7 @@
  *   - ElGamal tally decryption correctness
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import {
   EdwardsPoint,
   elgamalEncrypt,
@@ -230,7 +230,6 @@ describe("Delegation encryption", () => {
   it("encrypt-then-decrypt preserves participant index", () => {
     const index = 5;
     const ct = elgamalEncrypt(authorityPk, index);
-    const result = decryptLocally(ct, authoritySk);
     // decryptLocally only handles 0 and 1; for higher indices we
     // check manually: m*G where m = index
     const skC1 = ct.c1.multiply(authoritySk);

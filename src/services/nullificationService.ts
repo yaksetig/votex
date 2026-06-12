@@ -19,23 +19,6 @@ export interface Nullification {
   created_at: string;
 }
 
-// Store a single nullification in the database
-export async function storeNullification(
-  electionId: string,
-  userId: string,
-  ciphertext: ElGamalCiphertext,
-  zkp?: NullificationProof
-): Promise<boolean> {
-  void electionId;
-  void userId;
-  void ciphertext;
-  void zkp;
-  logger.error(
-    "Direct nullification inserts are disabled; use storeNullificationBatchWithAccumulators"
-  );
-  return false;
-}
-
 // Batch store nullifications through the trusted server-side write path.
 export async function storeNullificationBatchWithAccumulators(
   electionId: string,
@@ -89,23 +72,6 @@ export async function storeNullificationBatchWithAccumulators(
     logger.error("Error in storeNullificationBatchWithAccumulators:", error);
     return false;
   }
-}
-
-// Legacy batch store (without accumulator updates)
-export async function storeNullificationBatch(
-  electionId: string,
-  nullifications: Array<{
-    userId: string;
-    ciphertext: ElGamalCiphertext;
-    zkp: { proof: Groth16Proof; publicSignals: string[] };
-  }>
-): Promise<boolean> {
-  void electionId;
-  void nullifications;
-  logger.error(
-    "Legacy batch nullification inserts are disabled; use storeNullificationBatchWithAccumulators"
-  );
-  return false;
 }
 
 // Get nullifications for an election (for election authority use)

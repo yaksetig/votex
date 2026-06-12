@@ -1,5 +1,4 @@
 
-import { supabase } from "@/integrations/supabase/client";
 import { StoredKeypair } from "@/types/keypair";
 import { verifyKeypairConsistency } from "@/services/elGamalService";
 import { logger } from "@/services/logger";
@@ -67,38 +66,3 @@ export function validateAndMigrateKeypair(): { valid: boolean; cleared: boolean;
   return { valid: true, cleared: false, keypair: storedKeypair };
 }
 
-// Register a keypair in the database
-export async function registerKeypair(keypair: StoredKeypair): Promise<boolean> {
-  try {
-    // Check if keypair is already registered
-    const { data: existingKeypair } = await supabase
-      .from("keypairs")
-      .select("*")
-      .eq("public_key_x", keypair.Ax)
-      .eq("public_key_y", keypair.Ay)
-      .single();
-
-    if (existingKeypair) {
-      logger.debug("Keypair already registered");
-      return true;
-    }
-
-    // Register new keypair
-    const { error } = await supabase
-      .from("keypairs")
-      .insert({
-        public_key_x: keypair.Ax,
-        public_key_y: keypair.Ay
-      });
-
-    if (error) {
-      logger.error("Error registering keypair:", error);
-      return false;
-    }
-
-    return true;
-  } catch (error) {
-    logger.error("Error in keypair registration:", error);
-    return false;
-  }
-}

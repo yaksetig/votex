@@ -177,13 +177,6 @@ export async function linkCurrentAuthorityIdentity(
 }
 
 /**
- * Sign out the current authority (clears the Supabase Auth session).
- */
-export async function signOutAuthority(): Promise<void> {
-  await supabase.auth.signOut();
-}
-
-/**
  * Get the authority record for the currently authenticated Supabase Auth user.
  * Returns null if not signed in or no authority row is linked.
  */

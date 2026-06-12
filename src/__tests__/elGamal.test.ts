@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import {
   EdwardsPoint,
   elgamalEncrypt,
-  ElGamalCiphertext,
 } from "../services/elGamalService";
 
 describe("ElGamal encryption", () => {

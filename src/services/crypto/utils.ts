@@ -35,28 +35,6 @@ export function bytesToHex(bytes: Uint8Array): string {
     .join("");
 }
 
-export function stringToBytes(str: string): Uint8Array {
-  return new TextEncoder().encode(str);
-}
-
-export async function sha256(msg: Uint8Array): Promise<Uint8Array> {
-  // Create a new ArrayBuffer to avoid SharedArrayBuffer type issues
-  const buffer = new ArrayBuffer(msg.length);
-  new Uint8Array(buffer).set(msg);
-  const h = await crypto.subtle.digest("SHA-256", buffer);
-  return new Uint8Array(h);
-}
-
-export async function hashToScalarBE(
-  order: bigint,
-  ...parts: Uint8Array[]
-): Promise<bigint> {
-  const all = Uint8Array.from(parts.flatMap((p) => [...p]));
-  const d = await sha256(all);
-  const hex = bytesToHex(d);
-  return BigInt("0x" + hex) % order;
-}
-
 export function randomScalar(order: bigint = CURVE_ORDER): bigint {
   const buf = crypto.getRandomValues(new Uint8Array(32));
   const hex = Array.from(buf)

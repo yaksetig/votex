@@ -50,23 +50,3 @@ export async function logElectionAuthorityAction(
   }
 }
 
-// Get audit log for an election
-export async function getElectionAuditLog(electionId: string): Promise<AuditLogEntry[]> {
-  try {
-    const { data, error } = await supabase
-      .from('election_authority_audit_log')
-      .select('*')
-      .eq('election_id', electionId)
-      .order('performed_at', { ascending: false });
-
-    if (error) {
-      logger.error('Error fetching audit log:', error);
-      return [];
-    }
-
-    return data || [];
-  } catch (error) {
-    logger.error('Error in getElectionAuditLog:', error);
-    return [];
-  }
-}

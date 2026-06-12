@@ -75,26 +75,6 @@ export async function getOrCreateAccumulator(
 }
 
 /**
- * Legacy client-side accumulator updates are disabled.
- * Trusted writes now happen only through the nullification edge function.
- */
-export async function updateAccumulator(
-  electionId: string,
-  voterId: string,
-  newAccumulator: ElGamalCiphertext,
-  expectedVersion: number
-): Promise<boolean> {
-  void electionId;
-  void voterId;
-  void newAccumulator;
-  void expectedVersion;
-  logger.error(
-    "Direct client-side accumulator updates are disabled; use the trusted nullification write path"
-  );
-  return false;
-}
-
-/**
  * Get all accumulators for an election (used during tally).
  */
 export async function getElectionAccumulators(

@@ -40,14 +40,15 @@ const ElectionDetail = () => {
   const [voteCounts, setVoteCounts] = useState({ option1: 0, option2: 0 });
   const [selectedOption, setSelectedOption] = useState("");
   const [hasVoted, setHasVoted] = useState(false);
-  const [voteReceipt, setVoteReceipt] = useState<string | null>(null);
+  // Receipt id is tracked to trigger refetches; the value itself is not rendered.
+  const [, setVoteReceipt] = useState<string | null>(null);
   const [votedChoice, setVotedChoice] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [nullifying, setNullifying] = useState(false);
   const [keypair, setKeypair] = useState<StoredKeypair | null>(null);
   const [needsKeypair, setNeedsKeypair] = useState(false);
   const [participants, setParticipants] = useState<ElectionParticipant[]>([]);
-  const [isParticipant, setIsParticipant] = useState(false);
+  const [, setIsParticipant] = useState(false);
   const [showNullificationDialog, setShowNullificationDialog] = useState(false);
   const [isDerivingKey, setIsDerivingKey] = useState(false);
   const [showProgressDialog, setShowProgressDialog] = useState(false);
@@ -167,20 +168,6 @@ const ElectionDetail = () => {
     return isPast(new Date(election.end_date)) || !!election.closed_manually_at;
   }, [election]);
 
-  const fetchVoteReceipt = async () => {
-    if (!userId || !id) return;
-
-    const { data } = await supabase
-      .from("votes")
-      .select("id, choice")
-      .eq("election_id", id)
-      .eq("voter", userId)
-      .limit(1)
-      .maybeSingle();
-
-    setVoteReceipt(data?.id ?? null);
-    setVotedChoice(data?.choice ?? null);
-  };
 
   const checkParticipantStatus = async () => {
     if (!userId || !id) return;

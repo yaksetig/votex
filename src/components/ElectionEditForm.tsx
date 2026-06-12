@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { updateElectionDetails } from "@/services/electionManagementService";
+import { updateElectionDetails } from "@/services/electionOperationsService";
 
 const editElectionSchema = z.object({
   title: z.string().min(1, "Title is required").max(100, "Title too long"),

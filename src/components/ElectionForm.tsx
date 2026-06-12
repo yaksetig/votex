@@ -40,7 +40,7 @@ const ElectionForm: React.FC<ElectionFormProps> = ({ onSubmit, onCancel }) => {
           setDefaultAuthorityId(defaultAuthority.id);
           setValue("authorityId", defaultAuthority.id);
         }
-      } catch (error) {
+      } catch {
         toast({
           variant: "destructive",
           title: "Authority unavailable",
@@ -58,7 +58,7 @@ const ElectionForm: React.FC<ElectionFormProps> = ({ onSubmit, onCancel }) => {
         ...data,
         authorityId: defaultAuthorityId,
       });
-    } catch (error) {
+    } catch {
       toast({
         variant: "destructive",
         title: "Publish failed",

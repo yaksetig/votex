@@ -1,11 +1,5 @@
 import { StoredKeypair } from "@/types/keypair";
-import { logger } from "@/services/logger";
-import {
-  parseSignaturePayload,
-  publicKeyFromStrings,
-  signMessageWithStoredSeed,
-  verifySignatureObject,
-} from "@/services/eddsaService";
+import { signMessageWithStoredSeed } from "@/services/eddsaService";
 
 function buildVoteMessage(
   electionId: string,
@@ -40,22 +34,4 @@ export async function signVote(
     publicKey: { x: keypair.Ax, y: keypair.Ay },
     timestamp,
   };
-}
-
-/**
- * Verify an EdDSA-Poseidon signature.
- */
-export async function verifySignature(
-  signature: string,
-  publicKey: { x: string; y: string }
-): Promise<boolean> {
-  try {
-    return verifySignatureObject(
-      parseSignaturePayload(signature),
-      publicKeyFromStrings(publicKey)
-    );
-  } catch (error) {
-    logger.error("EdDSA signature verification failed:", error);
-    return false;
-  }
 }

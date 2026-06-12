@@ -66,15 +66,6 @@ interface WorldIdV4VerifyResponse {
   code?: string;
 }
 
-/** @deprecated kept for v3 legacy path */
-interface WorldIdVerifyResponse {
-  success: boolean;
-  action?: string;
-  nullifier_hash?: string;
-  detail?: string;
-  code?: string;
-}
-
 interface RecoverySessionValidationResult {
   valid: boolean;
   detail?: string;

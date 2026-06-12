@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Users, ShieldCheck, X } from "lucide-react";
+import { Users, ShieldCheck } from "lucide-react";
 import {
   Dialog,
   DialogContent,

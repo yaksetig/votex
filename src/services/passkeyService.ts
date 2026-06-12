@@ -441,38 +441,3 @@ export async function authenticateWithPreferredPasskey(): Promise<PRFResult> {
   return await authenticateWithAnyPasskey();
 }
 
-/**
- * Create a new passkey OR authenticate with existing one and derive secret
- * 
- * This is the main entry point for the passkey flow:
- * 1. First, try discoverable credential flow (shows all available passkeys)
- * 2. If no passkey found or user cancels, offer to create a new one
- * 
- * @param forceCreate - If true, skip authentication attempt and create new passkey
- * @returns The PRF-derived secret
- */
-export async function getOrCreatePasskeySecret(forceCreate: boolean = false): Promise<PRFResult> {
-  if (!forceCreate) {
-    try {
-      // Try discoverable credential flow first
-      // This will show any available passkeys (synced, from Keychain, or via QR)
-      console.log("Attempting discoverable credential authentication...");
-      return await authenticateWithAnyPasskey();
-    } catch (error) {
-      // If user explicitly cancelled, propagate the error
-      if (error instanceof Error && error.message.includes("cancelled")) {
-        throw error;
-      }
-      // Otherwise, fall through to create new passkey
-      console.log("No existing passkey found or authentication failed, will create new one");
-    }
-  }
-
-  // Generate a random user ID for privacy
-  // (World ID provides the actual uniqueness guarantee)
-  const userId = crypto.getRandomValues(new Uint8Array(32));
-  const credentialId = await createPasskeyCredential(userId);
-
-  // Now authenticate to get the PRF secret
-  return await deriveSecretFromPasskey(credentialId);
-}

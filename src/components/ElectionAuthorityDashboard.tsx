@@ -12,7 +12,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { closeElectionEarly, isElectionSafeToEdit } from "@/services/electionManagementService";
+import { closeElectionEarly, isElectionSafeToEdit } from "@/services/electionOperationsService";
 
 const TallyResultsDisplay = lazy(() => import("@/components/TallyResultsDisplay"));
 const ElectionEditForm = lazy(() => import("@/components/ElectionEditForm"));
