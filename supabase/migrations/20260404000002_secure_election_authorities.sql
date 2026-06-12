@@ -22,6 +22,14 @@ WHERE NOT EXISTS (
 
 ALTER TABLE public.election_authorities ENABLE ROW LEVEL SECURITY;
 
+-- Original open policies from 20250603051134 (these were still live when this
+-- migration was finally applied on 2026-06-11; without these drops the open
+-- policies would survive and OR-combine with the lockdown below).
+DROP POLICY IF EXISTS "Allow viewing election authorities" ON public.election_authorities;
+DROP POLICY IF EXISTS "Allow creating election authorities" ON public.election_authorities;
+DROP POLICY IF EXISTS "Allow updating election authorities" ON public.election_authorities;
+DROP POLICY IF EXISTS "Allow deleting election authorities" ON public.election_authorities;
+
 DROP POLICY IF EXISTS "Anyone can view election authorities" ON public.election_authorities;
 DROP POLICY IF EXISTS "No direct client inserts into election authorities" ON public.election_authorities;
 DROP POLICY IF EXISTS "No direct client updates to election authorities" ON public.election_authorities;
