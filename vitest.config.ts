@@ -10,5 +10,8 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "node",
+    // Only run the browser/node test suite. Edge-function tests under
+    // supabase/functions use Deno + https: imports and run via `deno test`.
+    include: ["src/**/*.{test,spec}.{ts,tsx}"],
   },
 });

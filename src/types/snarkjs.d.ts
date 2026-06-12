@@ -48,4 +48,12 @@ declare module "snarkjs" {
       proof: Groth16Proof
     ): Promise<boolean>;
   }
+
+  export namespace wtns {
+    function calculate(
+      input: Record<string, unknown>,
+      wasm: Uint8Array | string,
+      options?: { type?: string }
+    ): Promise<void>;
+  }
 }
