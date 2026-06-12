@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo } from "react";
 import {
   AlertTriangle,
   BarChart3,
@@ -8,7 +8,7 @@ import {
   Vote,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { getElectionsForAuthority } from "@/services/electionDataService";
+import { useAuthorityElections } from "@/hooks/queries/useAuthorityElections";
 import type { AuthorityElection } from "@/services/electionDataService";
 import { cn } from "@/lib/utils";
 
@@ -23,33 +23,28 @@ const AuthorityElectionsList: React.FC<AuthorityElectionsListProps> = ({
   authorityName,
   onElectionSelect,
 }) => {
-  const [elections, setElections] = useState<AuthorityElection[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const {
+    data: elections = [],
+    isLoading: loading,
+    isError,
+    error: queryError,
+  } = useAuthorityElections(authorityId);
+  const error = isError
+    ? queryError instanceof Error
+      ? queryError.message
+      : "Failed to load elections"
+    : null;
 
   useEffect(() => {
-    const fetchElections = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const electionsData = await getElectionsForAuthority(authorityId);
-        setElections(electionsData);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "Failed to load elections";
-        setError(message);
-        toast({
-          variant: "destructive",
-          title: "Error loading elections",
-          description: message,
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    void fetchElections();
-  }, [authorityId, toast]);
+    if (isError) {
+      toast({
+        variant: "destructive",
+        title: "Error loading elections",
+        description: error ?? "Failed to load elections",
+      });
+    }
+  }, [isError, error, toast]);
 
   const stats = useMemo(() => {
     return elections.reduce(

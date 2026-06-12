@@ -12,8 +12,80 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "13.0.4"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
+      delegations: {
+        Row: {
+          created_at: string
+          delegate_ct_c1_x: string
+          delegate_ct_c1_y: string
+          delegate_ct_c2_x: string
+          delegate_ct_c2_y: string
+          delegator_id: string
+          election_id: string
+          id: string
+          revoked_at: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          delegate_ct_c1_x: string
+          delegate_ct_c1_y: string
+          delegate_ct_c2_x: string
+          delegate_ct_c2_y: string
+          delegator_id: string
+          election_id: string
+          id?: string
+          revoked_at?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          delegate_ct_c1_x?: string
+          delegate_ct_c1_y?: string
+          delegate_ct_c2_x?: string
+          delegate_ct_c2_y?: string
+          delegator_id?: string
+          election_id?: string
+          id?: string
+          revoked_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delegations_election_id_fkey"
+            columns: ["election_id"]
+            isOneToOne: false
+            referencedRelation: "elections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       discrete_log_lookup: {
         Row: {
           discrete_log_value: number
@@ -91,53 +163,6 @@ export type Database = {
           performed_by?: string
         }
         Relationships: []
-      }
-      delegations: {
-        Row: {
-          id: string
-          election_id: string
-          delegator_id: string
-          delegate_ct_c1_x: string
-          delegate_ct_c1_y: string
-          delegate_ct_c2_x: string
-          delegate_ct_c2_y: string
-          status: string
-          created_at: string
-          revoked_at: string | null
-        }
-        Insert: {
-          id?: string
-          election_id: string
-          delegator_id: string
-          delegate_ct_c1_x: string
-          delegate_ct_c1_y: string
-          delegate_ct_c2_x: string
-          delegate_ct_c2_y: string
-          status?: string
-          created_at?: string
-          revoked_at?: string | null
-        }
-        Update: {
-          id?: string
-          election_id?: string
-          delegator_id?: string
-          delegate_ct_c1_x?: string
-          delegate_ct_c1_y?: string
-          delegate_ct_c2_x?: string
-          delegate_ct_c2_y?: string
-          status?: string
-          created_at?: string
-          revoked_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "delegations_election_id_fkey"
-            columns: ["election_id"]
-            isOneToOne: false
-            referencedRelation: "elections"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       election_participants: {
         Row: {
@@ -278,27 +303,6 @@ export type Database = {
           },
         ]
       }
-      keypairs: {
-        Row: {
-          created_at: string
-          id: string
-          public_key_x: string
-          public_key_y: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          public_key_x: string
-          public_key_y: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          public_key_x?: string
-          public_key_y?: string
-        }
-        Relationships: []
-      }
       no_votes: {
         Row: {
           created_at: string
@@ -331,40 +335,40 @@ export type Database = {
       }
       nullification_accumulators: {
         Row: {
-          id: string
-          election_id: string
-          voter_id: string
           acc_c1_x: string
           acc_c1_y: string
           acc_c2_x: string
           acc_c2_y: string
-          version: number
           created_at: string
+          election_id: string
+          id: string
           updated_at: string
+          version: number
+          voter_id: string
         }
         Insert: {
-          id?: string
-          election_id: string
-          voter_id: string
           acc_c1_x: string
           acc_c1_y: string
           acc_c2_x: string
           acc_c2_y: string
-          version?: number
           created_at?: string
+          election_id: string
+          id?: string
           updated_at?: string
+          version?: number
+          voter_id: string
         }
         Update: {
-          id?: string
-          election_id?: string
-          voter_id?: string
           acc_c1_x?: string
           acc_c1_y?: string
           acc_c2_x?: string
           acc_c2_y?: string
-          version?: number
           created_at?: string
+          election_id?: string
+          id?: string
           updated_at?: string
+          version?: number
+          voter_id?: string
         }
         Relationships: [
           {
@@ -452,6 +456,35 @@ export type Database = {
           },
         ]
       }
+      world_id_auth_verifiers: {
+        Row: {
+          created_at: string
+          nullifier_hash: string
+          updated_at: string
+          verifier_hash: string
+        }
+        Insert: {
+          created_at?: string
+          nullifier_hash: string
+          updated_at?: string
+          verifier_hash: string
+        }
+        Update: {
+          created_at?: string
+          nullifier_hash?: string
+          updated_at?: string
+          verifier_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "world_id_auth_verifiers_nullifier_hash_fkey"
+            columns: ["nullifier_hash"]
+            isOneToOne: true
+            referencedRelation: "world_id_keypairs"
+            referencedColumns: ["nullifier_hash"]
+          },
+        ]
+      }
       world_id_keypairs: {
         Row: {
           created_at: string
@@ -475,6 +508,44 @@ export type Database = {
           public_key_y?: string
         }
         Relationships: []
+      }
+      world_id_sessions: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          last_used_at: string
+          nullifier_hash: string
+          revoked_at: string | null
+          token_hash: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          last_used_at?: string
+          nullifier_hash: string
+          revoked_at?: string | null
+          token_hash: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          last_used_at?: string
+          nullifier_hash?: string
+          revoked_at?: string | null
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "world_id_sessions_nullifier_hash_fkey"
+            columns: ["nullifier_hash"]
+            isOneToOne: false
+            referencedRelation: "world_id_keypairs"
+            referencedColumns: ["nullifier_hash"]
+          },
+        ]
       }
       yes_votes: {
         Row: {
@@ -512,25 +583,19 @@ export type Database = {
     }
     Functions: {
       clear_discrete_log_table: { Args: never; Returns: undefined }
+      get_authority_id_for_current_user: { Args: never; Returns: string }
       get_discrete_log: { Args: { point_str: string }; Returns: number }
       initialize_discrete_log_table: {
         Args: { max_value?: number }
         Returns: number
       }
-      insert_vote: {
-        Args: {
-          p_choice: string
-          p_election_id: string
-          p_nullifier: string
-          p_signature: string
-          p_timestamp: number
-          p_voter: string
-        }
+      is_current_user_election_authority: {
+        Args: { authority_id_param: string }
         Returns: boolean
       }
-      is_election_authority_for_election: {
-        Args: { election_id_param: string }
-        Returns: boolean
+      submit_nullification_batch: {
+        Args: { p_election_id: string; p_items: Json; p_submitter_id: string }
+        Returns: Json
       }
     }
     Enums: {
@@ -660,6 +725,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },

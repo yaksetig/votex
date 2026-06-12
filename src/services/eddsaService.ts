@@ -84,9 +84,11 @@ async function hkdfSha256(
   keyMaterial: Uint8Array,
   info: Uint8Array
 ): Promise<Uint8Array> {
+  // Copy into fresh ArrayBuffer-backed views so the types satisfy BufferSource
+  // (a Uint8Array may be backed by a SharedArrayBuffer under TS's lib types).
   const importedKey = await crypto.subtle.importKey(
     "raw",
-    keyMaterial,
+    new Uint8Array(keyMaterial),
     "HKDF",
     false,
     ["deriveBits"]
@@ -96,8 +98,8 @@ async function hkdfSha256(
     {
       name: "HKDF",
       hash: "SHA-256",
-      salt: HKDF_SALT,
-      info,
+      salt: new Uint8Array(HKDF_SALT),
+      info: new Uint8Array(info),
     },
     importedKey,
     256

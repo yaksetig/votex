@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowRight,
   ChevronLeft,
@@ -14,26 +15,10 @@ import { formatDistanceToNowStrict } from "date-fns";
 import { useWallet } from "@/contexts/WalletContext";
 import { supabase } from "@/integrations/supabase/client";
 import { initializeDefaultElectionAuthority } from "@/services/electionAuthorityService";
-import { getElectionVoteData } from "@/services/voteTrackingService";
 import { isElectionClosed } from "@/lib/electionStatus";
-import { countVotesByChoice } from "@/lib/voteCounts";
+import { useElectionsList, type ElectionRecord } from "@/hooks/queries/useElectionsList";
 import ElectionForm from "@/components/ElectionForm";
 import { useToast } from "@/hooks/use-toast";
-
-interface ElectionRecord {
-  id: string;
-  title: string;
-  description: string;
-  option1: string;
-  option2: string;
-  end_date: string;
-  closed_manually_at?: string | null;
-  authority_id?: string | null;
-  election_authorities?: { name?: string | null } | null;
-  voteCount: number;
-  option1Count: number;
-  option2Count: number;
-}
 
 const Elections = () => {
   const navigate = useNavigate();
@@ -41,109 +26,38 @@ const Elections = () => {
   const searchQuery = searchParams.get("q")?.toLowerCase() ?? "";
   const { isWorldIDVerified, userId } = useWallet();
   const { toast } = useToast();
-  const [elections, setElections] = useState<ElectionRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const {
+    data: elections = [],
+    isLoading: loading,
+    isError,
+    error: electionsError,
+    refetch: refetchElections,
+  } = useElectionsList();
   const [showForm, setShowForm] = useState(false);
 
-  const fetchElections = useCallback(async () => {
-    try {
-      setLoading(true);
+  // Ensure the default authority exists, then let react-query refetch so the
+  // freshly-seeded authority name is joined in.
+  useEffect(() => {
+    void initializeDefaultElectionAuthority()
+      .catch(() => undefined)
+      .then(() => {
+        void queryClient.invalidateQueries({ queryKey: ["elections-list"] });
+      });
+  }, [queryClient]);
 
-      const { data: electionsData, error: electionsError } = await supabase
-        .from("elections")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (electionsError) {
-        throw electionsError;
-      }
-
-      const authorityIds = [
-        ...new Set(
-          (electionsData || [])
-            .map((election) => election.authority_id)
-            .filter(Boolean)
-        ),
-      ];
-
-      const authoritiesById = new Map<string, { name?: string | null }>();
-      if (authorityIds.length > 0) {
-        const { data: authoritiesData, error: authoritiesError } = await supabase
-          .from("election_authorities")
-          .select("id, name")
-          .in("id", authorityIds);
-
-        if (authoritiesError) {
-          throw authoritiesError;
-        }
-
-        (authoritiesData || []).forEach((authority) => {
-          authoritiesById.set(authority.id, authority);
-        });
-      }
-
-      const enriched = await Promise.all(
-        (electionsData || []).map(async (election) => {
-          const voteData = await getElectionVoteData(election.id);
-
-          let voteCount = 0;
-          let option1Count = 0;
-          let option2Count = 0;
-
-          if (voteData) {
-            voteCount = voteData.totalYesVotes + voteData.totalNoVotes;
-            option1Count = voteData.validYesVotes;
-            option2Count = voteData.validNoVotes;
-          } else {
-            const counts = await countVotesByChoice(
-              election.id,
-              election.option1,
-              election.option2
-            );
-            voteCount = counts.total;
-            option1Count = counts.option1;
-            option2Count = counts.option2;
-          }
-
-          return {
-            ...election,
-            election_authorities: election.authority_id
-              ? authoritiesById.get(election.authority_id) || null
-              : null,
-            voteCount,
-            option1Count,
-            option2Count,
-          } as ElectionRecord;
-        })
-      );
-
-      setElections(enriched);
-    } catch (error) {
+  useEffect(() => {
+    if (isError) {
       toast({
         variant: "destructive",
         title: "Failed to load elections",
         description:
-          error instanceof Error
-            ? error.message
+          electionsError instanceof Error
+            ? electionsError.message
             : "The election browser could not be loaded.",
       });
-    } finally {
-      setLoading(false);
     }
-  }, [toast]);
-
-  useEffect(() => {
-    const initialize = async () => {
-      try {
-        await initializeDefaultElectionAuthority();
-        await fetchElections();
-      } catch {
-        await fetchElections();
-      }
-    };
-
-    void initialize();
-  }, [fetchElections]);
+  }, [isError, electionsError, toast]);
 
   const handleFormSubmit = async (formData: any) => {
     try {
@@ -167,7 +81,7 @@ const Elections = () => {
       });
 
       setShowForm(false);
-      await fetchElections();
+      await refetchElections();
     } catch (error) {
       toast({
         variant: "destructive",

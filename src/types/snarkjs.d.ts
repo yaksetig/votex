@@ -1,6 +1,12 @@
-import { Groth16Proof, VerificationKey } from "./proof";
+// Ambient declaration for the untyped `snarkjs` package. Kept free of
+// top-level import/export so `declare module` is a global ambient declaration
+// (a top-level import would turn this into a module augmentation that the
+// worker's `import * as snarkjs from "snarkjs"` cannot resolve).
 
 declare module "snarkjs" {
+  type Groth16Proof = import("./proof").Groth16Proof;
+  type VerificationKey = import("./proof").VerificationKey;
+
   export namespace plonk {
     function fullProve(
       input: Record<string, string | string[]>,

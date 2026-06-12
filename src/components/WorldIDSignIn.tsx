@@ -117,12 +117,13 @@ const WorldIDSignIn: React.FC = () => {
 
   /** Extract nullifier from v4 IDKit result */
   const getNullifier = (result: IDKitResult): string => {
-    const responses = (result as Record<string, unknown>).responses as Array<{ nullifier?: string; nullifier_hash?: string }> | undefined;
+    const record = result as unknown as Record<string, unknown>;
+    const responses = record.responses as Array<{ nullifier?: string; nullifier_hash?: string }> | undefined;
     if (responses?.[0]?.nullifier) {
       return responses[0].nullifier;
     }
     // Fallback for v3 legacy shape
-    const nullifierHash = (result as Record<string, unknown>).nullifier_hash as string | undefined;
+    const nullifierHash = record.nullifier_hash as string | undefined;
     if (nullifierHash) {
       return nullifierHash;
     }
@@ -183,7 +184,7 @@ const WorldIDSignIn: React.FC = () => {
     // This is called before onSuccess — if it throws, onSuccess won't fire
     // We don't do full verification here since that happens during registration
     // Just validate the result shape
-    const responses = (result as Record<string, unknown>).responses as Array<{ nullifier?: string }> | undefined;
+    const responses = (result as unknown as Record<string, unknown>).responses as Array<{ nullifier?: string }> | undefined;
     if (!responses?.[0]?.nullifier) {
       throw new Error("Invalid IDKit result: missing nullifier");
     }
