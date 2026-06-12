@@ -15,8 +15,34 @@ Original additive-homomorphic circuit. Kept for reference.
 ## Prerequisites
 
 - [circom](https://docs.circom.io/getting-started/installation/) (v2.1.6+)
+- [circomspect](https://github.com/trailofbits/circomspect) (`cargo install circomspect`)
 - [snarkjs](https://github.com/iden3/snarkjs) (`npm install -g snarkjs`)
 - Node.js 18+
+
+## Static Analysis
+
+Run the circuit analysis script from the repository root:
+
+```bash
+npm run analyze:circuits
+```
+
+This runs `circomspect` against both checked-in Circom files:
+
+- `nullification_xor.circom` (active)
+- `nullification.circom` (legacy)
+
+When the `circom` compiler is installed, the same script also runs `circom --inspect` for both circuits. CI installs and enforces `circomspect`; the compiler `--inspect` pass is kept in the local script because the Rust Circom compiler is not an npm dependency.
+
+Current status as of 2026-05-19:
+
+- `circomspect nullification_xor.circom`: no warning- or error-level issues found.
+- `circomspect nullification.circom`: no warning- or error-level issues found.
+- `circom --inspect` completes for both circuits. It reports only `CA02` warnings from imported `circomlib` templates (`CompConstant`, `EscalarMulFix`, `EscalarMulAny`), not from the Votex circuit templates themselves.
+
+The captured output and `INFO`-level notes are checked in at [`STATIC_ANALYSIS.md`](./STATIC_ANALYSIS.md).
+
+For the formal-verification path, see [`ZKLEAN_MODELING.md`](./ZKLEAN_MODELING.md).
 
 ## Compilation
 

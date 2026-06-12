@@ -633,6 +633,9 @@ These are not all bugs, but they are all design decisions that materially affect
 ### ZK artifacts
 
 - `circuits/nullification_xor.circom`
+- `circuits/analyze.sh`
+- `circuits/STATIC_ANALYSIS.md`
+- `circuits/ZKLEAN_MODELING.md`
 - `circuits/compile.sh`
 - `src/services/parallelZkProofService.ts`
 - `src/services/zkProofService.ts`
@@ -649,7 +652,32 @@ These are not all bugs, but they are all design decisions that materially affect
   - helper for random local keypair generation
   - present in the repo, but not part of the active passkey-backed identity flow
 
-## 14. Open Questions / Limits of What This Repo Shows
+## 14. Circuit Static Analysis
+
+The repository now includes an explicit Circom static-analysis entrypoint:
+
+```bash
+npm run analyze:circuits
+```
+
+That script runs Trail of Bits `circomspect` over both Circom files in `circuits/`:
+
+- `circuits/nullification_xor.circom` (active XOR accumulator circuit)
+- `circuits/nullification.circom` (legacy additive circuit kept for reference)
+
+CI installs `circomspect` and fails the `circuit-analysis` job if the analyzer reports issues. When the Rust `circom` compiler is also installed locally, the same script runs `circom --inspect` for both circuits.
+
+Latest local run on 2026-05-19:
+
+- `circomspect circuits/nullification_xor.circom`: no warning- or error-level issues found.
+- `circomspect circuits/nullification.circom`: no warning- or error-level issues found.
+- `circom --inspect` completed for both circuits. The only warnings were `CA02` warnings inside imported `circomlib` templates (`CompConstant`, `EscalarMulFix`, `EscalarMulAny`), not Votex-owned templates.
+
+The captured tool output and `INFO`-level `circomspect` notes are checked in at `circuits/STATIC_ANALYSIS.md`.
+
+The zkLean modeling path is documented in `circuits/ZKLEAN_MODELING.md`.
+
+## 15. Open Questions / Limits of What This Repo Shows
 
 This document is based on the checked-in repository, so there are some hard limits:
 
@@ -665,7 +693,7 @@ This document is based on the checked-in repository, so there are some hard limi
 3. Authorization properties depend partly on database policies and edge-function behavior outside the core crypto modules.
    - This document focuses on cryptographic behavior, not full database-policy review.
 
-## 15. Bottom Line
+## 16. Bottom Line
 
 The cryptography in this repo is a mixed system:
 

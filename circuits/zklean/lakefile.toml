@@ -1,0 +1,10 @@
+name = "VotexZKLean"
+version = "0.1.0"
+defaultTargets = ["Votex"]
+
+[[lean_lib]]
+name = "Votex"
+
+[[require]]
+name = "zkLean"
+path = "../../../zkLean/zkLean"

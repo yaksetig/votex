@@ -4,7 +4,8 @@
   "description": "This directory contains the Circom circuits for anonymous vote nullification using Groth16 ZK-SNARKs.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "analyze": "./analyze.sh",
+    "compile": "./compile.sh"
   },
   "keywords": [],
   "author": "",

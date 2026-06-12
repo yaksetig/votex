@@ -1,6 +1,5 @@
 import React from "react";
-import { Link } from "react-router-dom";
-import { ArrowRight, CircleHelp, Compass, ShieldCheck } from "lucide-react";
+import { CircleHelp } from "lucide-react";
 
 const FAQ_ITEMS = [
   {
@@ -55,51 +54,13 @@ const FAQ = () => {
           </div>
         </section>
 
-        <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="space-y-4">
-            {FAQ_ITEMS.map(({ question, answer }) => (
-              <article key={question} className="ledger-panel p-7">
-                <h2 className="font-headline text-2xl font-bold text-primary">{question}</h2>
-                <p className="mt-3 text-sm leading-relaxed text-on-surface-variant">{answer}</p>
-              </article>
-            ))}
-          </div>
-
-          <aside className="space-y-6">
-            <div className="rounded-[2rem] bg-primary-container p-7 text-on-primary shadow-ledger-lg">
-              <p className="ledger-eyebrow text-on-primary-container">Protocol details</p>
-              <h2 className="mt-5 font-headline text-2xl font-bold text-white">
-                Need the full walkthrough?
-              </h2>
-              <p className="mt-3 text-sm leading-relaxed text-white/74">
-                Read the system overview for the full flow from identity verification to tally-side nullification.
-              </p>
-              <Link
-                to="/how-it-works"
-                className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-on-primary-container"
-              >
-                Open How It Works
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </div>
-
-            <div className="ledger-panel p-7">
-              <span className="ledger-badge bg-secondary-container text-on-secondary-container">
-                <ShieldCheck className="h-4 w-4" />
-                Ready to explore
-              </span>
-              <h2 className="mt-5 font-headline text-2xl font-bold text-primary">
-                Go back to elections
-              </h2>
-              <p className="mt-3 text-sm leading-relaxed text-on-surface-variant">
-                Review live and archived ballots after you have the context you need.
-              </p>
-              <Link to="/elections" className="ledger-button-secondary mt-6 inline-flex">
-                <Compass className="h-4 w-4" />
-                Browse Elections
-              </Link>
-            </div>
-          </aside>
+        <section className="space-y-4">
+          {FAQ_ITEMS.map(({ question, answer }) => (
+            <article key={question} className="ledger-panel p-7">
+              <h2 className="font-headline text-2xl font-bold text-primary">{question}</h2>
+              <p className="mt-3 text-sm leading-relaxed text-on-surface-variant">{answer}</p>
+            </article>
+          ))}
         </section>
       </div>
     </div>

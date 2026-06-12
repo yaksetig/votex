@@ -17,6 +17,14 @@ dist-ssr
 .env.local
 .env.*.local
 
+# Circuit build artifacts (regenerable via circuits/compile.sh; runtime copies live in public/circuits/)
+circuits/zklean/.lake/
+circuits/build/
+circuits/*.zkey
+
+# Supabase CLI temp
+supabase/.temp/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
