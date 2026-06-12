@@ -1,4 +1,9 @@
-import * as snarkjs from "https://esm.sh/snarkjs@0.7.5?bundle";
+import * as snarkjsModule from "https://esm.sh/snarkjs@0.7.5?bundle";
+
+// The @types/snarkjs package esm.sh attaches lacks the groth16 namespace,
+// so the module is used untyped.
+// deno-lint-ignore no-explicit-any
+const snarkjs = snarkjsModule as any;
 
 import { verificationKeyXor } from "./verificationKeyXor.ts";
 

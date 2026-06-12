@@ -31,7 +31,10 @@ import {
   publicKeyToStrings,
   verifyDerivedKeypair,
 } from "@/services/deterministicKeyService";
-import { createWorldIdSession } from "@/services/worldIdSessionService";
+import {
+  createWorldIdSession,
+  deriveSessionVerifierHash,
+} from "@/services/worldIdSessionService";
 
 type SignInStep =
   | "ready"
@@ -99,14 +102,9 @@ const WorldIDSignIn: React.FC = () => {
   const completeSession = async (
     nullifierHash: string,
     prfSecret: ArrayBuffer,
-    bootstrapVerifier: boolean,
     publicKey?: { x: string; y: string }
   ) => {
-    const session = await createWorldIdSession(
-      nullifierHash,
-      prfSecret,
-      bootstrapVerifier
-    );
+    const session = await createWorldIdSession(nullifierHash, prfSecret);
 
     localStorage.setItem("worldid-user", session.userId);
     setUserId(session.userId);
@@ -143,7 +141,34 @@ const WorldIDSignIn: React.FC = () => {
 
     const publicKey = publicKeyToStrings(keypair.pk);
     const nullifier = getNullifier(result);
-    await completeSession(nullifier, prfResult.secret, false, publicKey);
+
+    // Re-run register-keypair with the fresh World ID proof. The same-key path
+    // is idempotent and upserts the session verifier, so identities registered
+    // before verifiers existed self-heal here — the server no longer issues
+    // sessions to identities without a verifier (trust-on-first-use removed).
+    const signal = await hashPublicKeyForSignal(keypair.pk);
+    const verifierHash = await deriveSessionVerifierHash(prfResult.secret);
+
+    const { data: registerData, error: registerError } =
+      await supabase.functions.invoke("register-keypair", {
+        body: {
+          action: WORLD_ID_ACTION,
+          pk: publicKey,
+          signal,
+          idkitResult: result,
+          verifierHash,
+        },
+      });
+
+    if (registerError) {
+      throw registerError;
+    }
+
+    if (registerData?.error) {
+      throw new Error(registerData.error);
+    }
+
+    await completeSession(nullifier, prfResult.secret, publicKey);
 
     toast({
       title: "Secure session restored",
@@ -256,9 +281,12 @@ const WorldIDSignIn: React.FC = () => {
 
       const publicKey = publicKeyToStrings(keypair.pk);
       const signal = await hashPublicKeyForSignal(keypair.pk);
+      const verifierHash = await deriveSessionVerifierHash(prfResult.secret);
 
       setStep("registering");
 
+      // verifierHash is registered here, under the verified World ID proof;
+      // worldid-session refuses to issue sessions for identities without one.
       const { data, error: registerError } = await supabase.functions.invoke(
         "register-keypair",
         {
@@ -267,6 +295,7 @@ const WorldIDSignIn: React.FC = () => {
             pk: publicKey,
             signal,
             idkitResult: idkitResult,
+            verifierHash,
           },
         }
       );
@@ -280,7 +309,7 @@ const WorldIDSignIn: React.FC = () => {
       }
 
       const nullifier = getNullifier(idkitResult);
-      await completeSession(nullifier, prfResult.secret, true, publicKey);
+      await completeSession(nullifier, prfResult.secret, publicKey);
       setStep("complete");
 
       toast({

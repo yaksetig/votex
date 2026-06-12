@@ -9,11 +9,11 @@
 import { secp256k1 } from "https://esm.sh/@noble/curves@1.8.2/secp256k1";
 import { keccak_256 } from "https://esm.sh/@noble/hashes@1.8.0/sha3";
 import { bytesToHex, hexToBytes, concatBytes } from "https://esm.sh/@noble/hashes@1.8.0/utils";
+import { corsHeaders } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// Only mint RP signatures for known actions; without this the function is a
+// general-purpose signing oracle for arbitrary World ID request contexts.
+const ALLOWED_ACTIONS = new Set(["registration"]);
 
 const DEFAULT_TTL_SEC = 300;
 const RP_SIGNATURE_MSG_VERSION = 1;
@@ -96,9 +96,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (!action || typeof action !== "string") {
+    if (!action || typeof action !== "string" || !ALLOWED_ACTIONS.has(action)) {
       return new Response(
-        JSON.stringify({ error: "Missing or invalid action" }),
+        JSON.stringify({ error: "Missing or unsupported action" }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

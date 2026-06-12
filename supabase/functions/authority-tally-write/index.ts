@@ -1,10 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+import { corsHeaders } from "../_shared/cors.ts";
+import { jsonResponse } from "../_shared/http.ts";
 
 interface TallyResultInput {
   userId: string;
@@ -18,16 +14,6 @@ interface StoreResultsRequest {
   electionId: string;
   processedBy?: string | null;
   results: TallyResultInput[];
-}
-
-function jsonResponse(status: number, body: unknown): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      ...corsHeaders,
-      "Content-Type": "application/json",
-    },
-  });
 }
 
 Deno.serve(async (req) => {

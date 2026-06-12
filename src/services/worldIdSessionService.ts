@@ -56,7 +56,7 @@ function clearStoredWorldIdSession(): void {
   localStorage.removeItem(SESSION_STORAGE_KEY);
 }
 
-async function deriveSessionVerifierHash(
+export async function deriveSessionVerifierHash(
   prfSecret: ArrayBuffer
 ): Promise<string> {
   const secretBytes = new Uint8Array(prfSecret);
@@ -73,15 +73,13 @@ async function deriveSessionVerifierHash(
 
 export async function createWorldIdSession(
   nullifierHash: string,
-  prfSecret: ArrayBuffer,
-  bootstrapVerifier: boolean
+  prfSecret: ArrayBuffer
 ): Promise<ActiveWorldIdSession> {
   const verifierHash = await deriveSessionVerifierHash(prfSecret);
 
   const { data, error } = await supabase.functions.invoke("worldid-session", {
     body: {
       action: "create",
-      bootstrapVerifier,
       nullifierHash,
       verifierHash,
     },

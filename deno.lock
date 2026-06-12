@@ -2,14 +2,17 @@
   "version": "5",
   "redirects": {
     "https://esm.sh/@supabase/supabase-js@2": "https://esm.sh/@supabase/supabase-js@2.105.3",
-    "https://esm.sh/@types/circomlibjs@~0.1.6/index.d.ts": "https://esm.sh/@types/circomlibjs@0.1.6/index.d.ts"
+    "https://esm.sh/@types/circomlibjs@~0.1.6/index.d.ts": "https://esm.sh/@types/circomlibjs@0.1.6/index.d.ts",
+    "https://esm.sh/@types/snarkjs@~0.7.9/index.d.ts": "https://esm.sh/@types/snarkjs@0.7.9/index.d.ts"
   },
   "remote": {
     "https://esm.sh/@noble/curves@1.8.2/secp256k1": "32ad9162fa076f3c5408e02bd97f178e941b1d59c1133a59371f2cecb1c9ed98",
     "https://esm.sh/@noble/hashes@1.8.0/sha3": "a7a17807f28322f417e9c6e372d3adf996fa7c5f88edf2a10f3be3f1623688e1",
     "https://esm.sh/@noble/hashes@1.8.0/utils": "18820d033cf3fe7481337101dd51a7bb50bd4a0d9ee8fe97fe9b9e5af8bfd5ee",
     "https://esm.sh/@supabase/supabase-js@2.105.3": "5a134c393ed588a62d398734c1af54ff1eab170090908bbaef624106b5201d41",
-    "https://esm.sh/circomlibjs@0.1.7?bundle": "09db154e44d20e03bd4f0db7b15302157e04964b9330946beda0e7149f0fb9cf"
+    "https://esm.sh/circomlibjs@0.1.7?bundle": "09db154e44d20e03bd4f0db7b15302157e04964b9330946beda0e7149f0fb9cf",
+    "https://esm.sh/snarkjs@0.7.5?bundle": "79c2ce5e7a5dcad20e61625e4997ff8e776a438941b8d247f3421da0924dffba",
+    "https://esm.sh/viem@2.26.2": "82dcd3c0d072b6d9d265376e2f8e3083c7fba7881a2598843f19ce6c2a8f8844"
   },
   "workspace": {
     "packageJson": {

@@ -1,16 +1,11 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+import { corsHeaders } from "../_shared/cors.ts";
+import { jsonResponse, sha256Hex } from "../_shared/http.ts";
 
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
 
 interface CreateSessionRequest {
   action: "create";
-  bootstrapVerifier?: boolean;
   nullifierHash: string;
   verifierHash: string;
 }
@@ -30,30 +25,12 @@ type SessionRequest =
   | ValidateSessionRequest
   | RevokeSessionRequest;
 
-function jsonResponse(status: number, body: unknown): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      ...corsHeaders,
-      "Content-Type": "application/json",
-    },
-  });
-}
-
 function generateSessionToken(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(32));
   return btoa(String.fromCharCode(...bytes))
     .replace(/\+/g, "-")
     .replace(/\//g, "_")
     .replace(/=+$/, "");
-}
-
-async function sha256Hex(value: string): Promise<string> {
-  const encoded = new TextEncoder().encode(value);
-  const digest = await crypto.subtle.digest("SHA-256", encoded);
-  return Array.from(new Uint8Array(digest))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
 }
 
 Deno.serve(async (req) => {
@@ -100,23 +77,20 @@ Deno.serve(async (req) => {
         return jsonResponse(500, { error: "Failed to load verifier" });
       }
 
-      if (existingVerifier) {
-        if (existingVerifier.verifier_hash !== body.verifierHash) {
-          return jsonResponse(401, { error: "Passkey verifier mismatch" });
-        }
-      } else if (body.bootstrapVerifier) {
-        const { error: insertVerifierError } = await supabase
-          .from("world_id_auth_verifiers")
-          .insert({
-            nullifier_hash: body.nullifierHash,
-            verifier_hash: body.verifierHash,
-          });
+      // Verifier registration happens exclusively in register-keypair under a
+      // verified World ID proof. Issuing a session for an identity without a
+      // verifier (the old trust-on-first-use bootstrap) would let anyone who
+      // reads a public nullifier hash claim that identity.
+      if (!existingVerifier) {
+        return jsonResponse(401, {
+          error:
+            "No verifier registered for this identity. Complete registration first.",
+          code: "VERIFIER_MISSING",
+        });
+      }
 
-        if (insertVerifierError) {
-          return jsonResponse(500, { error: "Failed to store verifier" });
-        }
-      } else {
-        return jsonResponse(401, { error: "No verifier registered" });
+      if (existingVerifier.verifier_hash !== body.verifierHash) {
+        return jsonResponse(401, { error: "Passkey verifier mismatch" });
       }
 
       const sessionToken = generateSessionToken();

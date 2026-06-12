@@ -1,11 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { corsHeaders } from "../_shared/cors.ts";
+import { jsonResponse } from "../_shared/http.ts";
 import { verifyPoseidonSignature } from "../_shared/eddsa.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
 
 const DEFAULT_AUTHORITY_NAME = "Default Election Authority";
 const MAX_PROOF_AGE_MS = 5 * 60 * 1000;
@@ -18,16 +14,6 @@ interface AuthorityLinkRequest {
   publicKeyX: string;
   publicKeyY: string;
   signature: string;
-}
-
-function jsonResponse(status: number, body: unknown): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      ...corsHeaders,
-      "Content-Type": "application/json",
-    },
-  });
 }
 
 function buildAuthorityLinkMessage(

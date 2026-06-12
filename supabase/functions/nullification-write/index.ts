@@ -10,12 +10,9 @@ import {
   type NullificationProofPayload,
   verifyNullificationProofPayload,
 } from "../_shared/nullification.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+import { corsHeaders } from "../_shared/cors.ts";
+import { jsonResponse } from "../_shared/http.ts";
+import { validateWorldIdSession } from "../_shared/session.ts";
 
 const MAX_BATCH_SIZE = 16;
 
@@ -28,12 +25,6 @@ interface SubmitNullificationBatchRequest {
     userId: string;
     zkp: NullificationProofPayload;
   }>;
-}
-
-interface SessionValidationResult {
-  valid: boolean;
-  detail?: string;
-  userId?: string;
 }
 
 interface AccumulatorRow {
@@ -51,81 +42,14 @@ interface ParticipantRow {
   public_key_y: string;
 }
 
+// Field names match the jsonb keys read by public.submit_nullification_batch.
 interface PreparedNullificationItem {
   accumulatorVersion: number;
   currentAccumulator: JsonCiphertext;
   ciphertext: JsonCiphertext;
   newAccumulator: JsonCiphertext;
   nullifierZkp: NullificationProofPayload;
-  previousAccumulator: AccumulatorRow | null;
   userId: string;
-}
-
-interface AppliedNullificationWrite {
-  insertedAccumulator: boolean;
-  newVersion: number;
-  nullificationId?: string;
-  previousAccumulator: AccumulatorRow | null;
-  userId: string;
-}
-
-function jsonResponse(status: number, body: unknown): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      ...corsHeaders,
-      "Content-Type": "application/json",
-    },
-  });
-}
-
-async function sha256Hex(value: string): Promise<string> {
-  const encoded = new TextEncoder().encode(value);
-  const digest = await crypto.subtle.digest("SHA-256", encoded);
-  return Array.from(new Uint8Array(digest))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-async function validateWorldIdSession(
-  supabase: ReturnType<typeof createClient>,
-  sessionToken: string
-): Promise<SessionValidationResult> {
-  const tokenHash = await sha256Hex(sessionToken);
-  const { data: session, error: sessionError } = await supabase
-    .from("world_id_sessions")
-    .select("expires_at, nullifier_hash, revoked_at")
-    .eq("token_hash", tokenHash)
-    .maybeSingle();
-
-  if (sessionError) {
-    console.error("Nullification session lookup error:", sessionError);
-    return { valid: false, detail: "Failed to validate voter session" };
-  }
-
-  if (!session || session.revoked_at) {
-    return { valid: false, detail: "Voter session is invalid or revoked" };
-  }
-
-  if (new Date(session.expires_at).getTime() <= Date.now()) {
-    await supabase
-      .from("world_id_sessions")
-      .update({
-        revoked_at: new Date().toISOString(),
-      })
-      .eq("token_hash", tokenHash);
-
-    return { valid: false, detail: "Voter session has expired" };
-  }
-
-  await supabase
-    .from("world_id_sessions")
-    .update({
-      last_used_at: new Date().toISOString(),
-    })
-    .eq("token_hash", tokenHash);
-
-  return { valid: true, userId: session.nullifier_hash };
 }
 
 function accumulatorFromRow(row: AccumulatorRow): JsonCiphertext {
@@ -141,156 +65,43 @@ function accumulatorFromRow(row: AccumulatorRow): JsonCiphertext {
   };
 }
 
-async function rollbackAppliedWrites(
-  supabase: ReturnType<typeof createClient>,
-  electionId: string,
-  appliedWrites: AppliedNullificationWrite[]
-) {
-  for (const write of [...appliedWrites].reverse()) {
-    if (write.nullificationId) {
-      const { error: deleteNullificationError } = await supabase
-        .from("nullifications")
-        .delete()
-        .eq("id", write.nullificationId);
-
-      if (deleteNullificationError) {
-        console.error("Rollback failed to delete nullification:", deleteNullificationError);
-      }
-    }
-
-    if (write.insertedAccumulator) {
-      const { error: deleteAccumulatorError } = await supabase
-        .from("nullification_accumulators")
-        .delete()
-        .eq("election_id", electionId)
-        .eq("voter_id", write.userId)
-        .eq("version", write.newVersion);
-
-      if (deleteAccumulatorError) {
-        console.error("Rollback failed to delete inserted accumulator:", deleteAccumulatorError);
-      }
-
-      continue;
-    }
-
-    if (write.previousAccumulator) {
-      const { error: restoreAccumulatorError } = await supabase
-        .from("nullification_accumulators")
-        .update({
-          acc_c1_x: write.previousAccumulator.acc_c1_x,
-          acc_c1_y: write.previousAccumulator.acc_c1_y,
-          acc_c2_x: write.previousAccumulator.acc_c2_x,
-          acc_c2_y: write.previousAccumulator.acc_c2_y,
-          updated_at: new Date().toISOString(),
-          version: write.previousAccumulator.version,
-        })
-        .eq("election_id", electionId)
-        .eq("voter_id", write.userId)
-        .eq("version", write.newVersion);
-
-      if (restoreAccumulatorError) {
-        console.error("Rollback failed to restore accumulator:", restoreAccumulatorError);
-      }
-    }
-  }
-}
-
+// Persist the batch through the transactional SECURITY DEFINER RPC
+// (20260422000000): single transaction, FOR UPDATE row locks, all-or-nothing.
+// Maps the RPC's RAISE EXCEPTION messages onto HTTP statuses.
 async function persistNullificationBatch(
-  supabase: ReturnType<typeof createClient>,
+  // deno-lint-ignore no-explicit-any
+  supabase: any,
   electionId: string,
+  submitterId: string,
   items: PreparedNullificationItem[]
-): Promise<{ conflict?: string; success: true }> {
-  const appliedWrites: AppliedNullificationWrite[] = [];
-  const writeTimestamp = new Date().toISOString();
+): Promise<Response | null> {
+  const { error } = await supabase.rpc("submit_nullification_batch", {
+    p_election_id: electionId,
+    p_submitter_id: submitterId,
+    p_items: items,
+  });
 
-  try {
-    for (const item of items) {
-      if (item.previousAccumulator) {
-        const { data: updatedRows, error: updateAccumulatorError } = await supabase
-          .from("nullification_accumulators")
-          .update({
-            acc_c1_x: item.newAccumulator.c1.x,
-            acc_c1_y: item.newAccumulator.c1.y,
-            acc_c2_x: item.newAccumulator.c2.x,
-            acc_c2_y: item.newAccumulator.c2.y,
-            updated_at: writeTimestamp,
-            version: item.accumulatorVersion + 1,
-          })
-          .eq("election_id", electionId)
-          .eq("voter_id", item.userId)
-          .eq("version", item.accumulatorVersion)
-          .select("version");
-
-        if (updateAccumulatorError) {
-          throw updateAccumulatorError;
-        }
-
-        if (!updatedRows || updatedRows.length === 0) {
-          return {
-            conflict: `Accumulator version mismatch for participant ${item.userId}`,
-            success: true,
-          };
-        }
-      } else {
-        const { error: insertAccumulatorError } = await supabase
-          .from("nullification_accumulators")
-          .insert({
-            acc_c1_x: item.newAccumulator.c1.x,
-            acc_c1_y: item.newAccumulator.c1.y,
-            acc_c2_x: item.newAccumulator.c2.x,
-            acc_c2_y: item.newAccumulator.c2.y,
-            created_at: writeTimestamp,
-            election_id: electionId,
-            updated_at: writeTimestamp,
-            version: 1,
-            voter_id: item.userId,
-          });
-
-        if (insertAccumulatorError) {
-          if (insertAccumulatorError.code === "23505") {
-            return {
-              conflict: `Accumulator bootstrap mismatch for participant ${item.userId}`,
-              success: true,
-            };
-          }
-
-          throw insertAccumulatorError;
-        }
-      }
-
-      const appliedWrite: AppliedNullificationWrite = {
-        insertedAccumulator: !item.previousAccumulator,
-        newVersion: item.accumulatorVersion + 1,
-        previousAccumulator: item.previousAccumulator,
-        userId: item.userId,
-      };
-      appliedWrites.push(appliedWrite);
-
-      const { data: insertedNullification, error: insertNullificationError } = await supabase
-        .from("nullifications")
-        .insert({
-          created_at: writeTimestamp,
-          election_id: electionId,
-          nullifier_ciphertext: item.ciphertext,
-          nullifier_zkp: item.nullifierZkp,
-          user_id: item.userId,
-        })
-        .select("id")
-        .single();
-
-      if (insertNullificationError) {
-        throw insertNullificationError;
-      }
-
-      appliedWrite.nullificationId = insertedNullification.id;
-    }
-  } catch (error) {
-    console.error("Failed to persist nullification batch, attempting rollback:", error);
-    await rollbackAppliedWrites(supabase, electionId, appliedWrites);
-    throw error;
+  if (!error) {
+    return null;
   }
 
-  return { success: true };
+  const message = error.message || "";
+
+  if (message.includes("mismatch")) {
+    return jsonResponse(409, { error: message });
+  }
+
+  if (
+    message.includes("not a participant") ||
+    message.includes("must include the submitter") ||
+    message.includes("incomplete item") ||
+    message.includes("non-empty array")
+  ) {
+    return jsonResponse(400, { error: message });
+  }
+
+  console.error("submit_nullification_batch RPC error:", error);
+  return jsonResponse(500, { error: "Failed to persist nullification batch" });
 }
 
 Deno.serve(async (req) => {
@@ -329,7 +140,9 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const session = await validateWorldIdSession(supabase, body.sessionToken);
+    const session = await validateWorldIdSession(supabase, body.sessionToken, {
+      touchLastUsed: true,
+    });
     if (!session.valid || !session.userId) {
       return jsonResponse(401, {
         error: session.detail || "Voter session validation failed",
@@ -480,21 +293,19 @@ Deno.serve(async (req) => {
         currentAccumulator,
         newAccumulator: computeAccumulatorUpdate(parsed),
         nullifierZkp: item.zkp,
-        previousAccumulator: accumulatorsByUserId.get(item.userId) ?? null,
         userId: item.userId,
       });
     }
 
-    const persistResult = await persistNullificationBatch(
+    const persistFailure = await persistNullificationBatch(
       supabase,
       body.electionId,
+      session.userId,
       preparedItems
     );
 
-    if (persistResult.conflict) {
-      return jsonResponse(409, {
-        error: persistResult.conflict,
-      });
+    if (persistFailure) {
+      return persistFailure;
     }
 
     return jsonResponse(200, {

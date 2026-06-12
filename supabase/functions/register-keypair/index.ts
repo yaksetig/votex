@@ -16,11 +16,8 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { keccak256 } from "https://esm.sh/viem@2.26.2";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { corsHeaders } from "../_shared/cors.ts";
+import { validateWorldIdSession } from "../_shared/session.ts";
 
 const WORLD_ID_RP_ID = Deno.env.get("WORLD_ID_RP_ID") ?? "rp_b3b4b36db636df22";
 const WORLD_ID_VERIFY_BASE_URL =
@@ -96,7 +93,7 @@ function computeSignalHash(signal: string): string {
       ? signal
       : encodeUtf8ToHex(signal);
 
-  const hashed = BigInt(keccak256(encodedSignal)) >> 8n;
+  const hashed = BigInt(keccak256(encodedSignal as `0x${string}`)) >> 8n;
   return `0x${hashed.toString(16).padStart(64, "0")}`;
 }
 
@@ -131,9 +128,6 @@ async function verifySignalBinding(pk: { x: string; y: string }, claimedSignal: 
   const expectedSignal = "0x" + Array.from(hashBytes)
     .map(b => b.toString(16).padStart(2, '0'))
     .join('');
-  
-  console.log("Expected signal:", expectedSignal);
-  console.log("Claimed signal:", claimedSignal);
   
   return expectedSignal.toLowerCase() === claimedSignal.toLowerCase();
 }
@@ -176,51 +170,23 @@ async function verifyWorldIdProofV4(
   return { valid: true };
 }
 
-async function sha256Hex(value: string): Promise<string> {
-  const encoded = new TextEncoder().encode(value);
-  const digest = await crypto.subtle.digest("SHA-256", encoded);
-  return Array.from(new Uint8Array(digest))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
-
 async function validateRecoverySession(
-  supabase: ReturnType<typeof createClient>,
+  // deno-lint-ignore no-explicit-any
+  supabase: any,
   sessionToken: string,
   nullifierHash: string
 ): Promise<RecoverySessionValidationResult> {
-  const tokenHash = await sha256Hex(sessionToken);
-  const { data: session, error: sessionError } = await supabase
-    .from("world_id_sessions")
-    .select("expires_at, nullifier_hash, revoked_at")
-    .eq("token_hash", tokenHash)
-    .maybeSingle();
+  const result = await validateWorldIdSession(supabase, sessionToken);
 
-  if (sessionError) {
-    console.error("Recovery session lookup error:", sessionError);
-    return { valid: false, detail: "Failed to validate recovery session" };
+  if (!result.valid) {
+    return { valid: false, detail: result.detail };
   }
 
-  if (!session || session.revoked_at) {
-    return { valid: false, detail: "Recovery session is invalid or revoked" };
-  }
-
-  if (session.nullifier_hash !== nullifierHash) {
+  if (result.userId !== nullifierHash) {
     return {
       valid: false,
       detail: "Recovery session does not belong to the verified identity",
     };
-  }
-
-  if (new Date(session.expires_at).getTime() <= Date.now()) {
-    await supabase
-      .from("world_id_sessions")
-      .update({
-        revoked_at: new Date().toISOString(),
-      })
-      .eq("token_hash", tokenHash);
-
-    return { valid: false, detail: "Recovery session has expired" };
   }
 
   return { valid: true };
@@ -267,6 +233,17 @@ Deno.serve(async (req) => {
       if (!idkitResult.responses?.length || !idkitResult.responses[0].nullifier) {
         return new Response(
           JSON.stringify({ error: "Missing IDKit result or nullifier in responses" }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // The proof's signal_hash must commit to the claimed signal (= Hash(pk)).
+      // Without this check the locally-verified signal and the signal the
+      // World ID proof actually attests to could differ, breaking the
+      // human-to-key binding.
+      if (idkitResult.responses[0].signal_hash !== computeSignalHash(signal)) {
+        return new Response(
+          JSON.stringify({ error: "Proof signal_hash does not match the claimed signal" }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
@@ -518,7 +495,7 @@ Deno.serve(async (req) => {
       }
     }
     
-    console.log("Keypair registered successfully for nullifier:", nullifier.slice(0, 10) + "...");
+    console.log("Keypair registered successfully");
     
     return new Response(
       JSON.stringify({ 
