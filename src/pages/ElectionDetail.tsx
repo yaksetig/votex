@@ -27,13 +27,14 @@ import {
 import { createDelegation, revokeDelegation, getActiveDelegation } from "@/services/delegationService";
 import { Election } from "@/types/election";
 import type { KAnonymityProgress } from "@/services/kAnonymityNullificationService";
-import { KEYPAIR_VERSION } from "@/services/eddsaService";
+import { useDeriveKeypair } from "@/hooks/useDeriveKeypair";
 
 const ElectionDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { userId, isWorldIDVerified, setDerivedPublicKey } = useWallet();
+  const { userId, isWorldIDVerified } = useWallet();
+  const { deriveKeypair, isDeriving: isDerivingKey } = useDeriveKeypair();
 
   const [election, setElection] = useState<Election | null>(null);
   const [loading, setLoading] = useState(true);
@@ -50,7 +51,6 @@ const ElectionDetail = () => {
   const [participants, setParticipants] = useState<ElectionParticipant[]>([]);
   const [, setIsParticipant] = useState(false);
   const [showNullificationDialog, setShowNullificationDialog] = useState(false);
-  const [isDerivingKey, setIsDerivingKey] = useState(false);
   const [showProgressDialog, setShowProgressDialog] = useState(false);
   const [nullificationProgress, setNullificationProgress] = useState<KAnonymityProgress | null>(null);
   const [hasDelegated, setHasDelegated] = useState(false);
@@ -181,53 +181,10 @@ const ElectionDetail = () => {
   };
 
   const rederiveKeypair = async () => {
-    setIsDerivingKey(true);
-
-    try {
-      const [
-        { authenticateWithPreferredPasskey },
-        { deriveKeypairFromSecret, publicKeyToStrings, verifyDerivedKeypair },
-        { storeKeypair },
-      ] = await Promise.all([
-        import("@/services/passkeyService"),
-        import("@/services/deterministicKeyService"),
-        import("@/services/keypairService"),
-      ]);
-
-      const prfResult = await authenticateWithPreferredPasskey();
-      const derivedKeypair = await deriveKeypairFromSecret(prfResult.secret);
-
-      if (!verifyDerivedKeypair(derivedKeypair)) {
-        throw new Error("Derived keypair verification failed");
-      }
-
-      const pkStrings = publicKeyToStrings(derivedKeypair.pk);
-      setDerivedPublicKey(pkStrings);
-
-      const storedKeypair = {
-        version: KEYPAIR_VERSION,
-        seed: derivedKeypair.seedHex,
-        k: derivedKeypair.sk.toString(),
-        Ax: derivedKeypair.pk.x.toString(),
-        Ay: derivedKeypair.pk.y.toString(),
-      };
-
-      storeKeypair(storedKeypair);
-      setKeypair(storedKeypair);
+    const result = await deriveKeypair({ store: true });
+    if (result) {
+      setKeypair(result.storedKeypair);
       setNeedsKeypair(false);
-
-      toast({
-        title: "Passkey unlocked",
-        description: "Your signing key has been re-derived locally and is ready for use.",
-      });
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Derivation failed",
-        description: error instanceof Error ? error.message : "Failed to derive keypair",
-      });
-    } finally {
-      setIsDerivingKey(false);
     }
   };
 

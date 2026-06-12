@@ -1,5 +1,6 @@
 
 import { supabase } from '@/integrations/supabase/client';
+import { getElectionStatus } from '@/lib/electionStatus';
 
 export interface AuthorityElection {
   id: string;
@@ -51,15 +52,7 @@ export async function getElectionsForAuthority(authorityId: string): Promise<Aut
 
     // Process elections to add vote counts, determine status, and check tally status
     const processedElections: AuthorityElection[] = elections?.map(election => {
-      const now = new Date();
-      const endDate = new Date(election.end_date);
-      
-      let status = election.status || 'active';
-      if (election.closed_manually_at) {
-        status = 'closed_manually';
-      } else if (now > endDate) {
-        status = 'expired';
-      }
+      const status = getElectionStatus(election);
 
       return {
         id: election.id,

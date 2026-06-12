@@ -10,11 +10,13 @@ import {
   Timer,
   Users,
 } from "lucide-react";
-import { formatDistanceToNowStrict, isPast } from "date-fns";
+import { formatDistanceToNowStrict } from "date-fns";
 import { useWallet } from "@/contexts/WalletContext";
 import { supabase } from "@/integrations/supabase/client";
 import { initializeDefaultElectionAuthority } from "@/services/electionAuthorityService";
 import { getElectionVoteData } from "@/services/voteTrackingService";
+import { isElectionClosed } from "@/lib/electionStatus";
+import { countVotesByChoice } from "@/lib/voteCounts";
 import ElectionForm from "@/components/ElectionForm";
 import { useToast } from "@/hooks/use-toast";
 
@@ -93,15 +95,14 @@ const Elections = () => {
             option1Count = voteData.validYesVotes;
             option2Count = voteData.validNoVotes;
           } else {
-            const [{ count: totalCount }, { count: opt1Count }, { count: opt2Count }] = await Promise.all([
-              supabase.from("votes").select("*", { count: "exact", head: true }).eq("election_id", election.id),
-              supabase.from("votes").select("*", { count: "exact", head: true }).eq("election_id", election.id).eq("choice", election.option1),
-              supabase.from("votes").select("*", { count: "exact", head: true }).eq("election_id", election.id).eq("choice", election.option2),
-            ]);
-
-            voteCount = totalCount ?? 0;
-            option1Count = opt1Count ?? 0;
-            option2Count = opt2Count ?? 0;
+            const counts = await countVotesByChoice(
+              election.id,
+              election.option1,
+              election.option2
+            );
+            voteCount = counts.total;
+            option1Count = counts.option1;
+            option2Count = counts.option2;
           }
 
           return {
@@ -189,12 +190,10 @@ const Elections = () => {
     };
 
     const active = elections.filter(
-      (election) =>
-        !election.closed_manually_at && !isPast(new Date(election.end_date)) && matchesSearch(election)
+      (election) => !isElectionClosed(election) && matchesSearch(election)
     );
     const archived = elections.filter(
-      (election) =>
-        (!!election.closed_manually_at || isPast(new Date(election.end_date))) && matchesSearch(election)
+      (election) => isElectionClosed(election) && matchesSearch(election)
     );
 
     return {

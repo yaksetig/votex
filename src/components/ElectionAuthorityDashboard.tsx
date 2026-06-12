@@ -1,5 +1,5 @@
 import React, { Suspense, lazy, useEffect, useState } from "react";
-import { isPast } from "date-fns";
+import { getElectionStatus } from "@/lib/electionStatus";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -194,9 +194,7 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
     );
   }
 
-  const isManuallyClosed = election.status === "closed_manually" || !!election.closed_manually_at;
-  const isNaturallyClosed = !isManuallyClosed && isPast(new Date(election.end_date));
-  const isElectionEnded = isManuallyClosed || isNaturallyClosed;
+  const isElectionEnded = getElectionStatus(election) !== "active";
   const canEdit = !isElectionEnded;
 
   return (

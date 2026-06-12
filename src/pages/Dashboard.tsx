@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useState } from "react";
+import React, { Suspense, lazy } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowRight,
@@ -9,60 +9,16 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { useWallet } from "@/contexts/WalletContext";
-import { useToast } from "@/hooks/use-toast";
+import { useDeriveKeypair } from "@/hooks/useDeriveKeypair";
 
 const WorldIDSignIn = lazy(() => import("@/components/WorldIDSignIn"));
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const {
-    derivedPublicKey,
-    isWorldIDVerified,
-    setDerivedPublicKey,
-    userId,
-  } = useWallet();
-  const [isDerivingKey, setIsDerivingKey] = useState(false);
+  const { derivedPublicKey, isWorldIDVerified, userId } = useWallet();
+  const { deriveKeypair, isDeriving: isDerivingKey } = useDeriveKeypair();
 
-  const rederiveKeypair = async () => {
-    setIsDerivingKey(true);
-
-    try {
-      const [
-        { authenticateWithPreferredPasskey },
-        { deriveKeypairFromSecret, publicKeyToStrings, verifyDerivedKeypair },
-      ] = await Promise.all([
-        import("@/services/passkeyService"),
-        import("@/services/deterministicKeyService"),
-      ]);
-
-      const prfResult = await authenticateWithPreferredPasskey();
-      const keypair = await deriveKeypairFromSecret(prfResult.secret);
-
-      if (!verifyDerivedKeypair(keypair)) {
-        throw new Error("Derived keypair verification failed");
-      }
-
-      const publicKey = publicKeyToStrings(keypair.pk);
-      setDerivedPublicKey(publicKey);
-
-      toast({
-        title: "Passkey unlocked",
-        description: "Your cryptographic keypair has been re-derived locally.",
-      });
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Derivation failed",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Failed to derive your cryptographic keypair",
-      });
-    } finally {
-      setIsDerivingKey(false);
-    }
-  };
+  const rederiveKeypair = () => deriveKeypair();
 
   if (!isWorldIDVerified || !userId) {
     return (

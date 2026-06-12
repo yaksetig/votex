@@ -14,15 +14,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { updateElectionDetails } from "@/services/electionOperationsService";
+import { electionFieldSchemas } from "@/components/ElectionForm/schema";
 
 const editElectionSchema = z.object({
-  title: z.string().min(1, "Title is required").max(100, "Title too long"),
-  description: z
-    .string()
-    .min(1, "Description is required")
-    .max(500, "Description too long"),
-  option1: z.string().min(1, "Option 1 is required").max(50, "Option 1 too long"),
-  option2: z.string().min(1, "Option 2 is required").max(50, "Option 2 too long"),
+  ...electionFieldSchemas,
   end_date: z.string().min(1, "End date is required"),
 });
 
