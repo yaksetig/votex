@@ -5,7 +5,7 @@ import {
   type IDKitResult,
   type RpContext,
 } from "@worldcoin/idkit";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -35,19 +35,25 @@ import {
   createWorldIdSession,
   deriveSessionVerifierHash,
 } from "@/services/worldIdSessionService";
+import { logger } from "@/services/logger";
 
 type SignInStep =
   | "ready"
-  | "checking"
-  | "needs-passkey"
-  | "needs-existing-passkey"
-  | "authenticating"
-  | "creating-passkey"
+  | "preparing-passkey"
+  | "awaiting-worldid"
   | "registering"
   | "complete"
   | "error";
 
-type RegistrationMode = "new" | "existing" | null;
+// The passkey-derived material the World ID proof must commit to. The keypair
+// is derived first so its public key can be folded into the proof's signal —
+// register-keypair rejects proofs whose signal_hash != Hash(pk).
+interface PreparedPasskey {
+  prfSecret: ArrayBuffer;
+  publicKey: { x: string; y: string };
+  signal: string;
+  verifierHash: string;
+}
 
 const WORLD_ID_APP_ID = "app_e2fd2f8c99430ab200a093278e801c57";
 const WORLD_ID_RP_ID = "rp_b3b4b36db636df22";
@@ -56,8 +62,7 @@ const WORLD_ID_ACTION = "registration";
 const WorldIDSignIn: React.FC = () => {
   const [step, setStep] = useState<SignInStep>("ready");
   const [error, setError] = useState<string | null>(null);
-  const [idkitResult, setIdkitResult] = useState<IDKitResult | null>(null);
-  const [registrationMode, setRegistrationMode] = useState<RegistrationMode>(null);
+  const [preparedPasskey, setPreparedPasskey] = useState<PreparedPasskey | null>(null);
   const [widgetOpen, setWidgetOpen] = useState(false);
   const [rpContext, setRpContext] = useState<RpContext | null>(null);
   const { toast } = useToast();
@@ -81,7 +86,7 @@ const WorldIDSignIn: React.FC = () => {
         );
 
         if (invokeError || !data) {
-          console.error("Failed to fetch RP signature:", invokeError);
+          logger.error("Failed to fetch RP signature");
           return;
         }
 
@@ -93,7 +98,7 @@ const WorldIDSignIn: React.FC = () => {
           signature: data.sig,
         });
       } catch (err) {
-        console.error("Error fetching RP signature:", err);
+        logger.error("Error fetching RP signature", err);
       }
     }
     fetchRpSignature();
@@ -106,7 +111,6 @@ const WorldIDSignIn: React.FC = () => {
   ) => {
     const session = await createWorldIdSession(nullifierHash, prfSecret);
 
-    localStorage.setItem("worldid-user", session.userId);
     setUserId(session.userId);
     setIsWorldIDVerified(true);
     setJustVerified(true);
@@ -130,131 +134,11 @@ const WorldIDSignIn: React.FC = () => {
     throw new Error("No nullifier found in IDKit result");
   };
 
-  const handleReturningUserAuthentication = async (result: IDKitResult) => {
-    setStep("authenticating");
-
-    const prfResult = await authenticateWithPreferredPasskey();
-    const keypair = await deriveKeypairFromSecret(prfResult.secret);
-
-    if (!verifyDerivedKeypair(keypair)) {
-      throw new Error("Derived keypair failed validation");
-    }
-
-    const publicKey = publicKeyToStrings(keypair.pk);
-    const nullifier = getNullifier(result);
-
-    // Re-run register-keypair with the fresh World ID proof. The same-key path
-    // is idempotent and upserts the session verifier, so identities registered
-    // before verifiers existed self-heal here — the server no longer issues
-    // sessions to identities without a verifier (trust-on-first-use removed).
-    const signal = await hashPublicKeyForSignal(keypair.pk);
-    const verifierHash = await deriveSessionVerifierHash(prfResult.secret);
-
-    const { data: registerData, error: registerError } =
-      await supabase.functions.invoke("register-keypair", {
-        body: {
-          action: WORLD_ID_ACTION,
-          pk: publicKey,
-          signal,
-          idkitResult: result,
-          verifierHash,
-        },
-      });
-
-    if (registerError) {
-      throw registerError;
-    }
-
-    if (registerData?.error) {
-      throw new Error(registerData.error);
-    }
-
-    await completeSession(nullifier, prfResult.secret, publicKey);
-
-    toast({
-      title: "Secure session restored",
-      description: "World ID and passkey authentication completed successfully.",
-    });
-
-    navigate("/elections", { replace: true });
-  };
-
-  /** Called by IDKitRequestWidget to verify the proof on our backend */
-  const handleVerify = async (result: IDKitResult) => {
-    // This is called before onSuccess — if it throws, onSuccess won't fire
-    // We don't do full verification here since that happens during registration
-    // Just validate the result shape
-    const responses = (result as unknown as Record<string, unknown>).responses as Array<{ nullifier?: string }> | undefined;
-    if (!responses?.[0]?.nullifier) {
-      throw new Error("Invalid IDKit result: missing nullifier");
-    }
-  };
-
-  const handleWorldIDSuccess = async (result: IDKitResult) => {
-    setStep("checking");
-    setError(null);
-    setIdkitResult(result);
-
-    try {
-      const nullifier = getNullifier(result);
-
-      const { data, error: queryError } = await supabase
-        .from("world_id_keypairs")
-        .select("nullifier_hash")
-        .eq("nullifier_hash", nullifier)
-        .maybeSingle();
-
-      if (queryError) {
-        throw queryError;
-      }
-
-      if (!data) {
-        setRegistrationMode("new");
-        setStep("needs-passkey");
-        toast({
-          title: "World ID confirmed",
-          description: "Create a passkey to finish registration and unlock voting.",
-        });
-        return;
-      }
-
-      setRegistrationMode("existing");
-      setStep("needs-existing-passkey");
-      toast({
-        title: "Identity found",
-        description: "Use the passkey already bound to this voting identity.",
-      });
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to verify World ID session";
-      setError(message);
-      setStep("error");
-    }
-  };
-
-  const handleUseExistingPasskey = async () => {
-    if (!idkitResult) {
-      return;
-    }
-
-    setError(null);
-
-    try {
-      await handleReturningUserAuthentication(idkitResult);
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to authenticate with the existing passkey";
-      setError(message);
-      setStep("error");
-    }
-  };
-
-  const handleCreatePasskey = async () => {
-    if (!idkitResult) {
-      return;
-    }
-
-    setStep("creating-passkey");
+  // Step 1: derive the passkey-backed keypair so we know the public key that
+  // the World ID proof must be bound to. The signal (= Hash(pk)) is then folded
+  // into the proof request, which is why the passkey must come before World ID.
+  const preparePasskey = async () => {
+    setStep("preparing-passkey");
     setError(null);
 
     try {
@@ -269,6 +153,8 @@ const WorldIDSignIn: React.FC = () => {
           createError instanceof Error &&
           createError.message === "A passkey already exists for this account"
         ) {
+          // Returning user on a device that already holds their passkey — the
+          // same secret deterministically rederives the same keypair.
           prfResult = await authenticateWithPreferredPasskey();
         } else {
           throw createError;
@@ -284,7 +170,48 @@ const WorldIDSignIn: React.FC = () => {
       const signal = await hashPublicKeyForSignal(keypair.pk);
       const verifierHash = await deriveSessionVerifierHash(prfResult.secret);
 
-      setStep("registering");
+      setPreparedPasskey({
+        prfSecret: prfResult.secret,
+        publicKey,
+        signal,
+        verifierHash,
+      });
+      setStep("awaiting-worldid");
+      setWidgetOpen(true);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to prepare passkey";
+      setError(message);
+      setStep("error");
+    }
+  };
+
+  /** Called by IDKitRequestWidget to verify the proof on our backend */
+  const handleVerify = async (result: IDKitResult) => {
+    // This is called before onSuccess — if it throws, onSuccess won't fire
+    // We don't do full verification here since that happens during registration
+    // Just validate the result shape
+    const responses = (result as unknown as Record<string, unknown>).responses as Array<{ nullifier?: string }> | undefined;
+    if (!responses?.[0]?.nullifier) {
+      throw new Error("Invalid IDKit result: missing nullifier");
+    }
+  };
+
+  // Step 2: the World ID proof is now signal-bound to the prepared keypair, so
+  // register-keypair accepts it. The server is the source of truth for whether
+  // this is a new registration or a returning identity (alreadyExists).
+  const handleWorldIDSuccess = async (result: IDKitResult) => {
+    if (!preparedPasskey) {
+      setError("Passkey was not prepared before World ID verification");
+      setStep("error");
+      return;
+    }
+
+    setStep("registering");
+    setError(null);
+
+    try {
+      const { prfSecret, publicKey, signal, verifierHash } = preparedPasskey;
 
       // verifierHash is registered here, under the verified World ID proof;
       // worldid-session refuses to issue sessions for identities without one.
@@ -295,7 +222,7 @@ const WorldIDSignIn: React.FC = () => {
             action: WORLD_ID_ACTION,
             pk: publicKey,
             signal,
-            idkitResult: idkitResult,
+            idkitResult: result,
             verifierHash,
           },
         }
@@ -309,21 +236,24 @@ const WorldIDSignIn: React.FC = () => {
         throw new Error(data.error);
       }
 
-      const nullifier = getNullifier(idkitResult);
-      await completeSession(nullifier, prfResult.secret, publicKey);
+      const nullifier = getNullifier(result);
+      await completeSession(nullifier, prfSecret, publicKey);
       setStep("complete");
 
+      const returning = data?.alreadyExists === true;
       toast({
-        title: "Identity registration complete",
-        description: "Your passkey-backed voting identity is ready.",
+        title: returning ? "Secure session restored" : "Identity registration complete",
+        description: returning
+          ? "World ID and passkey authentication completed successfully."
+          : "Your passkey-backed voting identity is ready.",
       });
 
       window.setTimeout(() => {
-        navigate("/success", { replace: true });
+        navigate(returning ? "/elections" : "/success", { replace: true });
       }, 1200);
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : "Failed to create passkey session";
+        err instanceof Error ? err.message : "Failed to register voting identity";
       setError(message);
       setStep("error");
     }
@@ -335,21 +265,13 @@ const WorldIDSignIn: React.FC = () => {
     setStep("error");
   };
 
-  const stepOneComplete =
-    step === "needs-existing-passkey" ||
-    step === "needs-passkey" ||
-    step === "creating-passkey" ||
-    step === "registering" ||
-    step === "complete";
-  const showWorldIdButton = step === "ready" || (step === "error" && !idkitResult);
+  const showPasskeyButton =
+    step === "ready" || (step === "error" && !preparedPasskey);
   const stepTwoEnabled =
-    step === "needs-existing-passkey" ||
-    step === "needs-passkey" ||
-    step === "creating-passkey" ||
+    step === "awaiting-worldid" ||
     step === "registering" ||
     step === "complete" ||
-    (step === "error" && !!idkitResult);
-  const isExistingRegistrationFlow = registrationMode === "existing";
+    (step === "error" && !!preparedPasskey);
 
   return (
     <div className="relative flex min-h-[calc(100vh-72px)] items-center justify-center overflow-hidden px-4 py-8 sm:px-6">
@@ -365,7 +287,7 @@ const WorldIDSignIn: React.FC = () => {
             Verify Your <span className="text-surface-tint">Identity.</span>
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-on-surface-variant">
-            Access your ballot through decentralized proof-of-personhood and a passkey-derived cryptographic identity.
+            Access your ballot through World ID proof-of-personhood and a passkey-derived cryptographic identity.
           </p>
         </div>
 
@@ -389,70 +311,46 @@ const WorldIDSignIn: React.FC = () => {
                 </div>
                 <div>
                   <h2 className="font-headline text-2xl font-bold text-primary">
-                    Authenticate via World ID
+                    Set Up Your Passkey
                   </h2>
                   <p className="text-sm text-on-surface-variant">
-                    Verify that you are a unique human participant.
+                    Create a biometric-backed passkey and derive your local voting key.
                   </p>
                 </div>
               </div>
 
-              {showWorldIdButton && rpContext ? (
-                <>
-                  <Button
-                    onClick={() => setWidgetOpen(true)}
-                    size="lg"
-                    className="w-full justify-center text-base"
-                    variant="gradient"
-                  >
-                    <ShieldCheck className="h-5 w-5" />
-                    Verify with World ID
-                  </Button>
-                  <IDKitRequestWidget
-                    open={widgetOpen}
-                    onOpenChange={setWidgetOpen}
-                    app_id={WORLD_ID_APP_ID}
-                    action={WORLD_ID_ACTION}
-                    rp_context={rpContext}
-                    allow_legacy_proofs={true}
-                    preset={orbLegacy({})}
-                    handleVerify={handleVerify}
-                    onSuccess={handleWorldIDSuccess}
-                    onError={handleWorldIDError}
-                    autoClose
-                  />
-                </>
-              ) : showWorldIdButton && !rpContext ? (
+              {showPasskeyButton ? (
                 <Button
-                  disabled
+                  onClick={preparePasskey}
                   size="lg"
                   className="w-full justify-center text-base"
                   variant="gradient"
                 >
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  Initializing...
+                  <KeyRound className="h-5 w-5" />
+                  {step === "error" ? "Retry Passkey Setup" : "Create or Use Your Passkey"}
                 </Button>
+              ) : step === "preparing-passkey" ? (
+                <button
+                  type="button"
+                  disabled
+                  className="flex w-full items-center justify-center gap-3 rounded-[1rem] bg-gradient-to-br from-primary to-primary-container px-6 py-4 text-lg font-bold text-white opacity-95"
+                >
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  Setting up passkey...
+                </button>
               ) : (
                 <button
                   type="button"
                   disabled
                   className="flex w-full items-center justify-center gap-3 rounded-[1rem] bg-gradient-to-br from-primary to-primary-container px-6 py-4 text-lg font-bold text-white opacity-95"
                 >
-                  {stepOneComplete ? (
-                    <CheckCircle2 className="h-5 w-5" />
-                  ) : (
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                  )}
-                  {stepOneComplete
-                    ? "World ID Verified"
-                    : step === "authenticating"
-                      ? "Authenticating with Passkey..."
-                      : "Checking registration..."}
+                  <CheckCircle2 className="h-5 w-5" />
+                  Passkey Ready
                 </button>
               )}
 
               <p className="mt-4 text-center text-[11px] font-bold uppercase tracking-[0.24em] text-outline">
-                Privacy-first zero knowledge proof
+                Local key never leaves this device
               </p>
             </div>
           </section>
@@ -478,59 +376,66 @@ const WorldIDSignIn: React.FC = () => {
               </div>
               <div>
                 <h2 className="font-headline text-2xl font-bold text-primary">
-                  {isExistingRegistrationFlow ? "Use Existing Passkey" : "Register a Passkey"}
+                  Authenticate via World ID
                 </h2>
                 <p className="text-sm text-on-surface-variant">
-                  {isExistingRegistrationFlow
-                    ? "Unlock with the passkey already bound to this voting identity."
-                    : "Create a biometric-backed passkey on this device and derive your local voting key."}
+                  Verify that you are a unique human participant.
                 </p>
               </div>
             </div>
 
-              {step === "needs-existing-passkey" && (
+            {stepTwoEnabled && rpContext && preparedPasskey && (
+              <IDKitRequestWidget
+                open={widgetOpen}
+                onOpenChange={setWidgetOpen}
+                app_id={WORLD_ID_APP_ID}
+                action={WORLD_ID_ACTION}
+                rp_context={rpContext}
+                allow_legacy_proofs={true}
+                preset={orbLegacy({ signal: preparedPasskey.signal })}
+                handleVerify={handleVerify}
+                onSuccess={handleWorldIDSuccess}
+                onError={handleWorldIDError}
+                autoClose
+              />
+            )}
+
+            {(step === "awaiting-worldid" || (step === "error" && !!preparedPasskey)) && (
+              rpContext ? (
                 <Button
-                  onClick={handleUseExistingPasskey}
+                  onClick={() => {
+                    setError(null);
+                    setStep("awaiting-worldid");
+                    setWidgetOpen(true);
+                  }}
                   size="lg"
                   className="w-full justify-center text-base"
+                  variant="gradient"
                 >
-                  <KeyRound className="h-5 w-5" />
-                  Use Previously Generated Passkey
+                  <ShieldCheck className="h-5 w-5" />
+                  {step === "error" ? "Retry World ID" : "Verify with World ID"}
                 </Button>
-              )}
-
-              {(step === "needs-passkey" || (step === "error" && !!idkitResult && registrationMode === "new")) && (
+              ) : (
                 <Button
-                  onClick={handleCreatePasskey}
+                  disabled
                   size="lg"
                   className="w-full justify-center text-base"
+                  variant="gradient"
                 >
-                  <KeyRound className="h-5 w-5" />
-                  {step === "error" ? "Retry Local Passkey Setup" : "Create Passkey On This Device"}
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  Initializing...
                 </Button>
-              )}
+              )
+            )}
 
-              {step === "error" && !!idkitResult && registrationMode === "existing" && (
-                <Button
-                  onClick={handleUseExistingPasskey}
-                  size="lg"
-                  className="w-full justify-center text-base"
-                >
-                  <KeyRound className="h-5 w-5" />
-                  Retry Existing Passkey
-                </Button>
-              )}
-
-            {(step === "creating-passkey" || step === "registering") && (
+            {step === "registering" && (
               <button
                 type="button"
                 disabled
                 className="flex w-full items-center justify-center gap-3 rounded-[1rem] bg-surface-container-high px-6 py-4 text-lg font-bold text-on-surface-variant"
               >
                 <Loader2 className="h-5 w-5 animate-spin" />
-                {step === "creating-passkey"
-                  ? "Creating passkey..."
-                  : "Binding identity to passkey..."}
+                Binding identity to passkey...
               </button>
             )}
 
@@ -547,8 +452,8 @@ const WorldIDSignIn: React.FC = () => {
                 disabled
                 className="flex w-full items-center justify-center gap-3 rounded-[1rem] bg-surface-container-high px-6 py-4 text-lg font-bold text-on-surface-variant"
               >
-                <KeyRound className="h-5 w-5" />
-                Setup Passkey
+                <ShieldCheck className="h-5 w-5" />
+                Verify with World ID
               </button>
             )}
           </section>
@@ -568,12 +473,12 @@ const WorldIDSignIn: React.FC = () => {
           </div>
 
           <div className="flex items-center justify-center gap-6 pt-4 text-xs font-semibold uppercase tracking-[0.2em] text-outline">
-            <a href="#privacy">Privacy Policy</a>
-            <a href="#audit">Audit Protocol</a>
-            <button type="button" className="inline-flex items-center gap-2">
+            <Link to="/privacy">Privacy Policy</Link>
+            <Link to="/audit-protocol">Audit Protocol</Link>
+            <a href="mailto:support@votex.world" className="inline-flex items-center gap-2">
               <HelpCircle className="h-4 w-4" />
               Support
-            </button>
+            </a>
           </div>
         </div>
       </div>

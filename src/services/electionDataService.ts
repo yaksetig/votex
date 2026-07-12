@@ -9,7 +9,7 @@ export interface AuthorityElection {
   status: string;
   created_at: string;
   end_date: string;
-  closed_manually_at?: string;
+  closed_manually_at?: string | null;
   option1: string;
   option2: string;
   vote_count?: number;
@@ -22,10 +22,7 @@ export interface AuthorityElection {
 export async function getElectionsForAuthority(authorityId: string): Promise<AuthorityElection[]> {
   const { data: elections, error } = await supabase
     .from('elections')
-    .select(`
-      *,
-      votes(id)
-    `)
+    .select('*')
     .eq('authority_id', authorityId)
     .order('created_at', { ascending: false });
 
@@ -46,6 +43,16 @@ export async function getElectionsForAuthority(authorityId: string): Promise<Aut
 
   const talliedElectionIds = new Set(talliedElections?.map(t => t.election_id) || []);
 
+  const voteCounts = new Map<string, number>();
+  await Promise.all((elections || []).map(async (election) => {
+    const { count, error: countError } = await supabase
+      .from('public_votes')
+      .select('*', { count: 'exact', head: true })
+      .eq('election_id', election.id);
+    if (countError) throw countError;
+    voteCounts.set(election.id, count ?? 0);
+  }));
+
   return (elections || []).map(election => ({
     id: election.id,
     title: election.title,
@@ -56,7 +63,7 @@ export async function getElectionsForAuthority(authorityId: string): Promise<Aut
     closed_manually_at: election.closed_manually_at,
     option1: election.option1,
     option2: election.option2,
-    vote_count: election.votes?.length || 0,
+    vote_count: voteCounts.get(election.id) ?? 0,
     tally_processed: talliedElectionIds.has(election.id),
   }));
 }

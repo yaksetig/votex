@@ -2,6 +2,8 @@
 import { supabase } from "@/integrations/supabase/client";
 import { StoredKeypair } from "@/types/keypair";
 import { getStoredWorldIdSessionToken } from "@/services/worldIdSessionService";
+import { logger } from "@/services/logger";
+import { readFunctionError } from "@/types/api";
 
 export interface ElectionParticipant {
   id: string;
@@ -18,15 +20,15 @@ export interface ElectionParticipant {
 // direct client writes to election_participants are blocked by RLS.
 export async function registerElectionParticipant(
   electionId: string,
-  participantId: string,
+  _participantId: string,
   keypair: StoredKeypair
 ): Promise<boolean> {
   try {
-    console.log(`Attempting to register participant ${participantId} for election ${electionId}`);
+    logger.debug("Registering election participant");
 
     const sessionToken = getStoredWorldIdSessionToken();
     if (!sessionToken) {
-      console.error("Cannot register participant without a stored voter session");
+      logger.error("Cannot register participant without a stored voter session");
       return false;
     }
 
@@ -41,29 +43,22 @@ export async function registerElectionParticipant(
     if (error) {
       // supabase-js surfaces non-2xx responses as FunctionsHttpError with the
       // JSON body available on the response object.
-      const context = (error as { context?: Response }).context;
-      if (context) {
-        const body = (await context.json().catch(() => null)) as
-          | { error?: string }
-          | null;
-        if (body?.error) {
-          throw new Error(body.error);
-        }
-      }
-
-      console.error("Error registering election participant:", error);
-      return false;
+      throw await readFunctionError(
+        error,
+        "CONFLICT",
+        "Failed to register election participant"
+      );
     }
 
     if (!data?.success) {
-      console.error("Participant registration was rejected:", data);
+      logger.error("Participant registration was rejected");
       return false;
     }
 
-    console.log("Successfully registered participant");
+    logger.debug("Election participant registered");
     return true;
   } catch (error) {
-    console.error("Error in registerElectionParticipant:", error);
+    logger.error("Error registering election participant", error);
     if (error instanceof Error) {
       throw error;
     }
@@ -74,23 +69,37 @@ export async function registerElectionParticipant(
 // Get all participants for an election (needed for nullification)
 export async function getElectionParticipants(electionId: string): Promise<ElectionParticipant[]> {
   try {
-    console.log(`Fetching participants for election: ${electionId}`);
-    
-    const { data, error } = await supabase
-      .from("election_participants")
-      .select("*")
-      .eq("election_id", electionId)
-      .order("joined_at", { ascending: true });
-
-    if (error) {
-      console.error("Error fetching election participants:", error);
-      return [];
+    logger.debug("Fetching election participants");
+    const participants: ElectionParticipant[] = [];
+    const pageSize = 1000;
+    for (let offset = 0; ; offset += pageSize) {
+      const { data, error } = await supabase
+        .from("public_participants")
+        .select("*")
+        .eq("election_id", electionId)
+        .order("joined_at", { ascending: true })
+        .range(offset, offset + pageSize - 1);
+      if (error) throw error;
+      participants.push(...(data || []).flatMap((participant) =>
+        participant.id && participant.election_id && participant.voter_pseudonym &&
+        participant.public_key_x && participant.public_key_y && participant.joined_at
+          ? [{
+              id: participant.id,
+              election_id: participant.election_id,
+              participant_id: participant.voter_pseudonym,
+              public_key_x: participant.public_key_x,
+              public_key_y: participant.public_key_y,
+              joined_at: participant.joined_at,
+            }]
+          : []
+      ));
+      if (!data || data.length < pageSize) break;
     }
 
-    console.log(`Found ${data?.length || 0} participants:`, data);
-    return data || [];
+    logger.debug(`Fetched ${participants.length} election participants`);
+    return participants;
   } catch (error) {
-    console.error("Error in getElectionParticipants:", error);
+    logger.error("Error fetching election participants", error);
     return [];
   }
 }
@@ -101,25 +110,25 @@ export async function isUserParticipant(
   participantId: string
 ): Promise<boolean> {
   try {
-    console.log(`Checking if user ${participantId} is participant in election ${electionId}`);
+    logger.debug("Checking election participant status");
     
     const { data, error } = await supabase
-      .from("election_participants")
+      .from("public_participants")
       .select("id")
       .eq("election_id", electionId)
-      .eq("participant_id", participantId)
+      .eq("voter_pseudonym", participantId)
       .maybeSingle();
 
     if (error) {
-      console.error("Error checking participant status:", error);
+      logger.error("Error checking participant status", error);
       return false;
     }
 
     const isParticipant = !!data;
-    console.log(`User is participant: ${isParticipant}`);
+    logger.debug(`Election participant status: ${isParticipant}`);
     return isParticipant;
   } catch (error) {
-    console.error("Error in isUserParticipant:", error);
+    logger.error("Error checking election participant status", error);
     return false;
   }
 }

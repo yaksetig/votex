@@ -3,9 +3,6 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowRight,
-  ChevronLeft,
-  ChevronRight,
-  Filter,
   Plus,
   ShieldCheck,
   Timer,
@@ -13,18 +10,18 @@ import {
 } from "lucide-react";
 import { formatDistanceToNowStrict } from "date-fns";
 import { useWallet } from "@/contexts/WalletContext";
-import { supabase } from "@/integrations/supabase/client";
-import { initializeDefaultElectionAuthority } from "@/services/electionAuthorityService";
 import { isElectionClosed } from "@/lib/electionStatus";
 import { useElectionsList, type ElectionRecord } from "@/hooks/queries/useElectionsList";
 import ElectionForm from "@/components/ElectionForm";
+import type { FormData } from "@/components/ElectionForm/types";
+import { createElection } from "@/services/electionCreationService";
 import { useToast } from "@/hooks/use-toast";
 
 const Elections = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const searchQuery = searchParams.get("q")?.toLowerCase() ?? "";
-  const { isWorldIDVerified, userId } = useWallet();
+  const { isWorldIDVerified } = useWallet();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const {
@@ -35,16 +32,6 @@ const Elections = () => {
     refetch: refetchElections,
   } = useElectionsList();
   const [showForm, setShowForm] = useState(false);
-
-  // Ensure the default authority exists, then let react-query refetch so the
-  // freshly-seeded authority name is joined in.
-  useEffect(() => {
-    void initializeDefaultElectionAuthority()
-      .catch(() => undefined)
-      .then(() => {
-        void queryClient.invalidateQueries({ queryKey: ["elections-list"] });
-      });
-  }, [queryClient]);
 
   useEffect(() => {
     if (isError) {
@@ -59,21 +46,9 @@ const Elections = () => {
     }
   }, [isError, electionsError, toast]);
 
-  const handleFormSubmit = async (formData: any) => {
+  const handleFormSubmit = async (formData: FormData) => {
     try {
-      const { error } = await supabase.from("elections").insert({
-        title: formData.title,
-        description: formData.description,
-        option1: formData.option1,
-        option2: formData.option2,
-        creator: userId,
-        end_date: formData.endDate.toISOString(),
-        authority_id: formData.authorityId,
-      });
-
-      if (error) {
-        throw error;
-      }
+      await createElection(formData);
 
       toast({
         title: "Election published",
@@ -81,7 +56,10 @@ const Elections = () => {
       });
 
       setShowForm(false);
-      await refetchElections();
+      await Promise.all([
+        refetchElections(),
+        queryClient.invalidateQueries({ queryKey: ["elections-list"] }),
+      ]);
     } catch (error) {
       toast({
         variant: "destructive",
@@ -147,6 +125,15 @@ const Elections = () => {
   return (
     <div className="px-4 pb-24 pt-10 sm:px-6 md:pb-10">
       <div className="mx-auto max-w-7xl space-y-10">
+        {isError && (
+          <section className="rounded-[1.5rem] bg-error-container/70 p-5 text-on-error-container" role="alert">
+            <h2 className="font-headline text-xl font-bold">Election browser unavailable</h2>
+            <p className="mt-2 text-sm">The public ledger could not be loaded. Check your connection and retry.</p>
+            <button type="button" className="ledger-button-secondary mt-4" onClick={() => void refetchElections()}>
+              Retry
+            </button>
+          </section>
+        )}
         <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
           <div className="flex flex-col justify-end">
             <div className="max-w-3xl">
@@ -154,15 +141,11 @@ const Elections = () => {
                 Active Elections
               </h1>
               <p className="mt-4 max-w-2xl text-lg leading-relaxed text-on-surface-variant">
-                Browse secure, cryptographically verified binary elections. Every ballot contributes to an auditable ledger without exposing the voter behind it.
+                Browse cryptographically verified binary elections. Ballot choices and World ID-derived pseudonyms are public for auditability; real-world identities are not written to the Votex ledger.
               </p>
             </div>
 
             <div className="mt-8 flex flex-wrap gap-3">
-              <button type="button" className="ledger-button-secondary">
-                <Filter className="h-4 w-4" />
-                All Status
-              </button>
               {isWorldIDVerified && (
                 <button
                   type="button"
@@ -318,14 +301,6 @@ const Elections = () => {
             <h2 className="font-headline text-2xl font-bold text-primary">
               Ongoing Elections
             </h2>
-            <div className="flex gap-2">
-              <button type="button" className="ledger-button-secondary px-3 py-3">
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              <button type="button" className="ledger-button-secondary px-3 py-3">
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
           </div>
 
           {secondaryActiveElections.length === 0 ? (

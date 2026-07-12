@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { formatDistanceToNow, isPast } from "date-fns";
 import {
@@ -28,6 +28,8 @@ import { createDelegation, revokeDelegation, getActiveDelegation } from "@/servi
 import { Election } from "@/types/election";
 import type { KAnonymityProgress } from "@/services/kAnonymityNullificationService";
 import { useDeriveKeypair } from "@/hooks/useDeriveKeypair";
+import VoteReceiptCard from "@/components/VoteReceiptCard";
+import type { VoteReceipt } from "@/types/api";
 
 const ElectionDetail = () => {
   const { id } = useParams();
@@ -41,8 +43,7 @@ const ElectionDetail = () => {
   const [voteCounts, setVoteCounts] = useState({ option1: 0, option2: 0 });
   const [selectedOption, setSelectedOption] = useState("");
   const [hasVoted, setHasVoted] = useState(false);
-  // Receipt id is tracked to trigger refetches; the value itself is not rendered.
-  const [, setVoteReceipt] = useState<string | null>(null);
+  const [voteReceipt, setVoteReceipt] = useState<VoteReceipt | null>(null);
   const [votedChoice, setVotedChoice] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [nullifying, setNullifying] = useState(false);
@@ -57,62 +58,11 @@ const ElectionDetail = () => {
   const [showDelegationDialog, setShowDelegationDialog] = useState(false);
   const [isDelegating, setIsDelegating] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadInitialElectionState = async () => {
-      await fetchElectionData();
-
-      try {
-        const [{ initializeDefaultElectionAuthority }, { validateAndMigrateKeypair }] = await Promise.all([
-          import("@/services/electionAuthorityService"),
-          import("@/services/keypairService"),
-        ]);
-
-        await initializeDefaultElectionAuthority();
-        if (cancelled) return;
-
-        const { valid, cleared, keypair: validKeypair } = validateAndMigrateKeypair();
-        if (cleared) {
-          toast({
-            variant: "destructive",
-            title: "Keypair outdated",
-            description: "Your keypair was generated with an older configuration. Derive a fresh one from your passkey.",
-          });
-          setNeedsKeypair(true);
-        } else if (valid && validKeypair) {
-          setKeypair(validKeypair);
-          setNeedsKeypair(false);
-        } else {
-          setNeedsKeypair(true);
-        }
-      } catch {
-        if (!cancelled) {
-          setNeedsKeypair(true);
-        }
-      }
-    };
-
-    void loadInitialElectionState();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [id, toast]);
-
-  useEffect(() => {
-    if (userId && id) {
-      void checkIfUserVoted();
-      void checkParticipantStatus();
-      void checkDelegationStatus();
-    }
-  }, [userId, id]);
-
-  const checkDelegationStatus = async () => {
+  const checkDelegationStatus = useCallback(async () => {
     if (!userId || !id) return;
     const delegation = await getActiveDelegation(id, userId);
     setHasDelegated(!!delegation);
-  };
+  }, [id, userId]);
 
   const handleDelegate = async (participantIndex: number) => {
     if (!id || !userId || !election) return;
@@ -169,7 +119,7 @@ const ElectionDetail = () => {
   }, [election]);
 
 
-  const checkParticipantStatus = async () => {
+  const checkParticipantStatus = useCallback(async () => {
     if (!userId || !id) return;
 
     try {
@@ -178,7 +128,7 @@ const ElectionDetail = () => {
     } catch {
       setIsParticipant(false);
     }
-  };
+  }, [id, userId]);
 
   const rederiveKeypair = async () => {
     const result = await deriveKeypair({ store: true });
@@ -188,12 +138,17 @@ const ElectionDetail = () => {
     }
   };
 
-  const fetchElectionData = async () => {
+  const fetchElectionData = useCallback(async () => {
+    if (!id) {
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
 
       const { data: electionData, error: electionError } = await supabase
-        .from("elections")
+        .from("public_elections")
         .select("*")
         .eq("id", id)
         .single();
@@ -202,7 +157,25 @@ const ElectionDetail = () => {
         throw electionError ?? new Error("Election not found");
       }
 
-      setElection(electionData);
+      if (!electionData.id || !electionData.title || !electionData.description ||
+          !electionData.creator || !electionData.end_date || !electionData.created_at ||
+          !electionData.option1 || !electionData.option2) {
+        throw new Error("Election record is incomplete");
+      }
+      const normalizedElection: Election = {
+        ...electionData,
+        id: electionData.id,
+        title: electionData.title,
+        description: electionData.description,
+        creator: electionData.creator,
+        end_date: electionData.end_date,
+        created_at: electionData.created_at,
+        option1: electionData.option1,
+        option2: electionData.option2,
+        last_modified_at: null,
+        last_modified_by: null,
+      };
+      setElection(normalizedElection);
 
       const [yesVotesResult, noVotesResult, participantsList] = await Promise.all([
         supabase.from("yes_votes").select("*").eq("election_id", id),
@@ -212,15 +185,15 @@ const ElectionDetail = () => {
 
       if (yesVotesResult.error || noVotesResult.error) {
         const { data: votes, error: votesError } = await supabase
-          .from("votes")
+          .from("public_votes")
           .select("choice")
           .eq("election_id", id);
 
         if (votesError) throw votesError;
 
         setVoteCounts({
-          option1: votes?.filter((vote) => vote.choice === electionData.option1).length || 0,
-          option2: votes?.filter((vote) => vote.choice === electionData.option2).length || 0,
+          option1: votes?.filter((vote) => vote.choice === normalizedElection.option1).length || 0,
+          option2: votes?.filter((vote) => vote.choice === normalizedElection.option2).length || 0,
         });
       } else {
         setVoteCounts({
@@ -239,30 +212,102 @@ const ElectionDetail = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, toast]);
 
-  const checkIfUserVoted = async () => {
+  const checkIfUserVoted = useCallback(async () => {
     if (!userId || !id) return;
 
     try {
       const { data, error } = await supabase
-        .from("votes")
-        .select("id, choice")
+        .from("public_votes")
+        .select("receipt_id, choice, signature, signed_at, accepted_at, voter_pseudonym")
         .eq("election_id", id)
-        .eq("voter", userId);
+        .eq("voter_pseudonym", userId)
+        .maybeSingle();
 
       if (error) throw error;
 
-      const voteExists = !!data && data.length > 0;
+      const voteExists = !!data;
+      let signatureVerified = false;
+      if (voteExists && data.signature && data.choice && data.signed_at) {
+        const { data: participant } = await supabase
+          .from("public_participants")
+          .select("public_key_x, public_key_y")
+          .eq("election_id", id)
+          .eq("voter_pseudonym", userId)
+          .maybeSingle();
+        if (participant?.public_key_x && participant.public_key_y) {
+          const { verifyVoteSignature } = await import("@/services/signatureService");
+          signatureVerified = await verifyVoteSignature(
+            data.signature,
+            { x: participant.public_key_x, y: participant.public_key_y },
+            id,
+            data.choice,
+            data.signed_at
+          );
+        }
+      }
       setHasVoted(voteExists);
-      setVoteReceipt(voteExists ? data?.[0]?.id ?? null : null);
-      setVotedChoice(voteExists ? data?.[0]?.choice ?? null : null);
+      setVoteReceipt(voteExists && data.receipt_id && data.choice && data.signature && data.signed_at && data.accepted_at && data.voter_pseudonym
+        ? {
+            receiptId: data.receipt_id,
+            electionId: id,
+            electionTitle: election?.title ?? "Election",
+            voterPseudonym: data.voter_pseudonym,
+            choice: data.choice,
+            signature: data.signature,
+            signedAt: data.signed_at,
+            acceptedAt: data.accepted_at,
+            signatureVerified,
+          }
+        : null);
+      setVotedChoice(voteExists ? data.choice : null);
     } catch {
       setHasVoted(false);
       setVoteReceipt(null);
       setVotedChoice(null);
     }
-  };
+  }, [election?.title, id, userId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadInitialElectionState = async () => {
+      await fetchElectionData();
+      try {
+        const { validateAndMigrateKeypair } = await import("@/services/keypairService");
+        if (cancelled) return;
+
+        const { valid, cleared, keypair: validKeypair } = validateAndMigrateKeypair();
+        if (cleared) {
+          toast({
+            variant: "destructive",
+            title: "Keypair outdated",
+            description: "Your keypair was generated with an older configuration. Derive a fresh one from your passkey.",
+          });
+          setNeedsKeypair(true);
+        } else if (valid && validKeypair) {
+          setKeypair(validKeypair);
+          setNeedsKeypair(false);
+        } else {
+          setNeedsKeypair(true);
+        }
+      } catch {
+        if (!cancelled) setNeedsKeypair(true);
+      }
+    };
+
+    void loadInitialElectionState();
+    return () => { cancelled = true; };
+  }, [fetchElectionData, toast]);
+
+  useEffect(() => {
+    if (userId && id) {
+      void checkIfUserVoted();
+      void checkParticipantStatus();
+      void checkDelegationStatus();
+    }
+  }, [checkDelegationStatus, checkIfUserVoted, checkParticipantStatus, id, userId]);
 
   const ensureUserIsParticipant = async (): Promise<boolean> => {
     if (!userId || !election || !keypair) return false;
@@ -317,19 +362,6 @@ const ElectionDetail = () => {
     try {
       setSubmitting(true);
 
-      const { data: existingVote } = await supabase
-        .from("votes")
-        .select("id")
-        .eq("election_id", election.id)
-        .eq("voter", userId)
-        .single();
-
-      if (existingVote) {
-        setHasVoted(true);
-        setVoteReceipt(existingVote.id);
-        return;
-      }
-
       const participantRegistered = await ensureUserIsParticipant();
       if (!participantRegistered) {
         throw new Error("Failed to register as election participant");
@@ -339,7 +371,10 @@ const ElectionDetail = () => {
       const { signature, timestamp } = await signVote(keypair, election.id, selectedOption);
 
       const { castVote } = await import("@/services/voteTrackingService");
-      await castVote(election.id, selectedOption, signature, timestamp);
+      const receipt = await castVote(election.id, selectedOption, signature, timestamp);
+      setVoteReceipt(receipt);
+      setVotedChoice(receipt.choice);
+      setHasVoted(true);
 
       await checkIfUserVoted();
       await fetchElectionData();
@@ -532,6 +567,7 @@ const ElectionDetail = () => {
                   </div>
                 </div>
               )}
+              {voteReceipt && <VoteReceiptCard receipt={voteReceipt} />}
             </div>
           </section>
 
@@ -740,7 +776,7 @@ const ElectionDetail = () => {
                     <ShieldCheck className="mt-0.5 h-5 w-5 text-primary-fixed-dim" />
                     <div>
                       <p className="font-semibold text-white">Zero-Knowledge Proofs</p>
-                      <p className="mt-1 text-white/72">Prove your right to nullify without revealing identity or vote selection.</p>
+                      <p className="mt-1 text-white/72">Prove authority over a nullification slot without revealing whether the request is real or a decoy.</p>
                     </div>
                   </li>
                   <li className="flex gap-4">
@@ -778,6 +814,12 @@ const ElectionDetail = () => {
                     </div>
                   </div>
                 </div>
+              </div>
+              <div className="ledger-panel p-6">
+                <p className="ledger-eyebrow">Privacy model</p>
+                <p className="mt-3 text-sm leading-relaxed text-on-surface-variant">
+                  Ballot choices and World ID-derived voter pseudonyms are public for auditability. Votex does not publish your real-world identity, but pseudonymous activity may be linkable across elections.
+                </p>
               </div>
             </aside>
           </section>

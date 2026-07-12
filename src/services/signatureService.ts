@@ -1,5 +1,9 @@
 import { StoredKeypair } from "@/types/keypair";
-import { signMessageWithStoredSeed } from "@/services/eddsaService";
+import {
+  parseSignaturePayload,
+  signMessageWithStoredSeed,
+  verifySignatureObject,
+} from "@/services/eddsaService";
 
 function buildVoteMessage(
   electionId: string,
@@ -34,4 +38,22 @@ export async function signVote(
     publicKey: { x: keypair.Ax, y: keypair.Ay },
     timestamp,
   };
+}
+
+export async function verifyVoteSignature(
+  signature: string,
+  publicKey: { x: string; y: string },
+  electionId: string,
+  choice: string,
+  timestamp: number
+): Promise<boolean> {
+  try {
+    return await verifySignatureObject(
+      parseSignaturePayload(signature),
+      { x: BigInt(publicKey.x), y: BigInt(publicKey.y) },
+      buildVoteMessage(electionId, choice, timestamp)
+    );
+  } catch {
+    return false;
+  }
 }

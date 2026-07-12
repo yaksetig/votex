@@ -10,7 +10,7 @@ const FAQ_ITEMS = [
   {
     question: "Who can see my vote?",
     answer:
-      "Votex exposes auditable election state, proofs, and aggregate results. It is designed to avoid publishing a simple public mapping between a verified person and a plain-text ballot.",
+      "Ballots are public under a World ID-derived pseudonym: observers can see that pseudonymous voter X selected option Y, but the ledger does not contain that voter’s real-world identity. Reuse of a pseudonym may make activity linkable across elections. Full ballot secrecy is future work.",
   },
   {
     question: "Why do I need a passkey?",
@@ -30,7 +30,7 @@ const FAQ_ITEMS = [
   {
     question: "What can auditors verify?",
     answer:
-      "Auditors can inspect the public election record, proof artifacts, and final tally flow without learning how any individual voter cast a ballot.",
+      "Auditors can inspect pseudonymous ballot choices, signatures, proof artifacts, nullification state, delegation ciphertexts, and tally output. Delegation hides the selected delegate; nullification hides whether a request is real or a decoy.",
   },
 ];
 

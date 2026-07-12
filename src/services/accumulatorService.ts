@@ -52,10 +52,10 @@ export async function getOrCreateAccumulator(
 ): Promise<{ accumulator: ElGamalCiphertext; version: number }> {
   // Try to fetch existing accumulator
   const { data, error } = await supabase
-    .from("nullification_accumulators")
+    .from("public_nullification_accumulators")
     .select("*")
     .eq("election_id", electionId)
-    .eq("voter_id", voterId)
+    .eq("voter_pseudonym", voterId)
     .maybeSingle();
 
   if (error) {
@@ -64,7 +64,7 @@ export async function getOrCreateAccumulator(
   }
 
   if (data) {
-    const stored = data as unknown as StoredAccumulator;
+    const stored = { ...data, voter_id: data.voter_pseudonym } as unknown as StoredAccumulator;
     return {
       accumulator: accumulatorToCiphertext(stored),
       version: stored.version,
@@ -80,15 +80,24 @@ export async function getOrCreateAccumulator(
 export async function getElectionAccumulators(
   electionId: string
 ): Promise<StoredAccumulator[]> {
-  const { data, error } = await supabase
-    .from("nullification_accumulators")
-    .select("*")
-    .eq("election_id", electionId);
-
-  if (error) {
-    logger.error("Error fetching election accumulators:", error);
-    return [];
+  const accumulators: StoredAccumulator[] = [];
+  const pageSize = 1000;
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await supabase
+      .from("public_nullification_accumulators")
+      .select("*")
+      .eq("election_id", electionId)
+      .order("voter_pseudonym", { ascending: true })
+      .range(offset, offset + pageSize - 1);
+    if (error) {
+      logger.error("Error fetching election accumulators:", error);
+      return [];
+    }
+    accumulators.push(...(data || []).map((accumulator) => ({
+      ...accumulator,
+      voter_id: accumulator.voter_pseudonym,
+    }) as unknown as StoredAccumulator));
+    if (!data || data.length < pageSize) break;
   }
-
-  return (data || []) as unknown as StoredAccumulator[];
+  return accumulators;
 }

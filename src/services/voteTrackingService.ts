@@ -2,6 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/services/logger";
 import { getStoredWorldIdSessionToken } from "@/services/worldIdSessionService";
+import { readFunctionError, type VoteReceipt, VotexApiError } from "@/types/api";
 
 export interface VoteData {
   totalYesVotes: number;
@@ -82,10 +83,13 @@ export async function castVote(
   choice: string,
   signature: string,
   timestamp: number
-): Promise<{ voteId: string }> {
+): Promise<VoteReceipt> {
   const sessionToken = getStoredWorldIdSessionToken();
   if (!sessionToken) {
-    throw new Error("No active voter session; sign in with World ID first");
+    throw new VotexApiError(
+      "SESSION_REQUIRED",
+      "No active voter session; sign in with World ID first"
+    );
   }
 
   const { data, error } = await supabase.functions.invoke("vote-tracking-write", {
@@ -96,64 +100,17 @@ export async function castVote(
       choice,
       signature,
       timestamp,
+      idempotencyKey: crypto.randomUUID(),
     },
   });
 
   if (error) {
-    const context = (error as { context?: Response }).context;
-    if (context) {
-      const body = (await context.json().catch(() => null)) as
-        | { error?: string }
-        | null;
-      if (body?.error) {
-        throw new Error(body.error);
-      }
-    }
-    throw new Error(error.message || "Failed to cast vote");
+    throw await readFunctionError(error, "CONFLICT", "Failed to cast vote");
   }
 
-  if (!data?.success || !data?.voteId) {
-    throw new Error(data?.error || "Vote was rejected");
+  if (!data?.success || !data?.receipt) {
+    throw new VotexApiError("CONFLICT", data?.error || "Vote was rejected");
   }
 
-  return { voteId: data.voteId };
-}
-
-// Sync a canonical vote from the main votes table into the tracking tables.
-// The write is performed through a server function that validates the active
-// World ID session token and derives the voter id from that session.
-export async function recordVote(electionId: string): Promise<boolean> {
-  try {
-    const sessionToken = getStoredWorldIdSessionToken();
-    if (!sessionToken) {
-      logger.error("Cannot sync vote tracking without a stored voter session");
-      return false;
-    }
-
-    logger.debug(`Syncing vote tracking for election=${electionId}`);
-
-    const { data, error } = await supabase.functions.invoke("vote-tracking-write", {
-      body: {
-        action: "sync-vote",
-        electionId,
-        sessionToken,
-      },
-    });
-
-    if (error) {
-      logger.error("Error syncing vote tracking:", error);
-      return false;
-    }
-
-    if (data?.error) {
-      logger.error("Vote tracking sync was rejected:", data.error);
-      return false;
-    }
-
-    logger.debug("Vote tracking synced successfully");
-    return true;
-  } catch (error) {
-    logger.error("Error in recordVote:", error);
-    return false;
-  }
+  return data.receipt as VoteReceipt;
 }

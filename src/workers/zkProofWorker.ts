@@ -6,16 +6,11 @@ self.onmessage = async (event: MessageEvent) => {
   const { id, input, wasmPath, zkeyPath } = event.data;
 
   try {
-    console.log(`[Worker ${id}] Starting proof generation...`);
-
     const { proof, publicSignals } = await snarkjs.groth16.fullProve(
       input,
       wasmPath,
       zkeyPath
     );
-
-    console.log(`[Worker ${id}] Proof generated successfully`);
-
     self.postMessage({
       id,
       success: true,
@@ -23,8 +18,7 @@ self.onmessage = async (event: MessageEvent) => {
       publicSignals,
     });
   } catch (error) {
-    console.error(`[Worker ${id}] Proof generation failed:`, error);
-    
+    console.error(`[Worker ${id}] Proof generation failed`);
     self.postMessage({
       id,
       success: false,

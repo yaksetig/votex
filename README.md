@@ -1,5 +1,10 @@
 # Votex
 
+> **Pre-production privacy model:** ballots are public under World ID-derived
+> pseudonyms. Observers can see that pseudonymous voter `X` selected option
+> `Y`, while Votex does not publish that voter’s real-world identity. Activity
+> may be linkable across elections. Full ballot secrecy is future work.
+
 ## Abstract
 Online voting is hard (I wrote a bit about this [here](https://myaksetig.substack.com/p/on-the-security-of-online-voting)). Essentially, any approach that tries to do online voting has to tackle the following: 
 
@@ -28,16 +33,14 @@ Our app is live on the following URL: [https://votex.world](https://votex.world)
 
 ## How to create an election
 
-### Step I 
-You have to log in and prove that you are a human. The web app will display a QR code. Scan the QR code using your World App and prove that you are human.  
+### Step I
+Create or unlock the passkey that deterministically derives your local voting
+key. Votex uses its public key as the signal for the subsequent World ID proof.
 
 ### Step II
-You have to create a voting key. On the dashboard, unlock your passkey: Votex
-derives your BabyJubJub voting keypair deterministically from your passkey's
-WebAuthn PRF secret. The private key is reconstructed in memory only when needed
-and is never sent to or stored on the server — the server only ever sees the
-public key, proof bindings, and session tokens. (Create your passkey during the
-World ID sign-in step if you don't have one yet.)
+Complete the World ID proof. The server verifies the proof and binds the World
+ID pseudonym, passkey-derived public key, and session verifier. Private key
+material is reconstructed locally and is never sent to the server.
 
 ### Step III
 Go to the Elections tab and click "Create Election". 
@@ -72,9 +75,13 @@ npm run analyze:circuits
 
 ### Configuration
 
-- The Supabase URL and **public** anon key are committed in
-  `src/integrations/supabase/client.ts` (the anon key is intended to be public;
-  access is governed by RLS).
+- Copy `.env.example` to `.env.local` and provide `VITE_SUPABASE_URL` and the
+  public `VITE_SUPABASE_ANON_KEY`. Never expose the service-role key through a
+  `VITE_` variable.
+- `FIXED_AUTHORITY_ID` (edge-function configuration): UUID of the real,
+  pre-created fixed Election Authority row. The row must use a non-placeholder
+  public key and be linked to one Supabase Auth account before elections can be
+  created.
 - `ALLOWED_ORIGIN` (Supabase secret): set to the deployed app origin to scope
   edge-function CORS; defaults to `*` for local development.
 - `VITE_CIRCUIT_FILES_URL` (optional): overrides where the browser loads circuit
@@ -90,4 +97,8 @@ project with `supabase db push`; edge functions deploy with
 * 2024 Main Paper - https://eprint.iacr.org/2024/1354.pdf
 
 ## Future Work
-Presently, the system already masks which user is voting via the use of ZK-SNARKs. However, an advanced adversary may be able to infer additional information about the voter from their metadata (e.g., IP address). Adding an additional hiding layer in the submission process remains as future work. Additionally, the system is currently implemented to show a real-time tally (aka a running tally). Many governments do not allow a real-world election system to operate in this manner. Therefore, one of the tasks at hand is to allow for an instantiation of the system where this running tally is not leaked in real-time and is only displayed at the end of the election. We highlight that even without a live running tally, the user must be able to check that their vote was correctly cast to ensure that their vote will be counted in the election.  
+
+Full ballot secrecy, election-specific unlinkable pseudonyms, metadata-hiding
+submission, configurable result visibility, and threshold authority custody
+remain future work. The current application intentionally exposes public
+pseudonymous ballots and a running tally.

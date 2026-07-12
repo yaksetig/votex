@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect, useMemo, useState } from "react";
+import React, { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
 import {
   BarChart3,
   CheckCircle2,
@@ -53,7 +53,7 @@ const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({
   const [voteData, setVoteData] = useState<VoteData | null>(null);
   const [totalNullifications, setTotalNullifications] = useState(0);
 
-  const fetchTallyData = async () => {
+  const fetchTallyData = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -70,11 +70,11 @@ const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [electionId]);
 
   useEffect(() => {
     void fetchTallyData();
-  }, [electionId]);
+  }, [fetchTallyData]);
 
   const stats = useMemo(() => {
     if (!voteData) {

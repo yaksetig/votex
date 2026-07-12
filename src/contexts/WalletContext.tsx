@@ -30,6 +30,8 @@ const WalletContext = createContext<WalletContextType>({
   resetIdentity: () => {},
 });
 
+// The context hook is intentionally co-located with its provider.
+// eslint-disable-next-line react-refresh/only-export-components
 export const useWallet = () => useContext(WalletContext);
 
 interface WalletProviderProps {
@@ -88,9 +90,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   
   // Function to reset identity (for logout)
   const resetIdentity = async () => {
-    console.log('Resetting identity...');
     await revokeStoredWorldIdSession();
-    localStorage.removeItem('worldid-user');
     clearStoredCredential(); // Also clear the passkey credential ID
     setUserId(null);
     setIsWorldIDVerified(false);
@@ -101,7 +101,6 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       title: "Identity reset",
       description: "Your identity has been cleared.",
     });
-    console.log('Identity reset complete');
   };
   
   // Expose context values

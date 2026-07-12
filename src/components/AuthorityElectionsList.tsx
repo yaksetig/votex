@@ -4,7 +4,6 @@ import {
   BarChart3,
   CheckCircle2,
   Clock3,
-  Plus,
   Vote,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -104,10 +103,6 @@ const AuthorityElectionsList: React.FC<AuthorityElectionsListProps> = ({
             Secure session active for <span className="font-semibold text-primary">{authorityName}</span>. Review live elections, inspect tally status, and open a management dashboard for any election under your control.
           </p>
         </div>
-        <button type="button" className="ledger-button-primary">
-          <Plus className="h-4 w-4" />
-          Create Election
-        </button>
       </header>
 
       <section className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
@@ -135,10 +130,6 @@ const AuthorityElectionsList: React.FC<AuthorityElectionsListProps> = ({
               <p className="mt-1 text-sm text-on-surface-variant">
                 {elections.length} election{elections.length === 1 ? "" : "s"} under active management
               </p>
-            </div>
-            <div className="flex gap-2">
-              <button type="button" className="ledger-button-secondary px-4 py-2 text-sm">Filter</button>
-              <button type="button" className="ledger-button-secondary px-4 py-2 text-sm">Export Log</button>
             </div>
           </div>
 

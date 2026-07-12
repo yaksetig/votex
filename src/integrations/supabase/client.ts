@@ -1,11 +1,17 @@
 
 import { createClient } from '@supabase/supabase-js';
+import type { Database } from '@/integrations/supabase/types';
 
-// Using direct values instead of environment variables
-const supabaseUrl = 'https://uficgolgcwvgxqlubpso.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVmaWNnb2xnY3d2Z3hxbHVicHNvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQxMzY2NDcsImV4cCI6MjA1OTcxMjY0N30.xFYmgi3ABvnWUqn4T9hb6jgoHJ2KqLvzN5MlhYy68Cw';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-export const supabase = createClient(
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error(
+    'Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY. See .env.example.'
+  );
+}
+
+export const supabase = createClient<Database>(
   supabaseUrl,
   supabaseAnonKey,
   {

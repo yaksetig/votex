@@ -2,26 +2,32 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    <!-- Node globals shim: some deps (circomlibjs → util/assert) reference
+         `process`/`global`, which don't exist in the browser. Idempotent and
+         harmless in production. -->
+    <script>
+      window.global ||= window;
+      window.process ||= {
+        env: {},
+        versions: {},
+        platform: "browser",
+        nextTick: function (cb) { Promise.resolve().then(cb); },
+      };
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Votex</title>
-    <meta name="description" content="Decentralized Voting Platform" />
-    <meta name="author" content="Lovable" />
+    <meta name="description" content="Public pseudonymous elections with verifiable ballots, private delegation choices, and coercion-resistant nullification." />
+    <meta name="author" content="Votex" />
 
     <meta property="og:title" content="Votex" />
-    <meta property="og:description" content="Decentralized Voting Platform" />
+    <meta property="og:description" content="Public pseudonymous elections with verifiable ballots and coercion-resistant nullification." />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
-
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@lovable_dev" />
-    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
   </head>
 
   <body>
     <div id="root"></div>
-    <!-- IMPORTANT: DO NOT REMOVE THIS SCRIPT TAG OR THIS VERY COMMENT! -->
-    <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

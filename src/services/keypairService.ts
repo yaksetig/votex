@@ -19,24 +19,24 @@ import { KEYPAIR_VERSION } from "@/services/eddsaService";
 const KEYPAIR_KEY = "babyJubKeypair";
 
 // Clear any legacy localStorage entry left from previous versions
-if (typeof window !== "undefined" && localStorage.getItem(KEYPAIR_KEY)) {
-  localStorage.removeItem(KEYPAIR_KEY);
+if (typeof window !== "undefined" && window.localStorage.getItem(KEYPAIR_KEY)) {
+  window.localStorage.removeItem(KEYPAIR_KEY);
 }
 
 // Check if a keypair exists in session storage
 export function getStoredKeypair(): StoredKeypair | null {
-  const raw = sessionStorage.getItem(KEYPAIR_KEY);
+  const raw = window.sessionStorage.getItem(KEYPAIR_KEY);
   return raw ? JSON.parse(raw) : null;
 }
 
 // Store keypair in session storage (cleared when tab closes)
 export function storeKeypair(keypair: StoredKeypair): void {
-  sessionStorage.setItem(KEYPAIR_KEY, JSON.stringify(keypair));
+  window.sessionStorage.setItem(KEYPAIR_KEY, JSON.stringify(keypair));
 }
 
 // Clear keypair from session storage
 export function clearStoredKeypair(): void {
-  sessionStorage.removeItem(KEYPAIR_KEY);
+  window.sessionStorage.removeItem(KEYPAIR_KEY);
 }
 
 // Validate stored keypair against current base point and optionally clear if invalid
@@ -65,4 +65,3 @@ export function validateAndMigrateKeypair(): { valid: boolean; cleared: boolean;
 
   return { valid: true, cleared: false, keypair: storedKeypair };
 }
-

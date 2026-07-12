@@ -81,19 +81,25 @@ export async function getNullificationsForElection(
   try {
     logger.debug(`Fetching nullifications for election: ${electionId}`);
 
-    const { data, error } = await supabase
-      .from("nullifications")
-      .select("*")
-      .eq("election_id", electionId)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      logger.error("Error fetching nullifications:", error);
-      return [];
+    const rows: Nullification[] = [];
+    const pageSize = 1000;
+    for (let offset = 0; ; offset += pageSize) {
+      const { data, error } = await supabase
+        .from("public_nullifications")
+        .select("*")
+        .eq("election_id", electionId)
+        .order("created_at", { ascending: false })
+        .range(offset, offset + pageSize - 1);
+      if (error) throw error;
+      rows.push(...(data || []).map((nullification) => ({
+        ...nullification,
+        user_id: nullification.submitter_pseudonym,
+      }) as Nullification));
+      if (!data || data.length < pageSize) break;
     }
 
-    logger.debug(`Found ${data?.length || 0} nullifications for election`);
-    return (data || []) as Nullification[];
+    logger.debug(`Found ${rows.length} nullifications for election`);
+    return rows;
   } catch (error) {
     logger.error("Error in getNullificationsForElection:", error);
     return [];

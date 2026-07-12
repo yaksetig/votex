@@ -157,7 +157,7 @@ Deno.serve(async (req) => {
 
     const { data: election, error: electionError } = await supabase
       .from("elections")
-      .select("id, authority_id")
+      .select("id, authority_id, end_date, closed_manually_at")
       .eq("id", body.electionId)
       .maybeSingle();
 
@@ -168,6 +168,16 @@ Deno.serve(async (req) => {
 
     if (!election?.authority_id) {
       return jsonResponse(404, { error: "Election not found or has no authority binding" });
+    }
+
+    if (
+      election.closed_manually_at ||
+      new Date(election.end_date).getTime() <= Date.now()
+    ) {
+      return jsonResponse(409, {
+        code: "ELECTION_CLOSED",
+        error: "Election is closed",
+      });
     }
 
     const { data: authority, error: authorityError } = await supabase

@@ -1,9 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CalendarDays, Sparkles } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { initializeDefaultElectionAuthority, getElectionAuthorities } from "@/services/electionAuthorityService";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -11,13 +9,9 @@ import { Button } from "@/components/ui/button";
 import { formSchema, FormData, ElectionFormProps } from "@/components/ElectionForm/types";
 
 const ElectionForm: React.FC<ElectionFormProps> = ({ onSubmit, onCancel }) => {
-  const { toast } = useToast();
-  const [defaultAuthorityId, setDefaultAuthorityId] = useState<string>("");
-
   const {
     register,
     handleSubmit,
-    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -27,44 +21,8 @@ const ElectionForm: React.FC<ElectionFormProps> = ({ onSubmit, onCancel }) => {
     },
   });
 
-  useEffect(() => {
-    const initializeDefaultAuthority = async () => {
-      try {
-        await initializeDefaultElectionAuthority();
-        const authorities = await getElectionAuthorities();
-        const defaultAuthority = authorities.find(
-          (authority) => authority.name === "Default Election Authority"
-        );
-
-        if (defaultAuthority) {
-          setDefaultAuthorityId(defaultAuthority.id);
-          setValue("authorityId", defaultAuthority.id);
-        }
-      } catch {
-        toast({
-          variant: "destructive",
-          title: "Authority unavailable",
-          description: "The default election authority could not be loaded.",
-        });
-      }
-    };
-
-    void initializeDefaultAuthority();
-  }, [setValue, toast]);
-
   const onSubmitForm = async (data: FormData) => {
-    try {
-      await onSubmit({
-        ...data,
-        authorityId: defaultAuthorityId,
-      });
-    } catch {
-      toast({
-        variant: "destructive",
-        title: "Publish failed",
-        description: "The election draft could not be published.",
-      });
-    }
+    await onSubmit(data);
   };
 
   return (
@@ -77,12 +35,12 @@ const ElectionForm: React.FC<ElectionFormProps> = ({ onSubmit, onCancel }) => {
           </span>
           <h2 className="mt-4 font-headline text-3xl font-extrabold text-primary">Create a new binary election</h2>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-on-surface-variant">
-            Publish a consensus question with two mutually exclusive outcomes. The election will be bound to the default authority until the secure authority assignment flow is expanded.
+            Publish a consensus question with two mutually exclusive outcomes. Your verified World ID session creates the election under the fixed Votex Election Authority.
           </p>
         </div>
         <div className="rounded-[1.5rem] bg-surface-container-low px-5 py-4">
           <p className="ledger-eyebrow">Authority binding</p>
-          <p className="mt-2 text-sm font-semibold text-primary">Default Election Authority</p>
+          <p className="mt-2 text-sm font-semibold text-primary">Votex Election Authority</p>
         </div>
       </div>
 

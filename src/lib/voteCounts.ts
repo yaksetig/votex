@@ -15,14 +15,14 @@ export async function countVotesByChoice(
   option2: string
 ): Promise<VoteChoiceCounts> {
   const [{ count: total }, { count: opt1 }, { count: opt2 }] = await Promise.all([
-    supabase.from("votes").select("*", { count: "exact", head: true }).eq("election_id", electionId),
+    supabase.from("public_votes").select("*", { count: "exact", head: true }).eq("election_id", electionId),
     supabase
-      .from("votes")
+      .from("public_votes")
       .select("*", { count: "exact", head: true })
       .eq("election_id", electionId)
       .eq("choice", option1),
     supabase
-      .from("votes")
+      .from("public_votes")
       .select("*", { count: "exact", head: true })
       .eq("election_id", electionId)
       .eq("choice", option2),

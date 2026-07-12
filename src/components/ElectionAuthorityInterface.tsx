@@ -27,6 +27,7 @@ const ElectionAuthorityInterface: React.FC<ElectionAuthorityInterfaceProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tallyResults, setTallyResults] = useState<ElectionTallyResult | null>(null);
+  const [replaceExisting, setReplaceExisting] = useState(false);
   const { toast } = useToast();
 
   const stats = useMemo(() => {
@@ -59,7 +60,8 @@ const ElectionAuthorityInterface: React.FC<ElectionAuthorityInterfaceProps> = ({
       const results = await processElectionTally(
         electionId,
         authoritySecret.trim(),
-        "Election Authority"
+        "Election Authority",
+        replaceExisting
       );
 
       if (!results) {
@@ -142,12 +144,15 @@ const ElectionAuthorityInterface: React.FC<ElectionAuthorityInterfaceProps> = ({
           variant="outline"
           className="w-full"
           onClick={() => {
-            setError(null);
-            setTallyResults(null);
+            if (window.confirm("Start an explicit replacement tally run? The previous persisted result set will be replaced atomically.")) {
+              setError(null);
+              setReplaceExisting(true);
+              setTallyResults(null);
+            }
           }}
         >
           <RotateCcw className="h-4 w-4" />
-          Process Another Tally
+          Start Replacement Tally
         </Button>
       </div>
     );

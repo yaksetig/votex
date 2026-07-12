@@ -26,13 +26,34 @@ export interface ElectionTallyResult {
   processedBy?: string;
 }
 
+async function getTrackedVoterIds(
+  table: "yes_votes" | "no_votes",
+  electionId: string
+): Promise<string[]> {
+  const voterIds: string[] = [];
+  const pageSize = 1000;
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await supabase
+      .from(table)
+      .select("voter_id")
+      .eq("election_id", electionId)
+      .order("voter_id", { ascending: true })
+      .range(offset, offset + pageSize - 1);
+    if (error) throw error;
+    voterIds.push(...(data || []).map((row) => row.voter_id));
+    if (!data || data.length < pageSize) break;
+  }
+  return voterIds;
+}
+
 // Process the entire election tally using the authority's secret.
 // With XOR accumulators, each voter's accumulator decrypts to either
 // 0 (vote valid) or 1 (vote nullified). No count leakage.
 export async function processElectionTally(
   electionId: string,
   authoritySecret: string,
-  processedBy?: string
+  processedBy?: string,
+  replaceExisting = false
 ): Promise<ElectionTallyResult | null> {
   try {
     logger.debug(`Processing election tally for election: ${electionId}`);
@@ -85,18 +106,14 @@ export async function processElectionTally(
     );
 
     // --- Phase 3: Build final results ---
-    const { data: yesVotes } = await supabase
-      .from("yes_votes")
-      .select("voter_id")
-      .eq("election_id", electionId);
-    const { data: noVotes } = await supabase
-      .from("no_votes")
-      .select("voter_id")
-      .eq("election_id", electionId);
+    const [yesVoterIds, noVoterIds] = await Promise.all([
+      getTrackedVoterIds("yes_votes", electionId),
+      getTrackedVoterIds("no_votes", electionId),
+    ]);
 
     const allVoterIds = [
-      ...(yesVotes?.map((v) => v.voter_id) || []),
-      ...(noVotes?.map((v) => v.voter_id) || []),
+      ...yesVoterIds,
+      ...noVoterIds,
     ];
     const uniqueVoters = [...new Set(allVoterIds)];
 
@@ -133,7 +150,7 @@ export async function processElectionTally(
       }
     }
 
-    const stored = await storeTallyResults(electionId, results, processedBy);
+    const stored = await storeTallyResults(electionId, results, processedBy, replaceExisting);
     if (!stored) {
       logger.error("Failed to persist tally results through the authority write path");
       return null;
@@ -155,7 +172,8 @@ export async function processElectionTally(
 async function storeTallyResults(
   electionId: string,
   results: TallyResult[],
-  processedBy?: string
+  processedBy?: string,
+  replaceExisting = false
 ): Promise<boolean> {
   try {
     logger.debug(`Storing tally results for election: ${electionId}`);
@@ -171,7 +189,7 @@ async function storeTallyResults(
 
     const { data, error } = await supabase.functions.invoke("authority-tally-write", {
       body: {
-        action: "store-results",
+        action: replaceExisting ? "replace-results" : "store-results",
         electionId,
         processedBy: processedBy || null,
         results,
@@ -205,19 +223,31 @@ export async function getElectionTallyResults(
 ): Promise<TallyResult[]> {
   try {
     logger.debug(`Fetching tally results for election: ${electionId}`);
-
-    const { data, error } = await supabase
-      .from("election_tallies")
-      .select("*")
-      .eq("election_id", electionId)
-      .order("processed_at", { ascending: false });
-
-    if (error) {
-      logger.error("Error fetching tally results:", error);
-      return [];
+    const rows: Array<{ user_id: string; nullification_count: number; vote_nullified: boolean; vote_weight: number }> = [];
+    const pageSize = 1000;
+    for (let offset = 0; ; offset += pageSize) {
+      const { data, error } = await supabase
+        .from("public_tallies")
+        .select("voter_pseudonym, nullification_count, vote_nullified, vote_weight")
+        .eq("election_id", electionId)
+        .order("voter_pseudonym", { ascending: true })
+        .range(offset, offset + pageSize - 1);
+      if (error) throw error;
+      rows.push(...(data || []).flatMap((row) =>
+        row.voter_pseudonym !== null && row.nullification_count !== null &&
+        row.vote_nullified !== null && row.vote_weight !== null
+          ? [{
+              user_id: row.voter_pseudonym,
+              nullification_count: row.nullification_count,
+              vote_nullified: row.vote_nullified,
+              vote_weight: row.vote_weight,
+            }]
+          : []
+      ));
+      if (!data || data.length < pageSize) break;
     }
 
-    return (data || []).map((item) => ({
+    return rows.map((item) => ({
       userId: item.user_id,
       nullificationCount: item.nullification_count,
       voteNullified: item.vote_nullified,

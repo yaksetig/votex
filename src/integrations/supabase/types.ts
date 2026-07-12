@@ -164,6 +164,35 @@ export type Database = {
         }
         Relationships: []
       }
+      election_creation_requests: {
+        Row: {
+          created_at: string
+          creator: string
+          election_id: string
+          idempotency_key: string
+        }
+        Insert: {
+          created_at?: string
+          creator: string
+          election_id: string
+          idempotency_key: string
+        }
+        Update: {
+          created_at?: string
+          creator?: string
+          election_id?: string
+          idempotency_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "election_creation_requests_election_id_fkey"
+            columns: ["election_id"]
+            isOneToOne: false
+            referencedRelation: "elections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       election_participants: {
         Row: {
           election_id: string
@@ -206,6 +235,7 @@ export type Database = {
           nullification_count: number
           processed_at: string
           processed_by: string | null
+          tally_run_id: string | null
           user_id: string
           vote_nullified: boolean
           vote_weight: number
@@ -216,6 +246,7 @@ export type Database = {
           nullification_count?: number
           processed_at?: string
           processed_by?: string | null
+          tally_run_id?: string | null
           user_id: string
           vote_nullified?: boolean
           vote_weight?: number
@@ -226,6 +257,7 @@ export type Database = {
           nullification_count?: number
           processed_at?: string
           processed_by?: string | null
+          tally_run_id?: string | null
           user_id?: string
           vote_nullified?: boolean
           vote_weight?: number
@@ -236,6 +268,55 @@ export type Database = {
             columns: ["election_id"]
             isOneToOne: false
             referencedRelation: "elections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "election_tallies_tally_run_id_fkey"
+            columns: ["tally_run_id"]
+            isOneToOne: false
+            referencedRelation: "election_tally_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      election_tally_runs: {
+        Row: {
+          election_id: string
+          id: string
+          processed_at: string
+          processed_by: string
+          replaced_run_id: string | null
+          result_count: number
+        }
+        Insert: {
+          election_id: string
+          id?: string
+          processed_at?: string
+          processed_by: string
+          replaced_run_id?: string | null
+          result_count?: number
+        }
+        Update: {
+          election_id?: string
+          id?: string
+          processed_at?: string
+          processed_by?: string
+          replaced_run_id?: string | null
+          result_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "election_tally_runs_election_id_fkey"
+            columns: ["election_id"]
+            isOneToOne: false
+            referencedRelation: "elections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "election_tally_runs_replaced_run_id_fkey"
+            columns: ["replaced_run_id"]
+            isOneToOne: false
+            referencedRelation: "election_tally_runs"
             referencedColumns: ["id"]
           },
         ]
@@ -579,10 +660,166 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      public_authority_audit_events: {
+        Row: {
+          action: string | null
+          election_id: string | null
+          id: string | null
+          performed_at: string | null
+          performed_by: string | null
+        }
+        Relationships: []
+      }
+      public_delegations: {
+        Row: {
+          created_at: string | null
+          delegate_ct_c1_x: string | null
+          delegate_ct_c1_y: string | null
+          delegate_ct_c2_x: string | null
+          delegate_ct_c2_y: string | null
+          delegator_pseudonym: string | null
+          election_id: string | null
+          id: string | null
+          revoked_at: string | null
+          status: string | null
+        }
+        Relationships: []
+      }
+      public_election_authorities: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string | null
+          name: string | null
+          public_key_x: string | null
+          public_key_y: string | null
+          updated_at: string | null
+        }
+        Relationships: []
+      }
+      public_elections: {
+        Row: {
+          authority_id: string | null
+          closed_manually_at: string | null
+          created_at: string | null
+          creator: string | null
+          description: string | null
+          end_date: string | null
+          id: string | null
+          option1: string | null
+          option2: string | null
+          status: string | null
+          title: string | null
+        }
+        Relationships: []
+      }
+      public_nullification_accumulators: {
+        Row: {
+          acc_c1_x: string | null
+          acc_c1_y: string | null
+          acc_c2_x: string | null
+          acc_c2_y: string | null
+          created_at: string | null
+          election_id: string | null
+          id: string | null
+          updated_at: string | null
+          version: number | null
+          voter_pseudonym: string | null
+        }
+        Relationships: []
+      }
+      public_nullifications: {
+        Row: {
+          created_at: string | null
+          election_id: string | null
+          id: string | null
+          nullifier_ciphertext: Json | null
+          nullifier_zkp: Json | null
+          submitter_pseudonym: string | null
+        }
+        Relationships: []
+      }
+      public_participants: {
+        Row: {
+          election_id: string | null
+          id: string | null
+          joined_at: string | null
+          public_key_x: string | null
+          public_key_y: string | null
+          voter_pseudonym: string | null
+        }
+        Relationships: []
+      }
+      public_votes: {
+        Row: {
+          accepted_at: string | null
+          choice: string | null
+          election_id: string | null
+          receipt_id: string | null
+          signature: string | null
+          signed_at: number | null
+          voter_pseudonym: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "votes_election_id_fkey"
+            columns: ["election_id"]
+            isOneToOne: false
+            referencedRelation: "elections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      public_tallies: {
+        Row: {
+          election_id: string | null
+          id: string | null
+          nullification_count: number | null
+          processed_at: string | null
+          tally_run_id: string | null
+          vote_nullified: boolean | null
+          vote_weight: number | null
+          voter_pseudonym: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      cast_vote_atomic: {
+        Args: {
+          p_choice: string
+          p_election_id: string
+          p_signature: string
+          p_timestamp: number
+          p_voter: string
+        }
+        Returns: {
+          accepted_at: string
+          already_existed: boolean
+          receipt_id: string
+          recorded_choice: string
+          recorded_signature: string
+          recorded_timestamp: number
+        }[]
+      }
       clear_discrete_log_table: { Args: never; Returns: undefined }
+      close_election_atomic: {
+        Args: { p_election_id: string }
+        Returns: boolean
+      }
+      create_election_atomic: {
+        Args: {
+          p_authority_id: string
+          p_creator: string
+          p_description: string
+          p_end_date: string
+          p_idempotency_key: string
+          p_option1: string
+          p_option2: string
+          p_title: string
+        }
+        Returns: Database["public"]["Tables"]["elections"]["Row"]
+      }
       get_authority_id_for_current_user: { Args: never; Returns: string }
       get_discrete_log: { Args: { point_str: string }; Returns: number }
       initialize_discrete_log_table: {
@@ -596,6 +833,27 @@ export type Database = {
       submit_nullification_batch: {
         Args: { p_election_id: string; p_items: Json; p_submitter_id: string }
         Returns: Json
+      }
+      store_tally_results_atomic: {
+        Args: {
+          p_election_id: string
+          p_processed_by: string
+          p_replace_existing?: boolean
+          p_results: Json
+        }
+        Returns: string
+      }
+      write_delegation_atomic: {
+        Args: {
+          p_action: string
+          p_c1_x?: string | null
+          p_c1_y?: string | null
+          p_c2_x?: string | null
+          p_c2_y?: string | null
+          p_delegator_id: string
+          p_election_id: string
+        }
+        Returns: string
       }
     }
     Enums: {

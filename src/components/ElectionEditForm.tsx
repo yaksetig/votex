@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { updateElectionDetails } from "@/services/electionOperationsService";
 import { electionFieldSchemas } from "@/components/ElectionForm/schema";
+import type { Election } from "@/types/election";
 
 const editElectionSchema = z.object({
   ...electionFieldSchemas,
@@ -24,7 +25,7 @@ const editElectionSchema = z.object({
 type EditElectionFormValues = z.infer<typeof editElectionSchema>;
 
 interface ElectionEditFormProps {
-  election: any;
+  election: Election;
   safeToEdit: boolean;
   onElectionUpdated: () => void;
 }

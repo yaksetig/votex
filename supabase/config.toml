@@ -5,3 +5,9 @@ verify_jwt = false
 
 [functions.register-keypair]
 verify_jwt = false
+
+[functions.create-election]
+verify_jwt = false
+
+[functions.fixed-authority-status]
+verify_jwt = false

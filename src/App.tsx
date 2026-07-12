@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom"
 import { WalletProvider } from "@/contexts/WalletContext"
 import ProtectedRoute from "@/components/ProtectedRoute"
 import NavBar from "@/components/NavBar"
+import ConnectivityBanner from "@/components/ConnectivityBanner"
 
 const Index = lazy(() => import("@/pages/Index"))
 const Dashboard = lazy(() => import("@/pages/Dashboard"))
@@ -17,6 +18,9 @@ const ElectionAuthority = lazy(() => import("@/pages/ElectionAuthority"))
 const HowItWorks = lazy(() => import("@/pages/HowItWorks"))
 const FAQ = lazy(() => import("@/pages/FAQ"))
 const NotFound = lazy(() => import("@/pages/NotFound"))
+const VoteReceipt = lazy(() => import("@/pages/VoteReceipt"))
+const Privacy = lazy(() => import("@/pages/Privacy"))
+const AuditProtocol = lazy(() => import("@/pages/AuditProtocol"))
 
 const queryClient = new QueryClient()
 const LOOPBACK_IP_HOSTS = new Set(["127.0.0.1", "::1", "[::1]"])
@@ -84,6 +88,7 @@ const App: React.FC = () => {
             >
               <div className="ledger-shell flex min-h-screen flex-col">
                 <NavBar />
+                <ConnectivityBanner />
                 <main className="flex-1">
                   <Suspense fallback={<RouteLoading />}>
                     <Routes>
@@ -92,10 +97,13 @@ const App: React.FC = () => {
                       <Route path="/success" element={<ProtectedRoute><Success /></ProtectedRoute>} />
                       <Route path="/elections" element={<Elections />} />
                       <Route path="/elections/:id" element={<ElectionDetail />} />
-                      <Route path="/elections/:id/authority" element={<ProtectedRoute><ElectionAuthority /></ProtectedRoute>} />
-                      <Route path="/election_authority" element={<ProtectedRoute><ElectionAuthority /></ProtectedRoute>} />
+                      <Route path="/receipts/:receiptId" element={<VoteReceipt />} />
+                      <Route path="/elections/:id/authority" element={<ElectionAuthority />} />
+                      <Route path="/election_authority" element={<ElectionAuthority />} />
                       <Route path="/how-it-works" element={<HowItWorks />} />
                       <Route path="/faq" element={<FAQ />} />
+                      <Route path="/privacy" element={<Privacy />} />
+                      <Route path="/audit-protocol" element={<AuditProtocol />} />
                       <Route path="*" element={<NotFound />} />
                     </Routes>
                   </Suspense>

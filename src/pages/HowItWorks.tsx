@@ -35,7 +35,7 @@ const HowItWorks = () => {
               Cryptographic Integrity
             </h2>
             <p className="mt-3 text-sm leading-relaxed text-white/74">
-              Every election uses signed ballots, proof-of-personhood, and tally-side nullification processing to preserve auditability without exposing individual choices.
+              Every election uses public pseudonymous signed ballots, proof-of-personhood, and tally-side nullification processing. Real-world identities are not written to the public ledger, but ballot choices are public.
             </p>
           </aside>
         </section>
@@ -58,7 +58,7 @@ const HowItWorks = () => {
               icon: Vote,
               title: "3. Cast a signed ballot",
               description:
-                "Each ballot is tied to a verified voter identity and a local signing key, allowing the system to enforce one-person-one-vote without deanonymizing the voter.",
+                "Each public ballot is tied to a World ID-derived pseudonym and local signing key. Observers can audit the choice without learning the voter’s real-world identity from Votex.",
             },
             {
               icon: Lock,
@@ -84,13 +84,13 @@ const HowItWorks = () => {
               {[
                 {
                   icon: Lock,
-                  title: "End-to-end encryption",
-                  description: "Nullification payloads remain encrypted until the election authority processes the tally.",
+                  title: "Encrypted nullification state",
+                  description: "Nullification accumulators and delegate selections remain encrypted until the election authority processes the tally. Ballot choices themselves are public.",
                 },
                 {
                   icon: Eye,
-                  title: "Vote secrecy",
-                  description: "The system proves voter eligibility without publishing a direct mapping between a person and a ballot.",
+                  title: "Pseudonymous public ballots",
+                  description: "The ledger publishes pseudonymous voter identifiers and choices, not real-world identities. Pseudonymous activity may still be linkable.",
                 },
                 {
                   icon: ShieldCheck,
@@ -100,7 +100,7 @@ const HowItWorks = () => {
                 {
                   icon: Fingerprint,
                   title: "One person, one vote",
-                  description: "World ID prevents duplicate voter participation while keeping the ledger anonymous.",
+                  description: "World ID prevents duplicate participation without placing the voter’s real-world identity in the Votex ledger.",
                 },
               ].map(({ icon: Icon, title, description }) => (
                 <div key={title} className="rounded-[1.5rem] border border-outline-variant/12 bg-surface-container-low p-5">

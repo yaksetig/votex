@@ -293,7 +293,7 @@ The repo also binds a World ID session to a passkey-derived verifier:
 `src/services/worldIdSessionService.ts` and `supabase/functions/worldid-session/index.ts` use that verifier hash to ensure:
 
 - the same World ID nullifier can only restore a session with the same passkey-derived verifier
-- the first valid passkey can bootstrap the verifier
+- the verifier is registered only while processing a World ID proof that is bound to the same public key
 - later sessions must match the stored verifier
 
 Decision:
@@ -346,14 +346,16 @@ Serialized signature payload:
 - `S`
 - `message`
 
-The client submits the payload to the `insert_vote` RPC.
+The client submits the payload to the `vote-tracking-write` edge function. The
+function validates the World ID session, participant binding, election state,
+timestamp, and EdDSA signature before calling the service-role-only
+`cast_vote_atomic` database function. The canonical vote, tracking row, and
+receipt are committed in one transaction; direct client writes are blocked.
 
-Important limitation of this repo snapshot:
-
-- the source for the `insert_vote` RPC is not present in the checked-in repository
-- the generated Supabase types show the RPC exists, but the server-side verification logic is not visible here
-
-That means this document can describe how votes are signed, but it cannot prove from repo source that vote signatures are enforced server-side.
+Ballot choices are intentionally public under World ID-derived pseudonyms in
+this pre-production design. This protects the real-world identity from being
+written to the Votex ledger, but it is not full ballot secrecy and pseudonymous
+activity may be linkable across elections.
 
 ## 6.4 Authority ownership proofs
 

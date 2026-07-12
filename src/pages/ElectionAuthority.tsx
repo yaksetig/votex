@@ -1,12 +1,9 @@
 import React, { Suspense, lazy, useEffect, useState } from "react";
 import {
-  BarChart3,
   HelpCircle,
   History,
   LayoutDashboard,
   LogOut,
-  ShieldCheck,
-  Vote,
 } from "lucide-react";
 import {
   clearElectionAuthoritySession,
@@ -20,18 +17,17 @@ import { cn } from "@/lib/utils";
 const ElectionAuthorityLogin = lazy(() => import("@/components/ElectionAuthorityLogin"));
 const ElectionAuthorityDashboard = lazy(() => import("@/components/ElectionAuthorityDashboard"));
 const AuthorityElectionsList = lazy(() => import("@/components/AuthorityElectionsList"));
+const AuthorityAuditLog = lazy(() => import("@/components/AuthorityAuditLog"));
 
 const AUTHORITY_NAV = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { id: "management", label: "Election Management", icon: Vote },
-  { id: "tally", label: "Tally Processing", icon: BarChart3 },
   { id: "audit", label: "Audit Logs", icon: History },
-  { id: "security", label: "Security Settings", icon: ShieldCheck },
-];
+] as const;
 
 interface AuthorityShellProps {
   authorityName: string;
   activeItem: string;
+  onNavigate: (item: "dashboard" | "audit") => void;
   onLogout: () => void;
   children: React.ReactNode;
 }
@@ -51,6 +47,7 @@ const AuthorityShell: React.FC<AuthorityShellProps> = ({
   authorityName,
   activeItem,
   onLogout,
+  onNavigate,
   children,
 }) => {
   return (
@@ -70,8 +67,10 @@ const AuthorityShell: React.FC<AuthorityShellProps> = ({
 
         <nav className="flex-1 space-y-1">
           {AUTHORITY_NAV.map(({ id, label, icon: Icon }) => (
-            <div
+            <button
+              type="button"
               key={id}
+              onClick={() => onNavigate(id)}
               className={cn(
                 "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-transform duration-200",
                 activeItem === id
@@ -81,18 +80,18 @@ const AuthorityShell: React.FC<AuthorityShellProps> = ({
             >
               <Icon className="h-4 w-4" />
               {label}
-            </div>
+            </button>
           ))}
         </nav>
 
         <div className="mt-auto space-y-3 border-t border-outline-variant/15 pt-4">
-          <button
-            type="button"
+          <a
+            href="mailto:support@votex.world"
             className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-container-low"
           >
             <HelpCircle className="h-4 w-4" />
             Support
-          </button>
+          </a>
           <button
             type="button"
             onClick={onLogout}
@@ -115,6 +114,7 @@ const ElectionAuthority = () => {
   const [authorityId, setAuthorityId] = useState<string | null>(null);
   const [authorityName, setAuthorityName] = useState<string | null>(null);
   const [selectedElectionId, setSelectedElectionId] = useState<string | null>(null);
+  const [activeView, setActiveView] = useState<"dashboard" | "audit">("dashboard");
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const { toast } = useToast();
 
@@ -192,8 +192,12 @@ const ElectionAuthority = () => {
   return (
     <AuthorityShell
       authorityName={authorityName || "Election Authority"}
-      activeItem={selectedElectionId ? "management" : "dashboard"}
+      activeItem={selectedElectionId ? "management" : activeView}
       onLogout={handleLogout}
+      onNavigate={(view) => {
+        setSelectedElectionId(null);
+        setActiveView(view);
+      }}
     >
       <Suspense fallback={<AuthorityPaneLoading />}>
         {selectedElectionId ? (
@@ -202,6 +206,8 @@ const ElectionAuthority = () => {
             authorityName={authorityName || "Election Authority"}
             onBack={() => setSelectedElectionId(null)}
           />
+        ) : activeView === "audit" ? (
+          <AuthorityAuditLog />
         ) : (
           <AuthorityElectionsList
             authorityId={authorityId}

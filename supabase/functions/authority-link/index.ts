@@ -2,8 +2,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { jsonResponse } from "../_shared/http.ts";
 import { verifyPoseidonSignature } from "../_shared/eddsa.ts";
+import { isPlaceholderAuthorityKey, isUuid } from "../_shared/fixedAuthority.ts";
 
-const DEFAULT_AUTHORITY_NAME = "Default Election Authority";
 const MAX_PROOF_AGE_MS = 5 * 60 * 1000;
 const MAX_FUTURE_SKEW_MS = 60 * 1000;
 
@@ -128,11 +128,18 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    const fixedAuthorityId = Deno.env.get("FIXED_AUTHORITY_ID")?.trim() ?? "";
+    if (!isUuid(fixedAuthorityId)) {
+      return jsonResponse(503, {
+        code: "FIXED_AUTHORITY_UNAVAILABLE",
+        error: "The fixed Election Authority is not configured",
+      });
+    }
+
     const { data: existing, error: existingError } = await supabase
       .from("election_authorities")
-      .select("id, name, auth_user_id")
-      .eq("public_key_x", publicKey.x)
-      .eq("public_key_y", publicKey.y)
+      .select("id, name, auth_user_id, public_key_x, public_key_y")
+      .eq("id", fixedAuthorityId)
       .maybeSingle();
 
     if (existingError) {
@@ -140,57 +147,56 @@ Deno.serve(async (req) => {
       return jsonResponse(500, { error: "Failed to load authority record" });
     }
 
-    if (existing) {
-      if (existing.name === DEFAULT_AUTHORITY_NAME && existing.auth_user_id !== user.id) {
-        return jsonResponse(403, {
-          error:
-            "The default election authority must be linked through a server-side bootstrap, not self-service signup.",
-        });
-      }
-
-      if (existing.auth_user_id && existing.auth_user_id !== user.id) {
-        return jsonResponse(409, { error: "This authority is already linked to another account" });
-      }
-
-      if (!existing.auth_user_id) {
-        const { error: updateError } = await supabase
-          .from("election_authorities")
-          .update({ auth_user_id: user.id })
-          .eq("id", existing.id);
-
-        if (updateError) {
-          console.error("Authority link update error:", updateError);
-          return jsonResponse(500, { error: "Failed to link authority to this account" });
-        }
-      }
-
-      return jsonResponse(200, {
-        authorityId: existing.id,
-        authorityName: existing.name,
-        success: true,
+    if (
+      !existing ||
+      isPlaceholderAuthorityKey({
+        x: existing.public_key_x,
+        y: existing.public_key_y,
+      })
+    ) {
+      return jsonResponse(503, {
+        code: "FIXED_AUTHORITY_UNAVAILABLE",
+        error: "The fixed Election Authority is not ready",
       });
     }
 
-    const { data: created, error: insertError } = await supabase
-      .from("election_authorities")
-      .insert({
-        auth_user_id: user.id,
-        description: null,
-        name: authorityName,
-        public_key_x: publicKey.x,
-        public_key_y: publicKey.y,
-      })
-      .select("id, name")
-      .single();
+    if (
+      existing.name !== authorityName ||
+      existing.public_key_x !== publicKey.x ||
+      existing.public_key_y !== publicKey.y
+    ) {
+      return jsonResponse(403, {
+        code: "AUTHORITY_REQUIRED",
+        error: "The supplied key does not belong to the fixed Election Authority",
+      });
+    }
 
-    if (insertError || !created) {
-      console.error("Authority create error:", insertError);
-      return jsonResponse(500, { error: "Failed to create authority record" });
+    if (existing.auth_user_id && existing.auth_user_id !== user.id) {
+      return jsonResponse(409, {
+        code: "CONFLICT",
+        error: "The fixed Election Authority is already linked",
+      });
+    }
+
+    if (!existing.auth_user_id) {
+      const { error: updateError } = await supabase
+        .from("election_authorities")
+        .update({ auth_user_id: user.id })
+        .eq("id", existing.id)
+        .is("auth_user_id", null);
+
+      if (updateError) {
+        console.error("Authority link update error:", updateError);
+        return jsonResponse(500, {
+          code: "CONFLICT",
+          error: "Failed to link the fixed Election Authority",
+        });
+      }
     }
 
     return jsonResponse(200, {
-      authorityId: created.id,
-      authorityName: created.name,
+      authorityId: existing.id,
+      authorityName: existing.name,
       success: true,
     });
   } catch (error) {

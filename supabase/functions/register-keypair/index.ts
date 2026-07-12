@@ -301,8 +301,6 @@ Deno.serve(async (req) => {
       );
     }
     
-    console.log("Signal binding verified successfully");
-    
     // Create Supabase client with service role to bypass RLS
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -327,8 +325,6 @@ Deno.serve(async (req) => {
       // Already registered - check if it's the same key
       if (existing.public_key_x === pk.x && existing.public_key_y === pk.y) {
         // Same key, return success (idempotent)
-        console.log("Same keypair already registered for this nullifier");
-
         if (verifierHash) {
           const { error: verifierUpsertError } = await supabase
             .from('world_id_auth_verifiers')
@@ -398,7 +394,6 @@ Deno.serve(async (req) => {
           );
         }
 
-        console.log("Updating keypair binding for existing nullifier via explicit recovery flow");
         const { error: updateError } = await supabase
           .from('world_id_keypairs')
           .update({
@@ -485,8 +480,6 @@ Deno.serve(async (req) => {
         );
       }
     }
-    
-    console.log("Keypair registered successfully");
     
     return new Response(
       JSON.stringify({ 

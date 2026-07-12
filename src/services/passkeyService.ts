@@ -213,7 +213,6 @@ export async function createPasskeyCredential(userId: Uint8Array): Promise<strin
     const credentialId = bufferToBase64(credential.rawId);
     storeCredentialId(credentialId);
 
-    console.log("Passkey created successfully with PRF support");
     return credentialId;
   } catch (error) {
     if (error instanceof Error) {
@@ -302,7 +301,6 @@ export async function deriveSecretFromPasskey(credentialId: string): Promise<PRF
       throw new Error(`Unexpected PRF output length: ${secret.byteLength} (expected 32)`);
     }
 
-    console.log("PRF secret derived successfully");
     return {
       secret,
       credentialId
@@ -400,7 +398,6 @@ async function authenticateWithAnyPasskey(): Promise<PRFResult> {
       throw new Error(`Unexpected PRF output length: ${secret.byteLength} (expected 32)`);
     }
 
-    console.log("PRF secret derived via discoverable credentials");
     return {
       secret,
       credentialId
@@ -440,4 +437,3 @@ export async function authenticateWithPreferredPasskey(): Promise<PRFResult> {
 
   return await authenticateWithAnyPasskey();
 }
-

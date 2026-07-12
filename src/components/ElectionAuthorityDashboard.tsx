@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect, useState } from "react";
+import React, { Suspense, lazy, useCallback, useEffect, useState } from "react";
 import { getElectionStatus } from "@/lib/electionStatus";
 import {
   AlertTriangle,
@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { closeElectionEarly, isElectionSafeToEdit } from "@/services/electionOperationsService";
+import type { Election } from "@/types/election";
 
 const TallyResultsDisplay = lazy(() => import("@/components/TallyResultsDisplay"));
 const ElectionEditForm = lazy(() => import("@/components/ElectionEditForm"));
@@ -22,6 +23,13 @@ interface ElectionAuthorityDashboardProps {
   electionId: string;
   authorityName: string;
   onBack: () => void;
+}
+
+interface TallyStats {
+  totalVoters: number;
+  nullifiedVotes: number;
+  processedAt: string;
+  processedBy: string | null;
 }
 
 const TabPaneLoading = () => (
@@ -35,23 +43,17 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
   authorityName,
   onBack,
 }) => {
-  const [election, setElection] = useState<any>(null);
+  const [election, setElection] = useState<Election | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [safeToEdit, setSafeToEdit] = useState(false);
   const [tallyProcessed, setTallyProcessed] = useState(false);
-  const [tallyStats, setTallyStats] = useState<any>(null);
+  const [tallyStats, setTallyStats] = useState<TallyStats | null>(null);
   const [isClosing, setIsClosing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const { toast } = useToast();
 
-  useEffect(() => {
-    void fetchElectionData();
-    void checkEditSafety();
-    void checkTallyStatus();
-  }, [electionId, refreshKey]);
-
-  const fetchElectionData = async () => {
+  const fetchElectionData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -66,36 +68,20 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
         throw fetchError ?? new Error("Election not found");
       }
 
-      let enrichedElection = electionData;
-      if (electionData.authority_id) {
-        const { data: authorityData } = await supabase
-          .from("election_authorities")
-          .select("*")
-          .eq("id", electionData.authority_id)
-          .single();
-
-        if (authorityData) {
-          enrichedElection = {
-            ...electionData,
-            election_authorities: authorityData,
-          };
-        }
-      }
-
-      setElection(enrichedElection);
+      setElection(electionData);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error occurred");
     } finally {
       setLoading(false);
     }
-  };
+  }, [electionId]);
 
-  const checkEditSafety = async () => {
+  const checkEditSafety = useCallback(async () => {
     const safe = await isElectionSafeToEdit(electionId);
     setSafeToEdit(safe);
-  };
+  }, [electionId]);
 
-  const checkTallyStatus = async () => {
+  const checkTallyStatus = useCallback(async () => {
     try {
       const [totalResult, nullifiedResult, latestResult] = await Promise.all([
         supabase
@@ -133,7 +119,13 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
       setTallyProcessed(false);
       setTallyStats(null);
     }
-  };
+  }, [electionId]);
+
+  useEffect(() => {
+    void fetchElectionData();
+    void checkEditSafety();
+    void checkTallyStatus();
+  }, [checkEditSafety, checkTallyStatus, fetchElectionData, refreshKey]);
 
   const handleCloseElection = async () => {
     if (!window.confirm("Close this election early? This action cannot be undone.")) {
@@ -299,10 +291,10 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
             )}
             {canEdit && !safeToEdit && (
               <div className="rounded-[1.25rem] border border-error/20 bg-error-container/60 p-4 text-sm text-on-error-container">
-                Warning: this election already has votes. Editing option labels may compromise result integrity.
+                Editing is disabled because this election already has votes. It may only be closed early.
               </div>
             )}
-            {canEdit && (
+            {canEdit && safeToEdit && (
               <Suspense fallback={<TabPaneLoading />}>
                 <ElectionEditForm election={election} safeToEdit={safeToEdit} onElectionUpdated={handleElectionUpdated} />
               </Suspense>

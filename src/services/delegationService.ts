@@ -142,10 +142,10 @@ export async function getActiveDelegation(
 ): Promise<StoredDelegation | null> {
   try {
     const { data, error } = await supabase
-      .from("delegations")
+      .from("public_delegations")
       .select("*")
       .eq("election_id", electionId)
-      .eq("delegator_id", delegatorId)
+      .eq("delegator_pseudonym", delegatorId)
       .eq("status", "active")
       .maybeSingle();
 
@@ -154,7 +154,10 @@ export async function getActiveDelegation(
       return null;
     }
 
-    return data as StoredDelegation | null;
+    return data ? {
+      ...data,
+      delegator_id: data.delegator_pseudonym,
+    } as StoredDelegation : null;
   } catch (error) {
     logger.error("Error in getActiveDelegation:", error);
     return null;
@@ -168,18 +171,24 @@ async function getElectionDelegations(
   electionId: string
 ): Promise<StoredDelegation[]> {
   try {
-    const { data, error } = await supabase
-      .from("delegations")
-      .select("*")
-      .eq("election_id", electionId)
-      .eq("status", "active");
-
-    if (error) {
-      logger.error("Error fetching election delegations:", error);
-      return [];
+    const delegations: StoredDelegation[] = [];
+    const pageSize = 1000;
+    for (let offset = 0; ; offset += pageSize) {
+      const { data, error } = await supabase
+        .from("public_delegations")
+        .select("*")
+        .eq("election_id", electionId)
+        .eq("status", "active")
+        .order("created_at", { ascending: true })
+        .range(offset, offset + pageSize - 1);
+      if (error) throw error;
+      delegations.push(...(data || []).map((delegation) => ({
+        ...delegation,
+        delegator_id: delegation.delegator_pseudonym,
+      }) as StoredDelegation));
+      if (!data || data.length < pageSize) break;
     }
-
-    return (data || []) as StoredDelegation[];
+    return delegations;
   } catch (error) {
     logger.error("Error in getElectionDelegations:", error);
     return [];

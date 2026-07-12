@@ -11,6 +11,26 @@ export interface AuthorityAuthResult {
   requiresAuthorityLink?: boolean;
 }
 
+export interface FixedAuthorityStatus {
+  configured: boolean;
+  linked: boolean;
+  authorityName?: string;
+}
+
+export async function getFixedAuthorityStatus(): Promise<FixedAuthorityStatus> {
+  const { data, error } = await supabase.functions.invoke('fixed-authority-status', {
+    body: {},
+  });
+  if (error || !data) {
+    return { configured: false, linked: false };
+  }
+  return {
+    configured: data.configured === true,
+    linked: data.linked === true,
+    authorityName: typeof data.authorityName === 'string' ? data.authorityName : undefined,
+  };
+}
+
 /**
  * Sign in an election authority using Supabase Auth (email + password).
  * After sign-in, looks up the authority row linked to that auth user.

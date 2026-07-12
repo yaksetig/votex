@@ -3,9 +3,31 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { createRequire } from "module";
-import { componentTagger } from "lovable-tagger";
+import { readFileSync } from "fs";
 
 const require = createRequire(import.meta.url);
+
+function serveIdKitWasm() {
+  const wasm = readFileSync(
+    path.resolve(__dirname, "node_modules/@worldcoin/idkit-core/dist/idkit_wasm_bg.wasm")
+  );
+
+  return {
+    name: "serve-idkit-wasm",
+    configureServer(server: { middlewares: { use: (handler: (request: { url?: string }, response: { setHeader: (name: string, value: string) => void; end: (body: Buffer) => void }, next: () => void) => void) => void } }) {
+      server.middlewares.use((request, response, next) => {
+        if (request.url?.split("?", 1)[0] !== "/node_modules/.vite/deps/idkit_wasm_bg.wasm") {
+          next();
+          return;
+        }
+
+        response.setHeader("Content-Type", "application/wasm");
+        response.setHeader("Cache-Control", "no-cache");
+        response.end(wasm);
+      });
+    },
+  };
+}
 
 function isNodeModule(id: string): boolean {
   return id.includes("/node_modules/");
@@ -87,25 +109,22 @@ function manualChunks(id: string): string | undefined {
   return undefined;
 }
 
-export default defineConfig(({ mode }) => ({
+export default defineConfig(() => ({
   server: {
     host: "::",
     port: 8080,
     allowedHosts: [
       "localhost", 
-      "127.0.0.1", 
-      "5b93c9f6-6030-481f-9739-d256e198148c.lovableproject.com"
+      "127.0.0.1"
     ],
   },
-  plugins: [
-    react(),
-    mode === 'development' && componentTagger(),
-  ].filter(Boolean),
+  plugins: [serveIdKitWasm(), react()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
       assert: require.resolve("assert/"),
       events: require.resolve("events/"),
+      util: require.resolve("util/"),
     },
   },
   optimizeDeps: {
@@ -115,6 +134,10 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     target: 'es2020',
+    // circomlibjs is intentionally isolated in a lazy crypto chunk. Replacing
+    // it is outside the pre-production hardening scope, so the warning limit
+    // reflects that reviewed, non-entry bundle rather than hiding app-shell growth.
+    chunkSizeWarningLimit: 3100,
     rollupOptions: {
       output: {
         manualChunks,

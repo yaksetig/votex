@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getElectionVoteData } from "@/services/voteTrackingService";
 import { countVotesByChoice } from "@/lib/voteCounts";
+import type { Tables } from "@/integrations/supabase/types";
 
 export interface ElectionRecord {
   id: string;
@@ -22,18 +23,22 @@ export interface ElectionRecord {
 // Throws on any query error so the caller surfaces an error state instead of
 // silently rendering an empty list.
 async function fetchElectionsList(): Promise<ElectionRecord[]> {
-  const { data: electionsData, error: electionsError } = await supabase
-    .from("elections")
-    .select("*")
-    .order("created_at", { ascending: false });
-
-  if (electionsError) {
-    throw electionsError;
+  const electionsData: Tables<"elections">[] = [];
+  const pageSize = 1000;
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await supabase
+      .from("public_elections")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .range(offset, offset + pageSize - 1);
+    if (error) throw error;
+    electionsData.push(...((data || []) as Tables<"elections">[]));
+    if (!data || data.length < pageSize) break;
   }
 
   const authorityIds = [
     ...new Set(
-      (electionsData || [])
+      electionsData
         .map((election) => election.authority_id)
         .filter((id): id is string => Boolean(id))
     ),
@@ -42,7 +47,7 @@ async function fetchElectionsList(): Promise<ElectionRecord[]> {
   const authoritiesById = new Map<string, { name?: string | null }>();
   if (authorityIds.length > 0) {
     const { data: authoritiesData, error: authoritiesError } = await supabase
-      .from("election_authorities")
+      .from("public_election_authorities")
       .select("id, name")
       .in("id", authorityIds);
 
@@ -51,12 +56,14 @@ async function fetchElectionsList(): Promise<ElectionRecord[]> {
     }
 
     (authoritiesData || []).forEach((authority) => {
-      authoritiesById.set(authority.id, authority);
+      if (authority.id) {
+        authoritiesById.set(authority.id, authority);
+      }
     });
   }
 
   return Promise.all(
-    (electionsData || []).map(async (election) => {
+    electionsData.map(async (election) => {
       const voteData = await getElectionVoteData(election.id);
 
       let voteCount = 0;

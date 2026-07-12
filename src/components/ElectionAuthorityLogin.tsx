@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { KeyRound, Loader2, Lock, Mail, ShieldCheck, TriangleAlert } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   linkCurrentAuthorityIdentity,
+  getFixedAuthorityStatus,
   signInAuthority,
   signUpAuthority,
 } from "@/services/electionAuthorityAuthService";
@@ -21,8 +22,23 @@ const ElectionAuthorityLogin: React.FC<ElectionAuthorityLoginProps> = ({ onLogin
   const [authoritySecret, setAuthoritySecret] = useState("");
   const [requiresAuthorityLink, setRequiresAuthorityLink] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [bootstrapAvailable, setBootstrapAvailable] = useState(false);
+  const [checkingAuthority, setCheckingAuthority] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    let cancelled = false;
+    void getFixedAuthorityStatus().then((status) => {
+      if (cancelled) return;
+      setBootstrapAvailable(status.configured && !status.linked);
+      if (!status.configured) {
+        setError("The fixed Election Authority has not been configured yet.");
+      }
+      setCheckingAuthority(false);
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -58,6 +74,10 @@ const ElectionAuthorityLogin: React.FC<ElectionAuthorityLoginProps> = ({ onLogin
       }
 
       if (isSignUp) {
+        if (!bootstrapAvailable) {
+          setError("The fixed Election Authority is already linked or unavailable.");
+          return;
+        }
         if (!authoritySecret.trim() || !authorityName.trim()) {
           setError("Authority name and secret are required for registration.");
           return;
@@ -212,7 +232,7 @@ const ElectionAuthorityLogin: React.FC<ElectionAuthorityLoginProps> = ({ onLogin
                     onChange={(event) => setAuthorityName(event.target.value)}
                     disabled={isSubmitting}
                     className="mt-3"
-                    placeholder="Default Election Authority"
+                  placeholder="Votex Election Authority"
                   />
                 </div>
 
@@ -243,21 +263,23 @@ const ElectionAuthorityLogin: React.FC<ElectionAuthorityLoginProps> = ({ onLogin
             )}
 
             <div className="flex flex-wrap items-center justify-between gap-4 border-t border-outline-variant/15 pt-6">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsSignUp(requiresAuthorityLink ? false : !isSignUp);
-                  setRequiresAuthorityLink(false);
-                  setError(null);
-                }}
-                className="text-sm font-semibold text-surface-tint transition-colors hover:text-primary"
-              >
-                {isSignUp || requiresAuthorityLink
-                  ? "Already have an account? Sign in"
-                  : "Need an authority account? Register"}
-              </button>
+              {bootstrapAvailable || isSignUp || requiresAuthorityLink ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSignUp(requiresAuthorityLink ? false : !isSignUp);
+                    setRequiresAuthorityLink(false);
+                    setError(null);
+                  }}
+                  className="text-sm font-semibold text-surface-tint transition-colors hover:text-primary"
+                >
+                  {isSignUp || requiresAuthorityLink
+                    ? "Already have an account? Sign in"
+                    : "Bootstrap the fixed authority"}
+                </button>
+              ) : <span />}
 
-              <button type="submit" disabled={isSubmitting} className="ledger-button-primary">
+              <button type="submit" disabled={isSubmitting || checkingAuthority} className="ledger-button-primary">
                 {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
                 {requiresAuthorityLink
                   ? "Link Authority"
