@@ -14,11 +14,15 @@ protocol details in `CRYPTOGRAPHY.md`.
 
 ## Fixed Election Authority bootstrap
 
-1. Generate the authority secret outside source control and derive its public
-   key using the existing Votex authority derivation code.
-2. Create one `election_authorities` row containing the intended name and public
-   key. Do not use the BabyJubJub base-point placeholder from historical data.
-3. Set the row UUID as the edge-function `FIXED_AUTHORITY_ID` configuration.
+1. Generate the authority secret outside source control. Keep it in a password
+   manager; never pass it as a command-line argument.
+2. Generate a UUID and configure it as the production edge-function
+   `FIXED_AUTHORITY_ID`.
+3. Run
+   `npm run bootstrap:authority -- --authority-id <configured-uuid>`. The
+   interactive command reads the secret with hidden terminal input, derives the
+   existing Votex public key locally, and creates only the fixed authority row.
+   The private secret is never printed, stored, or sent to Supabase.
 4. Create the authority’s Supabase Auth account through the bootstrap UI.
 5. Enter the same authority name and secret. `authority-link` verifies the
    existing ownership-proof message and links only the configured row.
