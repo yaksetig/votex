@@ -22,7 +22,6 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import {
   authenticateWithPasskeyPicker,
-  authenticateWithPreferredPasskey,
   createPasskeyCredential,
   deriveSecretFromPasskey,
 } from "@/services/passkeyService";
@@ -61,7 +60,7 @@ const WORLD_ID_APP_ID = "app_e2fd2f8c99430ab200a093278e801c57";
 const WORLD_ID_RP_ID = "rp_b3b4b36db636df22";
 const WORLD_ID_ACTION = "registration";
 
-type PasskeyPreparationMode = "existing" | "new" | "picker";
+type PasskeyPreparationMode = "existing" | "new";
 
 const WorldIDSignIn: React.FC = () => {
   const [step, setStep] = useState<SignInStep>("ready");
@@ -156,16 +155,12 @@ const WorldIDSignIn: React.FC = () => {
         const userIdBytes = crypto.getRandomValues(new Uint8Array(32));
         const credentialId = await createPasskeyCredential(userIdBytes);
         prfResult = await deriveSecretFromPasskey(credentialId);
-      } else if (mode === "picker") {
-        // A conflict usually means the locally remembered credential is a
-        // second passkey created by the old create-first onboarding flow. The
-        // discoverable credential picker lets the voter select the original.
-        prfResult = await authenticateWithPasskeyPicker();
       } else {
-        // Returning users must authenticate first. Creating a credential here
-        // can produce a different PRF secret and therefore a different voting
-        // key for the same World ID.
-        prfResult = await authenticateWithPreferredPasskey();
+        // Always show the discoverable credential picker during sign-in. The
+        // old create-first flow may have cached a newly-created credential ID;
+        // using it automatically would repeat the key-binding conflict instead
+        // of letting the voter select their original Votex passkey.
+        prfResult = await authenticateWithPasskeyPicker();
       }
 
       const keypair = await deriveKeypairFromSecret(prfResult.secret);
@@ -348,7 +343,7 @@ const WorldIDSignIn: React.FC = () => {
               {showPasskeyActions ? (
                 <div className="space-y-3">
                   <Button
-                    onClick={() => preparePasskey(hasKeyConflict ? "picker" : "existing")}
+                    onClick={() => preparePasskey("existing")}
                     size="lg"
                     className="w-full justify-center text-base"
                     variant="gradient"
