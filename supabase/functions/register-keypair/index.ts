@@ -354,8 +354,9 @@ Deno.serve(async (req) => {
         if (bindingOperation !== "recover") {
           return new Response(
             JSON.stringify({
+              code: "KEYPAIR_ALREADY_BOUND",
               error:
-                "A keypair is already bound to this identity. Use the explicit recovery flow to rebind it.",
+                "A different voting key is already bound to this World ID. Use the original Votex passkey.",
             }),
             { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );

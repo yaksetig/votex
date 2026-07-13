@@ -332,7 +332,7 @@ export async function deriveSecretFromPasskey(credentialId: string): Promise<PRF
  * @returns The PRF-derived secret from the selected passkey
  * @throws Error if authentication fails or is cancelled
  */
-async function authenticateWithAnyPasskey(): Promise<PRFResult> {
+export async function authenticateWithPasskeyPicker(): Promise<PRFResult> {
   assertSupportedWebAuthnOrigin();
 
   const challenge = generateChallenge();
@@ -435,5 +435,5 @@ export async function authenticateWithPreferredPasskey(): Promise<PRFResult> {
     }
   }
 
-  return await authenticateWithAnyPasskey();
+  return await authenticateWithPasskeyPicker();
 }

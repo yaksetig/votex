@@ -21,6 +21,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import {
+  authenticateWithPasskeyPicker,
   authenticateWithPreferredPasskey,
   createPasskeyCredential,
   deriveSecretFromPasskey,
@@ -36,6 +37,7 @@ import {
   deriveSessionVerifierHash,
 } from "@/services/worldIdSessionService";
 import { logger } from "@/services/logger";
+import { readFunctionError, VotexApiError } from "@/types/api";
 
 type SignInStep =
   | "ready"
@@ -59,10 +61,13 @@ const WORLD_ID_APP_ID = "app_e2fd2f8c99430ab200a093278e801c57";
 const WORLD_ID_RP_ID = "rp_b3b4b36db636df22";
 const WORLD_ID_ACTION = "registration";
 
+type PasskeyPreparationMode = "existing" | "new" | "picker";
+
 const WorldIDSignIn: React.FC = () => {
   const [step, setStep] = useState<SignInStep>("ready");
   const [error, setError] = useState<string | null>(null);
   const [preparedPasskey, setPreparedPasskey] = useState<PreparedPasskey | null>(null);
+  const [hasKeyConflict, setHasKeyConflict] = useState(false);
   const [widgetOpen, setWidgetOpen] = useState(false);
   const [rpContext, setRpContext] = useState<RpContext | null>(null);
   const { toast } = useToast();
@@ -137,28 +142,30 @@ const WorldIDSignIn: React.FC = () => {
   // Step 1: derive the passkey-backed keypair so we know the public key that
   // the World ID proof must be bound to. The signal (= Hash(pk)) is then folded
   // into the proof request, which is why the passkey must come before World ID.
-  const preparePasskey = async () => {
+  const preparePasskey = async (mode: PasskeyPreparationMode) => {
     setStep("preparing-passkey");
     setError(null);
+    setHasKeyConflict(false);
+    setPreparedPasskey(null);
+    setWidgetOpen(false);
 
     try {
       let prfResult;
-      const userIdBytes = crypto.getRandomValues(new Uint8Array(32));
 
-      try {
+      if (mode === "new") {
+        const userIdBytes = crypto.getRandomValues(new Uint8Array(32));
         const credentialId = await createPasskeyCredential(userIdBytes);
         prfResult = await deriveSecretFromPasskey(credentialId);
-      } catch (createError) {
-        if (
-          createError instanceof Error &&
-          createError.message === "A passkey already exists for this account"
-        ) {
-          // Returning user on a device that already holds their passkey — the
-          // same secret deterministically rederives the same keypair.
-          prfResult = await authenticateWithPreferredPasskey();
-        } else {
-          throw createError;
-        }
+      } else if (mode === "picker") {
+        // A conflict usually means the locally remembered credential is a
+        // second passkey created by the old create-first onboarding flow. The
+        // discoverable credential picker lets the voter select the original.
+        prfResult = await authenticateWithPasskeyPicker();
+      } else {
+        // Returning users must authenticate first. Creating a credential here
+        // can produce a different PRF secret and therefore a different voting
+        // key for the same World ID.
+        prfResult = await authenticateWithPreferredPasskey();
       }
 
       const keypair = await deriveKeypairFromSecret(prfResult.secret);
@@ -229,7 +236,11 @@ const WorldIDSignIn: React.FC = () => {
       );
 
       if (registerError) {
-        throw registerError;
+        throw await readFunctionError(
+          registerError,
+          "CONFLICT",
+          "Failed to bind World ID to the selected passkey"
+        );
       }
 
       if (data?.error) {
@@ -252,6 +263,21 @@ const WorldIDSignIn: React.FC = () => {
         navigate(returning ? "/elections" : "/success", { replace: true });
       }, 1200);
     } catch (err) {
+      if (
+        err instanceof VotexApiError &&
+        (err.code === "KEYPAIR_ALREADY_BOUND" ||
+          err.message.toLowerCase().includes("already bound"))
+      ) {
+        setPreparedPasskey(null);
+        setWidgetOpen(false);
+        setHasKeyConflict(true);
+        setError(
+          "This World ID is already linked to another Votex passkey. Choose the original passkey you used on votex.world; a newly created passkey produces a different voting key."
+        );
+        setStep("error");
+        return;
+      }
+
       const message =
         err instanceof Error ? err.message : "Failed to register voting identity";
       setError(message);
@@ -265,7 +291,7 @@ const WorldIDSignIn: React.FC = () => {
     setStep("error");
   };
 
-  const showPasskeyButton =
+  const showPasskeyActions =
     step === "ready" || (step === "error" && !preparedPasskey);
   const stepTwoEnabled =
     step === "awaiting-worldid" ||
@@ -311,24 +337,50 @@ const WorldIDSignIn: React.FC = () => {
                 </div>
                 <div>
                   <h2 className="font-headline text-2xl font-bold text-primary">
-                    Set Up Your Passkey
+                    Unlock Your Voting Passkey
                   </h2>
                   <p className="text-sm text-on-surface-variant">
-                    Create a biometric-backed passkey and derive your local voting key.
+                    Returning voters should use the same passkey they originally registered.
                   </p>
                 </div>
               </div>
 
-              {showPasskeyButton ? (
-                <Button
-                  onClick={preparePasskey}
-                  size="lg"
-                  className="w-full justify-center text-base"
-                  variant="gradient"
-                >
-                  <KeyRound className="h-5 w-5" />
-                  {step === "error" ? "Retry Passkey Setup" : "Create or Use Your Passkey"}
-                </Button>
+              {showPasskeyActions ? (
+                <div className="space-y-3">
+                  <Button
+                    onClick={() => preparePasskey(hasKeyConflict ? "picker" : "existing")}
+                    size="lg"
+                    className="w-full justify-center text-base"
+                    variant="gradient"
+                  >
+                    <KeyRound className="h-5 w-5" />
+                    {hasKeyConflict
+                      ? "Choose Your Original Votex Passkey"
+                      : "Use an Existing Votex Passkey"}
+                  </Button>
+
+                  {!hasKeyConflict && (
+                    <>
+                      <div className="flex items-center gap-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-outline">
+                        <span className="h-px flex-1 bg-outline-variant" />
+                        First time here?
+                        <span className="h-px flex-1 bg-outline-variant" />
+                      </div>
+                      <Button
+                        onClick={() => preparePasskey("new")}
+                        size="lg"
+                        className="w-full justify-center text-base"
+                        variant="outline"
+                      >
+                        <Fingerprint className="h-5 w-5" />
+                        Create a New Votex Passkey
+                      </Button>
+                      <p className="text-center text-xs leading-relaxed text-on-surface-variant">
+                        Only create one if you have never registered on votex.world. A new passkey creates a new cryptographic voting identity.
+                      </p>
+                    </>
+                  )}
+                </div>
               ) : step === "preparing-passkey" ? (
                 <button
                   type="button"

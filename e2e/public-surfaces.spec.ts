@@ -25,6 +25,9 @@ test("authority portal uses its own authentication gateway", async ({ page }) =>
 
 test("World ID onboarding links to the disclosure and audit pages", async ({ page }) => {
   await page.goto("/dashboard");
+  await expect(page.getByRole("button", { name: "Use an Existing Votex Passkey" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Create a New Votex Passkey" })).toBeVisible();
+  await expect(page.getByText("A new passkey creates a new cryptographic voting identity", { exact: false })).toBeVisible();
   await expect(page.getByRole("link", { name: "Privacy Policy" })).toHaveAttribute("href", "/privacy");
   await expect(page.getByRole("link", { name: "Audit Protocol" })).toHaveAttribute("href", "/audit-protocol");
   await expect(page.getByRole("link", { name: "Support" })).toHaveAttribute("href", "mailto:support@votex.world");
