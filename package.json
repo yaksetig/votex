@@ -8,6 +8,8 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "bootstrap:authority": "node scripts/bootstrap-fixed-authority.mjs",
+    "release:check": "node scripts/release-integrity.mjs local",
+    "release:verify": "node scripts/release-integrity.mjs live",
     "analyze:circuits": "npm --prefix circuits run analyze",
     "audit:production": "node scripts/check-production-audit.mjs",
     "lint": "eslint .",

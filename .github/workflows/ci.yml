@@ -21,6 +21,7 @@ jobs:
       - run: npx tsc -b
       - run: npm run lint
       - run: npm run audit:production
+      - run: npm run release:check
 
   test:
     runs-on: ubuntu-latest

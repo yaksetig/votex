@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "requiredSecrets": [
+    "ALLOWED_ORIGIN",
+    "FIXED_AUTHORITY_ID",
+    "RP_SIGNING_KEY"
+  ],
+  "functions": [
+    { "name": "authority-link", "verifyJwt": true },
+    { "name": "authority-tally-write", "verifyJwt": true },
+    { "name": "create-election", "verifyJwt": false },
+    { "name": "delegation-write", "verifyJwt": true },
+    { "name": "fixed-authority-status", "verifyJwt": false },
+    { "name": "nullification-write", "verifyJwt": false },
+    { "name": "register-keypair", "verifyJwt": false },
+    { "name": "register-participant", "verifyJwt": true },
+    { "name": "rp-signature", "verifyJwt": true },
+    { "name": "vote-tracking-write", "verifyJwt": true },
+    { "name": "worldid-session", "verifyJwt": true }
+  ]
+}

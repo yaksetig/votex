@@ -29,6 +29,29 @@ function serveIdKitWasm() {
   };
 }
 
+function emitReleaseMetadata() {
+  const commitSha =
+    process.env.VOTEX_RELEASE_SHA ??
+    process.env.CF_PAGES_COMMIT_SHA ??
+    process.env.GITHUB_SHA ??
+    "development";
+
+  return {
+    name: "emit-votex-release-metadata",
+    generateBundle(this: { emitFile: (file: { type: "asset"; fileName: string; source: string }) => void }) {
+      this.emitFile({
+        type: "asset",
+        fileName: "release.json",
+        source: JSON.stringify({
+          schema: 1,
+          commitSha,
+          builtAt: new Date().toISOString(),
+        }),
+      });
+    },
+  };
+}
+
 function isNodeModule(id: string): boolean {
   return id.includes("/node_modules/");
 }
@@ -109,39 +132,61 @@ function manualChunks(id: string): string | undefined {
   return undefined;
 }
 
-export default defineConfig(() => ({
-  server: {
-    host: "::",
-    port: 8080,
-    allowedHosts: [
-      "localhost", 
-      "127.0.0.1"
-    ],
-  },
-  plugins: [serveIdKitWasm(), react()],
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-      assert: require.resolve("assert/"),
-      events: require.resolve("events/"),
-      util: require.resolve("util/"),
+export default defineConfig(() => {
+  const aliases = [
+    ...(process.env.VOTEX_E2E_MODE === "true"
+      ? [
+          {
+            find: "@/services/parallelZkProofService",
+            replacement: path.resolve(
+              __dirname,
+              "./e2e/support/parallel-zk-proof-stub.ts"
+            ),
+          },
+          {
+            find: "@worldcoin/idkit",
+            replacement: path.resolve(
+              __dirname,
+              "./e2e/support/worldcoin-idkit-stub.tsx"
+            ),
+          },
+        ]
+      : []),
+    { find: "@", replacement: path.resolve(__dirname, "./src") },
+    { find: "assert", replacement: require.resolve("assert/") },
+    { find: "events", replacement: require.resolve("events/") },
+    { find: "util", replacement: require.resolve("util/") },
+  ];
+
+  return {
+    server: {
+      host: "::",
+      port: 8080,
+      allowedHosts: [
+        "localhost",
+        "127.0.0.1"
+      ],
     },
-  },
-  optimizeDeps: {
-    esbuildOptions: {
-      target: 'es2020',
+    plugins: [serveIdKitWasm(), react(), emitReleaseMetadata()],
+    resolve: {
+      alias: aliases,
     },
-  },
-  build: {
-    target: 'es2020',
-    // circomlibjs is intentionally isolated in a lazy crypto chunk. Replacing
-    // it is outside the pre-production hardening scope, so the warning limit
-    // reflects that reviewed, non-entry bundle rather than hiding app-shell growth.
-    chunkSizeWarningLimit: 3100,
-    rollupOptions: {
-      output: {
-        manualChunks,
+    optimizeDeps: {
+      esbuildOptions: {
+        target: "es2020",
       },
     },
-  },
-}));
+    build: {
+      target: "es2020",
+      // circomlibjs is intentionally isolated in a lazy crypto chunk. Replacing
+      // it is outside the pre-production hardening scope, so the warning limit
+      // reflects that reviewed, non-entry bundle rather than hiding app-shell growth.
+      chunkSizeWarningLimit: 3100,
+      rollupOptions: {
+        output: {
+          manualChunks,
+        },
+      },
+    },
+  };
+});
