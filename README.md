@@ -66,8 +66,8 @@ npx tsc -b             # typecheck (strict; follows project references)
 npm run build          # production build
 
 # Edge functions (Deno):
-deno check supabase/functions/*/index.ts
-deno test --allow-env supabase/functions/
+deno check --no-lock --node-modules-dir=none supabase/functions/*/index.ts
+deno test --no-lock --node-modules-dir=none --allow-env supabase/functions/
 
 # Circuit static analysis:
 npm run analyze:circuits

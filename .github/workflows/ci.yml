@@ -44,10 +44,10 @@ jobs:
         run: |
           for f in supabase/functions/*/index.ts; do
             echo "deno check $f"
-            deno check "$f"
+            deno check --no-lock --node-modules-dir=none "$f"
           done
       - name: Test edge functions
-        run: deno test --allow-env supabase/functions/
+        run: deno test --no-lock --node-modules-dir=none --allow-env supabase/functions/
 
   circuit-analysis:
     runs-on: ubuntu-latest

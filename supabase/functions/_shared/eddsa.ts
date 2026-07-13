@@ -1,7 +1,8 @@
-// The @types/circomlibjs package esm.sh attaches is incomplete (no buildEddsa),
-// so the module is imported untyped.
+// Use Deno's pinned npm resolver so deployed edge workers do not depend on
+// esm.sh being reachable during cold start. circomlibjs does not ship accurate
+// TypeScript declarations for buildEddsa, so the import remains untyped.
 // @ts-expect-error: circomlibjs ships no accurate type definitions
-import { buildEddsa } from "https://esm.sh/circomlibjs@0.1.7?bundle";
+import { buildEddsa } from "npm:circomlibjs@0.1.7";
 
 const CURVE_ORDER =
   2736030358979909402780800718157159386076813972158567259200215660948447373041n;
