@@ -711,7 +711,7 @@ const ElectionDetail = () => {
                             className="ledger-button-primary"
                           >
                             {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <VoteIcon className="h-4 w-4" />}
-                            {submitting ? "Broadcasting..." : "Commit Vote"}
+                            {submitting ? "Recording vote..." : "Cast vote"}
                           </button>
                           <Button
                             variant="outline"
