@@ -5,6 +5,11 @@
     "FIXED_AUTHORITY_ID",
     "RP_SIGNING_KEY"
   ],
+  "trustedSetup": {
+    "productionReady": false,
+    "ceremonyTranscript": "",
+    "transcriptSha256": ""
+  },
   "functions": [
     { "name": "authority-link", "verifyJwt": true },
     { "name": "authority-tally-write", "verifyJwt": true },

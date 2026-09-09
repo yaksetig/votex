@@ -154,12 +154,16 @@ export async function handleSessionRequest(
   }
 
   if (body.action === "revoke") {
-    await supabase
+    const { error: revokeError } = await supabase
       .from("world_id_sessions")
       .update({
         revoked_at: new Date().toISOString(),
       })
       .eq("token_hash", tokenHash);
+
+    if (revokeError) {
+      return jsonResponse(500, { error: "Failed to revoke session" });
+    }
 
     return jsonResponse(200, { success: true });
   }

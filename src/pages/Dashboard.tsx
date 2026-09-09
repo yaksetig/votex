@@ -1,15 +1,19 @@
-import React, { Suspense, lazy } from "react";
+import { Suspense, lazy } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowRight,
+  CheckCircle2,
+  Copy,
   Fingerprint,
   KeyRound,
   Loader2,
   RefreshCw,
   ShieldCheck,
+  Vote,
 } from "lucide-react";
 import { useWallet } from "@/contexts/WalletContext";
 import { useDeriveKeypair } from "@/hooks/useDeriveKeypair";
+import { useToast } from "@/hooks/use-toast";
 
 const WorldIDSignIn = lazy(() => import("@/components/WorldIDSignIn"));
 
@@ -17,189 +21,128 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { derivedPublicKey, isWorldIDVerified, userId } = useWallet();
   const { deriveKeypair, isDeriving: isDerivingKey } = useDeriveKeypair();
-
-  const rederiveKeypair = () => deriveKeypair();
+  const { toast } = useToast();
 
   if (!isWorldIDVerified || !userId) {
     return (
-      <Suspense fallback={<div className="flex min-h-[calc(100vh-72px)] items-center justify-center px-4 py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
+      <Suspense fallback={<div className="flex min-h-[calc(100vh-64px)] items-center justify-center"><Loader2 className="h-7 w-7 animate-spin text-secondary" /></div>}>
         <WorldIDSignIn />
       </Suspense>
     );
   }
 
+  const copyCoordinate = async (label: string, value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast({ title: `${label} copied`, description: "The public coordinate is on your clipboard." });
+    } catch {
+      toast({ variant: "destructive", title: "Copy failed", description: "Your browser did not allow clipboard access." });
+    }
+  };
+
   return (
-    <div className="px-4 pb-24 pt-10 sm:px-6 md:pb-10">
-      <div className="mx-auto max-w-6xl space-y-8">
-        <section className="ledger-panel relative overflow-hidden p-5 sm:p-8 md:p-12">
-          <div className="absolute -left-8 top-0 h-64 w-64 rounded-full bg-primary-fixed-dim/55 blur-[100px]" />
-          <div className="absolute -bottom-16 right-0 h-64 w-64 rounded-full bg-secondary-fixed/70 blur-[120px]" />
+    <div className="civic-container pb-28 pt-10 md:pb-12">
+      <header className="flex flex-col gap-5 border-b border-outline-variant pb-8 md:flex-row md:items-end md:justify-between">
+        <div>
+          <p className="civic-label text-secondary">My identity</p>
+          <h1 className="mt-3 font-headline text-3xl font-bold tracking-[-0.03em] text-primary sm:text-4xl">Your voting profile</h1>
+          <p className="mt-3 max-w-2xl text-on-surface-variant">
+            World ID is verified. Your passkey reconstructs the signing key locally only when a voting action requires it.
+          </p>
+        </div>
+        <button type="button" onClick={() => navigate("/elections")} className="ledger-button-primary">
+          Browse Elections <ArrowRight className="h-4 w-4" aria-hidden="true" />
+        </button>
+      </header>
 
-          <div className="relative z-10 flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-3xl">
-              <span className="ledger-badge bg-secondary-container text-on-secondary-container">
-                <ShieldCheck className="h-4 w-4" />
-                Identity vault
-              </span>
-              <h1 className="mt-5 font-headline text-2xl font-extrabold tracking-tight text-primary sm:text-4xl md:text-6xl">
-                Your Secure Voting Identity
-              </h1>
-              <p className="mt-4 text-lg leading-relaxed text-on-surface-variant">
-                World ID is verified. Your private voting key is derived from your passkey only when you need it, then released after the signing workflow completes.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={rederiveKeypair}
-                disabled={isDerivingKey}
-                className="ledger-button-secondary"
-              >
-                {isDerivingKey ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-4 w-4" />
-                )}
-                Re-derive Key
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate("/elections")}
-                className="ledger-button-primary"
-              >
-                Browse Elections
-                <ArrowRight className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        </section>
-
-        <section className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-          <div className="ledger-panel p-6">
-            <ShieldCheck className="h-6 w-6 text-surface-tint" />
-            <div className="mt-5 font-headline text-4xl font-extrabold text-surface-tint">
-              Active
-            </div>
-            <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant">
-              World ID status
-            </p>
-          </div>
-
-          <div className="ledger-panel p-6">
-            <Fingerprint className="h-6 w-6 text-primary" />
-            <div className="mt-5 font-headline text-4xl font-extrabold text-primary">
-              Passkey
-            </div>
-            <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant">
-              Biometric unlock
-            </p>
-          </div>
-
-          <div className="ledger-panel p-6">
-            <KeyRound className="h-6 w-6 text-tertiary-container" />
-            <div className="mt-5 font-headline text-4xl font-extrabold text-tertiary-container">
-              {derivedPublicKey ? "Ready" : "Locked"}
-            </div>
-            <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant">
-              Signing key
-            </p>
-          </div>
-
-          <div className="ledger-panel p-6">
-            <ShieldCheck className="h-6 w-6 text-secondary" />
-            <div className="mt-5 font-headline text-4xl font-extrabold text-secondary">
-              Private
-            </div>
-            <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant">
-              Local derivation
-            </p>
-          </div>
-        </section>
-
-        <section className="grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_360px]">
-          <div className="ledger-panel p-5 sm:p-8">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-white sm:h-12 sm:w-12">
-                <KeyRound className="h-4 w-4 sm:h-5 sm:w-5" />
+      <div className="mt-8 grid gap-6 lg:grid-cols-12">
+        <aside className="space-y-6 lg:col-span-4">
+          <section className="civic-card p-6">
+            <div className="flex items-center gap-4">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-secondary bg-surface-container text-secondary">
+                <ShieldCheck className="h-7 w-7" aria-hidden="true" />
               </div>
-              <div className="min-w-0">
-                <p className="ledger-eyebrow">Cryptographic key material</p>
-                <h2 className="mt-1 font-headline text-xl font-extrabold text-primary sm:text-3xl">
-                  Public key details
-                </h2>
+              <div>
+                <h2 className="font-headline text-xl font-semibold text-primary">Verified Human</h2>
+                <p className="mt-1 text-xs font-semibold uppercase tracking-[0.05em] text-on-surface-variant">World ID session active</p>
               </div>
             </div>
+            <dl className="mt-6 space-y-4 border-t border-outline-variant pt-5 text-sm">
+              <div className="flex items-center justify-between gap-3">
+                <dt className="flex items-center gap-2 text-on-surface-variant"><CheckCircle2 className="h-4 w-4 text-secondary" /> Passkey</dt>
+                <dd className="font-semibold text-primary">Active</dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="flex items-center gap-2 text-on-surface-variant"><KeyRound className="h-4 w-4 text-secondary" /> Voting key</dt>
+                <dd className="font-semibold text-primary">{derivedPublicKey ? "Ready" : "Locked"}</dd>
+              </div>
+            </dl>
+          </section>
 
+          <section className="rounded-xl bg-primary p-6 text-on-primary">
+            <p className="civic-label text-secondary-fixed">Active cryptographic identity</p>
             {derivedPublicKey ? (
-              <div className="mt-8 space-y-5">
-                <div className="rounded-[1.5rem] border border-outline-variant/12 bg-surface-container-low p-5">
-                  <p className="ledger-eyebrow">Public Key X</p>
-                  <code className="mt-3 block break-all text-sm font-semibold text-primary">
-                    {derivedPublicKey.x}
-                  </code>
-                </div>
-                <div className="rounded-[1.5rem] border border-outline-variant/12 bg-surface-container-low p-5">
-                  <p className="ledger-eyebrow">Public Key Y</p>
-                  <code className="mt-3 block break-all text-sm font-semibold text-primary">
-                    {derivedPublicKey.y}
-                  </code>
-                </div>
+              <div className="mt-5 space-y-4">
+                {(["x", "y"] as const).map((coordinate) => (
+                  <div key={coordinate}>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.05em] text-white/50">Public Key {coordinate.toUpperCase()}</p>
+                    <div className="mt-2 flex items-center gap-2 rounded-lg border border-white/10 bg-black/20 p-3">
+                      <code className="civic-mono min-w-0 flex-1 truncate text-white">{derivedPublicKey[coordinate]}</code>
+                      <button
+                        type="button"
+                        aria-label={`Copy public key ${coordinate.toUpperCase()}`}
+                        onClick={() => void copyCoordinate(`Public key ${coordinate.toUpperCase()}`, derivedPublicKey[coordinate])}
+                        className="text-white/70 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary-fixed"
+                      >
+                        <Copy className="h-4 w-4" aria-hidden="true" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : (
-              <div className="mt-8 rounded-[1.5rem] border border-outline-variant/12 bg-surface-container-low p-6">
-                <h3 className="font-headline text-2xl font-bold text-primary">
-                  Derive your keypair before voting
-                </h3>
-                <p className="mt-3 text-sm leading-relaxed text-on-surface-variant">
-                  Select your passkey from the browser prompt to reconstruct the BabyJubJub keypair used for vote signing and nullification.
-                </p>
-                <button
-                  type="button"
-                  onClick={rederiveKeypair}
-                  disabled={isDerivingKey}
-                  className="ledger-button-primary mt-6"
-                >
-                  {isDerivingKey ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Fingerprint className="h-4 w-4" />
-                  )}
-                  Unlock with Passkey
-                </button>
-              </div>
+              <p className="mt-4 text-sm leading-6 text-white/70">Unlock your Votex passkey to reconstruct this session’s signing key.</p>
             )}
-          </div>
+          </section>
 
-          <aside className="space-y-6">
-            <div className="rounded-[1.5rem] bg-primary-container p-5 text-on-primary shadow-ledger-lg sm:rounded-[2rem] sm:p-7">
-              <p className="ledger-eyebrow text-on-primary-container">Integrity note</p>
-              <h3 className="mt-3 font-headline text-2xl font-bold text-white">
-                The private key never leaves your device
-              </h3>
-              <p className="mt-4 text-sm leading-relaxed text-white/76">
-                The browser uses your passkey-derived secret only to reconstruct the signing key in memory. The server sees proof bindings and sessions, not the private key itself.
-              </p>
+          <button type="button" onClick={() => void deriveKeypair()} disabled={isDerivingKey} className="ledger-button-secondary w-full">
+            {isDerivingKey ? <Loader2 className="h-4 w-4 animate-spin" /> : derivedPublicKey ? <RefreshCw className="h-4 w-4" /> : <Fingerprint className="h-4 w-4" />}
+            {isDerivingKey ? "Unlocking..." : derivedPublicKey ? "Re-derive with Passkey" : "Unlock with Passkey"}
+          </button>
+        </aside>
+
+        <section className="grid gap-6 md:grid-cols-2 lg:col-span-8">
+          <article className="civic-card flex min-h-64 flex-col justify-between p-6">
+            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-surface-container text-secondary">
+              <Vote className="h-5 w-5" aria-hidden="true" />
             </div>
-
-            <div className="ledger-panel p-6">
-              <p className="ledger-eyebrow">Next action</p>
-              <h3 className="mt-3 font-headline text-2xl font-bold text-primary">
-                Continue to the election browser
-              </h3>
-              <p className="mt-3 text-sm leading-relaxed text-on-surface-variant">
-                Browse active ballots, inspect the audit protocol, and submit a vote when your passkey-derived key is ready.
-              </p>
-              <button
-                type="button"
-                onClick={() => navigate("/elections")}
-                className="ledger-button-primary mt-6"
-              >
-                Open Elections
-                <ArrowRight className="h-4 w-4" />
+            <div>
+              <h2 className="font-headline text-xl font-semibold text-primary">Live elections</h2>
+              <p className="mt-2 text-sm leading-6 text-on-surface-variant">Browse active binary elections, inspect live public results, and cast a signed ballot.</p>
+              <button type="button" onClick={() => navigate("/elections")} className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-secondary hover:text-primary">
+                Open election browser <ArrowRight className="h-4 w-4" />
               </button>
             </div>
-          </aside>
+          </article>
+
+          <article className="flex min-h-64 flex-col justify-between rounded-xl bg-secondary p-6 text-on-secondary">
+            <ShieldCheck className="h-7 w-7" aria-hidden="true" />
+            <div>
+              <h2 className="font-headline text-xl font-semibold">Public by design</h2>
+              <p className="mt-2 text-sm leading-6 text-white/80">Your real-world identity is not written to Votex’s public ledger, but your pseudonym, ballot choice, and activity are public and may be linkable.</p>
+            </div>
+          </article>
+
+          <article className="rounded-xl border border-outline-variant bg-surface-container-high p-7 md:col-span-2">
+            <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+              <div className="max-w-xl">
+                <p className="civic-label">Local key handling</p>
+                <h2 className="mt-2 font-headline text-xl font-semibold text-primary">Your private voting key stays on this device</h2>
+                <p className="mt-3 text-sm leading-6 text-on-surface-variant">The browser derives the BabyJubJub key in memory from your passkey. Votex receives signed public data and session bindings, never the private key itself.</p>
+              </div>
+              <button type="button" onClick={() => navigate("/how-it-works")} className="ledger-button-secondary shrink-0">How It Works</button>
+            </div>
+          </article>
         </section>
       </div>
     </div>

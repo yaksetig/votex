@@ -117,7 +117,7 @@ const ElectionEditForm: React.FC<ElectionEditFormProps> = ({
           </p>
         </div>
 
-        <div className="rounded-[1.5rem] bg-surface-container-low px-5 py-4">
+        <div className="rounded-xl bg-surface-container-low px-5 py-4">
           <p className="ledger-eyebrow">Current end date</p>
           <p className="mt-2 font-semibold text-primary">
             {new Date(election.end_date).toLocaleString()}
@@ -126,7 +126,7 @@ const ElectionEditForm: React.FC<ElectionEditFormProps> = ({
       </div>
 
       {!safeToEdit && (
-        <div className="rounded-[1.5rem] border border-error/20 bg-error-container/70 p-5 text-on-error-container">
+        <div className="rounded-xl border border-error/20 bg-error-container/70 p-5 text-on-error-container">
           <div className="flex items-start gap-4">
             <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-error" />
             <div>
@@ -143,7 +143,7 @@ const ElectionEditForm: React.FC<ElectionEditFormProps> = ({
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1.15fr)_360px]">
         <div className="space-y-6">
-          <div className="rounded-[1.75rem] border border-outline-variant/12 bg-surface-container-lowest p-6">
+          <div className="rounded-xl border border-outline-variant/12 bg-surface-container-lowest p-6">
             <Label htmlFor="title" className="ledger-eyebrow">
               Election title
             </Label>
@@ -153,7 +153,7 @@ const ElectionEditForm: React.FC<ElectionEditFormProps> = ({
             )}
           </div>
 
-          <div className="rounded-[1.75rem] border border-outline-variant/12 bg-surface-container-lowest p-6">
+          <div className="rounded-xl border border-outline-variant/12 bg-surface-container-lowest p-6">
             <Label htmlFor="description" className="ledger-eyebrow">
               Description
             </Label>
@@ -169,7 +169,7 @@ const ElectionEditForm: React.FC<ElectionEditFormProps> = ({
           </div>
 
           <div className="grid gap-6 md:grid-cols-2">
-            <div className="rounded-[1.75rem] border border-outline-variant/12 bg-surface-container-lowest p-6">
+            <div className="rounded-xl border border-outline-variant/12 bg-surface-container-lowest p-6">
               <Label htmlFor="option1" className="ledger-eyebrow">
                 Option A
               </Label>
@@ -184,7 +184,7 @@ const ElectionEditForm: React.FC<ElectionEditFormProps> = ({
               )}
             </div>
 
-            <div className="rounded-[1.75rem] border border-outline-variant/12 bg-surface-container-lowest p-6">
+            <div className="rounded-xl border border-outline-variant/12 bg-surface-container-lowest p-6">
               <Label htmlFor="option2" className="ledger-eyebrow">
                 Option B
               </Label>
@@ -202,9 +202,9 @@ const ElectionEditForm: React.FC<ElectionEditFormProps> = ({
         </div>
 
         <aside className="space-y-6">
-          <div className="rounded-[1.75rem] border border-outline-variant/12 bg-surface-container-lowest p-6">
+          <div className="rounded-xl border border-outline-variant/12 bg-surface-container-lowest p-6">
             <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-white">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-white">
                 <CalendarDays className="h-5 w-5" />
               </div>
               <div>
@@ -227,7 +227,7 @@ const ElectionEditForm: React.FC<ElectionEditFormProps> = ({
             )}
           </div>
 
-          <div className="rounded-[1.75rem] bg-primary-container p-6 text-on-primary">
+          <div className="rounded-xl bg-primary p-6 text-on-primary">
             <p className="ledger-eyebrow text-on-primary-container">Editing rules</p>
             <div className="mt-4 space-y-3 text-sm text-white/74">
               <p>Keep option labels precise and stable.</p>

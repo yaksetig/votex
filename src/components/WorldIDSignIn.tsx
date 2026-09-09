@@ -295,8 +295,8 @@ const WorldIDSignIn: React.FC = () => {
     (step === "error" && !!preparedPasskey);
 
   return (
-    <div className="relative flex min-h-[calc(100vh-72px)] items-center justify-center overflow-hidden px-4 py-8 sm:px-6">
-      <div className="absolute inset-0 ledger-grid-glow opacity-80" />
+    <div className="relative flex min-h-[calc(100vh-64px)] items-center justify-center overflow-hidden px-4 py-10 sm:px-6">
+      <div className="absolute inset-0 ledger-grid-glow opacity-60" />
 
       <div className="relative z-10 w-full max-w-5xl">
         <div className="text-center">
@@ -304,15 +304,15 @@ const WorldIDSignIn: React.FC = () => {
             <ShieldCheck className="h-4 w-4" />
             Secure voting portal
           </span>
-          <h1 className="mt-6 font-headline text-4xl font-extrabold tracking-tight text-primary md:text-6xl">
-            Verify Your <span className="text-surface-tint">Identity.</span>
+          <h1 className="mt-5 font-headline text-3xl font-bold tracking-[-0.03em] text-primary sm:text-4xl">
+            Verify your <span className="text-secondary">identity</span>
           </h1>
-          <p className="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-on-surface-variant">
+          <p className="mx-auto mt-3 max-w-2xl text-base leading-7 text-on-surface-variant">
             Access your ballot through World ID proof-of-personhood and a passkey-derived cryptographic identity.
           </p>
         </div>
 
-        <div className="mx-auto mt-10 max-w-2xl space-y-4">
+        <div className="mx-auto mt-8 max-w-2xl space-y-4">
           {error && (
             <Alert variant="destructive">
               <AlertTriangle className="h-4 w-4" />
@@ -320,18 +320,18 @@ const WorldIDSignIn: React.FC = () => {
             </Alert>
           )}
 
-          <section className="ledger-panel relative overflow-hidden p-8">
+          <section className="ledger-panel relative overflow-hidden p-5 sm:p-8">
             <div className="absolute right-0 top-0 p-6 opacity-[0.06]">
               <Fingerprint className="h-28 w-28" />
             </div>
 
             <div className="relative z-10">
               <div className="mb-6 flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-on-primary font-headline font-bold">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-on-primary">
                   1
                 </div>
                 <div>
-                  <h2 className="font-headline text-2xl font-bold text-primary">
+                  <h2 className="font-headline text-xl font-semibold text-primary">
                     Unlock Your Voting Passkey
                   </h2>
                   <p className="text-sm text-on-surface-variant">
@@ -356,7 +356,7 @@ const WorldIDSignIn: React.FC = () => {
 
                   {!hasKeyConflict && (
                     <>
-                      <div className="flex items-center gap-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-outline">
+                      <div className="flex items-center gap-3 py-1 text-xs font-bold uppercase tracking-[0.05em] text-outline">
                         <span className="h-px flex-1 bg-outline-variant" />
                         First time here?
                         <span className="h-px flex-1 bg-outline-variant" />
@@ -380,7 +380,7 @@ const WorldIDSignIn: React.FC = () => {
                 <button
                   type="button"
                   disabled
-                  className="flex w-full items-center justify-center gap-3 rounded-[1rem] bg-gradient-to-br from-primary to-primary-container px-6 py-4 text-lg font-bold text-white opacity-95"
+                  className="flex w-full items-center justify-center gap-3 rounded-[1rem] bg-secondary px-6 py-4 text-lg font-bold text-white opacity-95"
                 >
                   <Loader2 className="h-5 w-5 animate-spin" />
                   Setting up passkey...
@@ -389,14 +389,14 @@ const WorldIDSignIn: React.FC = () => {
                 <button
                   type="button"
                   disabled
-                  className="flex w-full items-center justify-center gap-3 rounded-[1rem] bg-gradient-to-br from-primary to-primary-container px-6 py-4 text-lg font-bold text-white opacity-95"
+                  className="flex w-full items-center justify-center gap-3 rounded-[1rem] bg-secondary px-6 py-4 text-lg font-bold text-white opacity-95"
                 >
                   <CheckCircle2 className="h-5 w-5" />
                   Passkey Ready
                 </button>
               )}
 
-              <p className="mt-4 text-center text-[11px] font-bold uppercase tracking-[0.24em] text-outline">
+              <p className="mt-4 text-center text-[11px] font-bold uppercase tracking-[0.08em] text-outline">
                 Local key never leaves this device
               </p>
             </div>
@@ -404,7 +404,7 @@ const WorldIDSignIn: React.FC = () => {
 
           <section
             className={[
-              "rounded-[2rem] border p-8 transition-all",
+                  "rounded-xl border p-5 transition-all sm:p-8",
               stepTwoEnabled
                 ? "border-outline-variant/12 bg-surface-container-lowest shadow-ledger"
                 : "border-dashed border-outline-variant bg-surface-container opacity-60",
@@ -413,7 +413,7 @@ const WorldIDSignIn: React.FC = () => {
             <div className="mb-6 flex items-center gap-4">
               <div
                 className={[
-                  "flex h-12 w-12 items-center justify-center rounded-full font-headline font-bold",
+                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold",
                   stepTwoEnabled
                     ? "bg-surface-tint text-white"
                     : "bg-outline-variant text-on-surface-variant",
@@ -422,7 +422,7 @@ const WorldIDSignIn: React.FC = () => {
                 2
               </div>
               <div>
-                <h2 className="font-headline text-2xl font-bold text-primary">
+                <h2 className="font-headline text-xl font-semibold text-primary">
                   Authenticate via World ID
                 </h2>
                 <p className="text-sm text-on-surface-variant">
@@ -505,21 +505,21 @@ const WorldIDSignIn: React.FC = () => {
             )}
           </section>
 
-          <div className="rounded-[1.75rem] border border-outline-variant/12 bg-surface-container-low p-5">
+          <div className="rounded-xl border border-outline-variant/12 bg-surface-container-low p-5">
             <div className="flex items-start gap-4">
               <ShieldCheck className="mt-1 h-5 w-5 text-surface-tint" />
               <div>
                 <p className="font-headline text-lg font-bold text-primary">
                   Cryptographic Integrity
                 </p>
-                <p className="mt-2 text-sm leading-relaxed text-on-secondary-container">
+                <p className="mt-2 text-sm leading-relaxed text-on-surface-variant">
                   Your cryptographic identity is derived from your passkey and used only locally for vote signing and protected session recovery. Server-side state stores only the verifier and session bindings needed to authenticate the same person later.
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center justify-center gap-6 pt-4 text-xs font-semibold uppercase tracking-[0.2em] text-outline">
+          <div className="flex items-center justify-center gap-6 pt-4 text-xs font-semibold uppercase tracking-[0.05em] text-outline">
             <Link to="/privacy">Privacy Policy</Link>
             <Link to="/audit-protocol">Audit Protocol</Link>
             <a href="mailto:support@votex.world" className="inline-flex items-center gap-2">

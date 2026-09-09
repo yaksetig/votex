@@ -15,6 +15,7 @@ import {
   ElGamalCiphertext,
   identityCiphertext,
 } from "@/services/elGamalService";
+import { parseCanonicalFieldElement } from "@/services/crypto/utils";
 import { logger } from "@/services/logger";
 
 interface StoredAccumulator {
@@ -31,8 +32,14 @@ interface StoredAccumulator {
 export function accumulatorToCiphertext(
   acc: StoredAccumulator
 ): ElGamalCiphertext {
-  const c1 = new EdwardsPoint(BigInt(acc.acc_c1_x), BigInt(acc.acc_c1_y));
-  const c2 = new EdwardsPoint(BigInt(acc.acc_c2_x), BigInt(acc.acc_c2_y));
+  const c1 = new EdwardsPoint(
+    parseCanonicalFieldElement(acc.acc_c1_x),
+    parseCanonicalFieldElement(acc.acc_c1_y)
+  );
+  const c2 = new EdwardsPoint(
+    parseCanonicalFieldElement(acc.acc_c2_x),
+    parseCanonicalFieldElement(acc.acc_c2_y)
+  );
   return {
     c1,
     c2,
@@ -91,7 +98,7 @@ export async function getElectionAccumulators(
       .range(offset, offset + pageSize - 1);
     if (error) {
       logger.error("Error fetching election accumulators:", error);
-      return [];
+      throw new Error("Failed to load election accumulators");
     }
     accumulators.push(...(data || []).map((accumulator) => ({
       ...accumulator,

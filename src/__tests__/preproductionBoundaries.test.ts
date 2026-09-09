@@ -16,13 +16,13 @@ function sha256(relativePath: string): string {
 describe("pre-production trust boundaries", () => {
   it("keeps the reviewed cryptographic circuit and artifacts byte-for-byte unchanged", () => {
     expect(sha256("public/circuits/nullification_xor.wasm"))
-      .toBe("a3dfbc1746a88d8889cb7e642bc9c87b399b3936718250dd3361265709068393");
+      .toBe("e733bf8b10d4056abe6fd24645626e19ae213df8cab87087aede5d0daa9fcb69");
     expect(sha256("public/circuits/nullification_xor_final.zkey"))
-      .toBe("423a6d848fae7482ea3d533efe1bc2191cf7831ce5cb79684b4a383703ff3adc");
+      .toBe("70799f1e6d4c4646c8cb6dc8ee834522cf8a09e4e182ed8455c32987a03105d8");
     expect(sha256("public/circuits/verification_key_xor.json"))
-      .toBe("fb5c33f7501fe411ac72d30ddeb5e8d271277d605207188b634bead5d090721d");
+      .toBe("28decd81101f51471a55a27c7b22e87a0b5ae720920f2670654791f884d13a0c");
     expect(sha256("circuits/nullification_xor.circom"))
-      .toBe("38977a67c8465c83ca5b41938ca6361afc6749c1fd3347b5a1fd829034e49ebb");
+      .toBe("09cb5dcc3ca880dd52ef070553d012b9320d061e1ec3d08dcabe4c4e01ae78d8");
   });
 
   it("closes direct election creation and grants transactional writes only to service_role", () => {
@@ -49,5 +49,16 @@ describe("pre-production trust boundaries", () => {
     expect(migration).toContain("REVOKE ALL ON public.election_participants FROM anon, authenticated");
     expect(migration).toContain("REVOKE ALL ON public.delegations FROM anon, authenticated");
     expect(migration).toContain("REVOKE ALL ON public.nullifications FROM anon, authenticated");
+  });
+
+  it("enforces the audit remediation boundaries in the latest migration", () => {
+    const migration = read("supabase/migrations/20260820000000_security_audit_remediation.sql").toString("utf8");
+    expect(migration).toContain('DROP POLICY IF EXISTS "Election authorities can update elections"');
+    expect(migration).toContain("REVOKE INSERT, UPDATE, DELETE ON public.election_authority_audit_log");
+    expect(migration).toContain("CREATE OR REPLACE FUNCTION public.update_election_details_atomic");
+    expect(migration).toContain("CREATE OR REPLACE FUNCTION public.record_authority_authentication");
+    expect(migration).toContain("MESSAGE = 'INCOMPLETE_TALLY_RESULTS'");
+    expect(migration).toContain("CREATE OR REPLACE VIEW public.public_election_activity");
+    expect(migration).toContain("delegations_canonical_ciphertext_coordinates");
   });
 });

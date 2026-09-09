@@ -55,7 +55,7 @@ export default function AuthorityAuditLog() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="ledger-eyebrow">Fixed authority</p>
-          <h1 className="mt-2 flex items-center gap-3 font-headline text-3xl font-extrabold text-primary">
+          <h1 className="mt-2 flex items-center gap-3 font-headline text-3xl font-bold tracking-[-0.03em] text-primary">
             <History className="h-7 w-7" aria-hidden="true" /> Audit log
           </h1>
         </div>
@@ -68,7 +68,7 @@ export default function AuthorityAuditLog() {
       {!loading && !error && events.length === 0 && <p className="mt-8 text-on-surface-variant">No authority actions have been recorded.</p>}
       <div className="mt-8 space-y-3">
         {events.map((event) => (
-          <article key={event.id} className="rounded-[1.25rem] bg-surface-container-low p-5">
+          <article key={event.id} className="rounded-lg bg-surface-container-low p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="font-semibold text-primary">{event.action}</h2>
               <time className="text-xs text-on-surface-variant">{new Date(event.performed_at).toLocaleString()}</time>

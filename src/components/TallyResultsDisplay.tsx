@@ -25,7 +25,7 @@ interface TallyResultsDisplayProps {
 }
 
 const EmptyChartState = () => (
-  <div className="flex h-full items-center justify-center rounded-[1.5rem] border border-outline-variant/12 bg-surface-container-low text-center">
+  <div className="flex h-full items-center justify-center rounded-xl border border-outline-variant/12 bg-surface-container-low text-center">
     <div>
       <h4 className="font-headline text-2xl font-bold text-primary">
         No vote data yet
@@ -38,7 +38,7 @@ const EmptyChartState = () => (
 );
 
 const ChartLoadingState = () => (
-  <div className="h-full animate-pulse rounded-[1.5rem] border border-outline-variant/12 bg-surface-container-low" />
+  <div className="h-full animate-pulse rounded-xl border border-outline-variant/12 bg-surface-container-low" />
 );
 
 const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({
@@ -186,7 +186,7 @@ const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({
             <div className={`mt-5 font-headline text-4xl font-extrabold ${tone}`}>
               {value}
             </div>
-            <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant">
+            <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.05em] text-on-surface-variant">
               {label}
             </p>
           </div>
@@ -223,7 +223,7 @@ const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({
         </div>
 
         <div className="space-y-6">
-          <div className="rounded-[2rem] bg-primary-container p-6 text-on-primary shadow-ledger-lg">
+          <div className="rounded-xl bg-primary-container p-6 text-on-primary shadow-ledger-lg">
             <p className="ledger-eyebrow text-on-primary-container">Result summary</p>
             <div className="mt-5 space-y-5 text-sm">
               <div>
@@ -248,7 +248,7 @@ const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({
                   Preliminary: {voteData?.totalNoVotes ?? 0}
                 </p>
               </div>
-              <div className="rounded-[1.5rem] bg-white/10 p-4">
+              <div className="rounded-xl bg-white/10 p-4">
                 <p className="ledger-eyebrow text-on-primary-container">
                   Nullification effect
                 </p>
@@ -287,7 +287,7 @@ const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({
 
           <div className="mt-6 overflow-x-auto">
             <table className="min-w-full text-left">
-              <thead className="text-[11px] font-bold uppercase tracking-[0.18em] text-outline">
+              <thead className="text-[11px] font-bold uppercase tracking-[0.05em] text-outline">
                 <tr>
                   <th className="pb-4 pr-6">Voter</th>
                   <th className="pb-4 pr-6">Nullification Count</th>
@@ -306,7 +306,7 @@ const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({
                     <td className="py-4">
                       <span
                         className={[
-                          "inline-flex rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em]",
+                          "inline-flex rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.05em]",
                           result.voteNullified
                             ? "bg-error-container text-on-error-container"
                             : "bg-secondary-container text-on-secondary-container",

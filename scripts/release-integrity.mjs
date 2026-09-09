@@ -253,6 +253,15 @@ async function validateCriticalSurfaces({ appUrl, supabaseUrl, anonKey }) {
 
 export async function validateLiveRelease() {
   validateLocalRelease();
+  if (
+    manifest.trustedSetup?.productionReady !== true ||
+    !manifest.trustedSetup.ceremonyTranscript ||
+    !/^[0-9a-f]{64}$/.test(manifest.trustedSetup.transcriptSha256 ?? "")
+  ) {
+    fail(
+      "Production release blocked: complete the multiparty Groth16 ceremony, publish its transcript, and record its SHA-256 in release.config.json"
+    );
+  }
   const projectRef = requiredEnvironment("SUPABASE_PROJECT_ID");
   const appUrl = new URL(requiredEnvironment("VOTEX_APP_URL"));
   const supabaseUrl = new URL(requiredEnvironment("VITE_SUPABASE_URL"));

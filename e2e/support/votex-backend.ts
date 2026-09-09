@@ -30,9 +30,9 @@ const authority: Row = {
   description: "Fixed test authority",
   auth_user_id: AUTH_USER_ID,
   public_key_x:
-    "10437770494849092789975356179793365921081894825728509282912022721692387900446",
+    "11940147158346875937444575121467616184811211460403256849230112758128525528596",
   public_key_y:
-    "2421468586826963775234286408733868809034027042237521097949992319631922689348",
+    "12008911721823386696681701726344620942810855339906501546619886685443818109597",
   created_at: "2026-07-13T12:00:00.000Z",
   updated_at: "2026-07-13T12:00:00.000Z",
 };
@@ -146,6 +146,41 @@ function tableRows(table: string, state: VotexTestState): Row[] | null {
       return state.accumulators;
     case "public_nullifications":
       return state.nullifications;
+    case "public_election_activity":
+      return [
+        ...state.delegations.map((row) => ({
+          id: `delegation-${row.id}`,
+          election_id: row.election_id,
+          occurred_at: row.revoked_at ?? row.created_at,
+          pseudonym: row.delegator_pseudonym,
+          action: row.status === "revoked" ? "Delegation revoked" : "Delegation submitted",
+          record: row.id,
+        })),
+        ...state.nullifications.map((row) => ({
+          id: `nullification-${row.id}`,
+          election_id: row.election_id,
+          occurred_at: row.created_at,
+          pseudonym: row.target_pseudonym ?? row.submitter_pseudonym,
+          action: "Nullification proof accepted",
+          record: row.id,
+        })),
+        ...state.tallies.map((row) => ({
+          id: `tally-${row.id}`,
+          election_id: row.election_id,
+          occurred_at: row.processed_at,
+          pseudonym: row.voter_pseudonym,
+          action: "Tally record published",
+          record: row.tally_run_id ?? row.id,
+        })),
+        ...state.auditEvents.filter((row) => row.election_id).map((row) => ({
+          id: `authority-${row.id}`,
+          election_id: row.election_id,
+          occurred_at: row.performed_at ?? row.created_at,
+          pseudonym: row.performed_by ?? authority.name,
+          action: row.action,
+          record: row.id,
+        })),
+      ];
     case "public_tallies":
     case "election_tallies":
       return state.tallies;
@@ -172,6 +207,33 @@ async function handleRest(route: Route, state: VotexTestState, url: URL) {
       });
     }
     await fulfillJson(route, true);
+    return;
+  }
+  if (path === "rpc/record_authority_authentication") {
+    state.auditEvents.push({
+      id: crypto.randomUUID(),
+      election_id: null,
+      action: "AUTHENTICATION",
+      performed_by: authority.name,
+      performed_at: new Date().toISOString(),
+    });
+    await fulfillJson(route, true);
+    return;
+  }
+  if (path === "rpc/update_election_details_atomic") {
+    const body = await requestJson(route);
+    const election = state.elections.find((row) => row.id === body.p_election_id);
+    if (election && body.p_updates && typeof body.p_updates === "object") {
+      Object.assign(election, body.p_updates);
+      state.auditEvents.push({
+        id: crypto.randomUUID(),
+        election_id: election.id,
+        action: "UPDATE_ELECTION",
+        performed_by: authority.name,
+        performed_at: new Date().toISOString(),
+      });
+    }
+    await fulfillJson(route, Boolean(election));
     return;
   }
 

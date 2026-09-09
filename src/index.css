@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@400;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -6,35 +6,35 @@
 
 @layer base {
   :root {
-    --background: 210 33% 98%;
-    --foreground: 200 9% 11%;
+    --background: 230 100% 99%;
+    --foreground: 211 63% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 200 9% 11%;
+    --card-foreground: 211 63% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 200 9% 11%;
+    --popover-foreground: 211 63% 12%;
 
-    --primary: 217 100% 11%;
+    --primary: 218 62% 9%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 212 18% 38%;
+    --secondary: 212 100% 37%;
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 210 14% 93%;
-    --muted-foreground: 210 5% 45%;
+    --muted: 220 100% 97%;
+    --muted-foreground: 216 5% 28%;
 
-    --accent: 210 14% 93%;
-    --accent-foreground: 217 100% 11%;
+    --accent: 216 100% 93%;
+    --accent-foreground: 218 62% 9%;
 
     --destructive: 0 75% 42%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 8% 78%;
-    --input: 220 8% 78%;
-    --ring: 212 100% 38%;
+    --border: 230 7% 79%;
+    --input: 230 7% 79%;
+    --ring: 212 100% 37%;
 
-    --radius: 1rem;
+    --radius: 0.5rem;
 
     --sidebar-background: 210 33% 98%;
     --sidebar-foreground: 200 9% 11%;
@@ -56,10 +56,7 @@
 
   body {
     @apply min-h-screen bg-background font-body text-foreground antialiased;
-    background-image:
-      radial-gradient(circle at top left, rgba(173, 198, 255, 0.35), transparent 28%),
-      radial-gradient(circle at bottom right, rgba(210, 228, 251, 0.55), transparent 32%),
-      linear-gradient(180deg, #fbfcfd 0%, #f7f9fb 100%);
+    background: #f8f9ff;
   }
 
   a {
@@ -70,22 +67,19 @@
 @layer components {
   .ledger-shell {
     @apply min-h-screen bg-background text-foreground;
-    background-image:
-      radial-gradient(circle at top left, rgba(173, 198, 255, 0.35), transparent 28%),
-      radial-gradient(circle at bottom right, rgba(210, 228, 251, 0.55), transparent 32%),
-      linear-gradient(180deg, #fbfcfd 0%, #f7f9fb 100%);
+    background: #f8f9ff;
   }
 
   .ledger-topbar {
-    @apply sticky top-0 z-50 border-b border-outline-variant bg-white/80 backdrop-blur-xl;
+    @apply sticky top-0 z-50 border-b border-outline-variant bg-surface/95 backdrop-blur-md;
   }
 
   .ledger-panel {
-    @apply rounded-[2rem] border border-outline-variant bg-surface-container-lowest shadow-ledger;
+    @apply rounded-xl border border-outline-variant bg-surface-container-lowest shadow-sm;
   }
 
   .ledger-subpanel {
-    @apply rounded-[1.5rem] border border-outline-variant bg-surface-container-low p-5;
+    @apply rounded-lg border border-outline-variant bg-surface-container-low p-5;
   }
 
   .ledger-glass {
@@ -94,17 +88,17 @@
   }
 
   .ledger-grid-glow {
-    background-image:
-      radial-gradient(circle at top left, rgba(173, 198, 255, 0.45), transparent 32%),
-      radial-gradient(circle at bottom right, rgba(225, 194, 155, 0.28), transparent 28%);
+    background-image: linear-gradient(rgba(0, 88, 190, 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 88, 190, 0.035) 1px, transparent 1px);
+    background-size: 32px 32px;
   }
 
   .ledger-badge {
-    @apply inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em];
+    @apply inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.05em];
   }
 
   .ledger-eyebrow {
-    @apply text-[11px] font-semibold uppercase tracking-[0.18em] text-on-surface-variant;
+    @apply text-xs font-semibold uppercase tracking-[0.05em] text-on-surface-variant;
   }
 
   .ledger-divider {
@@ -112,14 +106,34 @@
   }
 
   .ledger-button-primary {
-    @apply inline-flex items-center gap-2 rounded-full bg-gradient-to-br from-primary to-primary-container px-5 py-3 text-sm font-semibold text-white shadow-ledger transition-all hover:brightness-110 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-secondary px-5 py-3 text-sm font-semibold text-on-secondary shadow-sm transition-all hover:bg-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50;
   }
 
   .ledger-button-secondary {
-    @apply inline-flex items-center gap-2 rounded-full border border-outline-variant bg-surface-container-high px-5 py-3 text-sm font-semibold text-on-surface transition-all hover:bg-surface-container-highest active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-outline-variant bg-surface-container-lowest px-5 py-3 text-sm font-semibold text-on-surface transition-all hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50;
   }
 
   .ledger-input {
-    @apply rounded-xl border border-outline-variant bg-surface-container-low px-4 py-3 text-sm text-on-surface placeholder:text-on-surface-variant focus:border-surface-tint focus:outline-none focus:ring-2 focus:ring-surface-tint;
+    @apply rounded-lg border border-outline-variant bg-surface-container-lowest px-4 py-3 text-sm text-on-surface placeholder:text-on-surface-variant focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20;
+  }
+
+  .civic-container {
+    @apply mx-auto w-full max-w-[1200px] px-4 sm:px-6 lg:px-10;
+  }
+
+  .civic-card {
+    @apply rounded-xl border border-outline-variant bg-surface-container-lowest shadow-sm;
+  }
+
+  .civic-section-title {
+    @apply font-headline text-2xl font-bold tracking-[-0.02em] text-primary sm:text-3xl;
+  }
+
+  .civic-mono {
+    @apply font-mono text-[13px] font-medium tracking-[0.02em];
+  }
+
+  .civic-label {
+    @apply text-xs font-semibold uppercase tracking-[0.05em] text-on-surface-variant;
   }
 }

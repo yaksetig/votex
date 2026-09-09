@@ -39,7 +39,10 @@ if [ ! -f "$PTAU_FILE" ]; then
     echo ""
     echo "[3/7] Downloading Powers of Tau ceremony file..."
     echo "      This may take a few minutes..."
-    wget -q --show-progress https://hermez.s3-eu-west-1.amazonaws.com/powersOfTau28_hez_final_16.ptau -O $PTAU_FILE
+    curl -fL \
+      https://storage.googleapis.com/zkevm/ptau/powersOfTau28_hez_final_16.ptau \
+      -o "$PTAU_FILE"
+    snarkjs powersoftau verify "$PTAU_FILE"
 else
     echo ""
     echo "[3/7] Powers of Tau file already exists ✓"
@@ -68,6 +71,9 @@ mkdir -p ../public/circuits
 cp build/nullification_xor_js/nullification_xor.wasm ../public/circuits/
 cp nullification_xor_final.zkey ../public/circuits/
 cp verification_key_xor.json ../public/circuits/
+node ../scripts/generate-verification-key-module.mjs \
+  verification_key_xor.json \
+  ../supabase/functions/_shared/verificationKeyXor.ts
 
 # Cleanup intermediate file
 rm -f nullification_xor_0000.zkey

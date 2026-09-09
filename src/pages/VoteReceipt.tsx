@@ -78,31 +78,31 @@ export default function VoteReceiptPage() {
   }, [receiptId]);
 
   return (
-    <div className="px-4 py-10 sm:px-6">
+    <div className="civic-container py-10 pb-28 md:pb-12">
       <section className="mx-auto max-w-4xl">
         <Link to="/elections" className="inline-flex items-center gap-2 text-sm font-semibold text-on-surface-variant hover:text-primary">
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           Back to elections
         </Link>
-        <section className="ledger-panel mt-6 p-6 sm:p-10">
-          <p className="ledger-eyebrow">Public audit ledger</p>
-          <h1 className="mt-3 font-headline text-3xl font-extrabold text-primary">Verify ballot receipt</h1>
+        <section className="mt-6 border-b border-outline-variant pb-6">
+          <p className="civic-label text-secondary">Public audit ledger</p>
+          <h1 className="mt-3 font-headline text-3xl font-bold tracking-[-0.03em] text-primary">Verify ballot receipt</h1>
           <p className="mt-3 text-sm leading-relaxed text-on-surface-variant">
             This page confirms that a pseudonymous ballot is present in the public Votex ledger. It does not reveal or prove the voter’s real-world identity.
           </p>
-          {loading && (
-            <div className="mt-8 flex items-center gap-3 text-on-surface-variant" role="status">
-              <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
-              Checking the ledger…
-            </div>
-          )}
-          {!loading && notFound && (
-            <div className="mt-8 rounded-[1.25rem] bg-error-container/60 p-5 text-on-error-container" role="alert">
-              No public ballot matches this receipt ID.
-            </div>
-          )}
-          {receipt && <VoteReceiptCard receipt={receipt} />}
         </section>
+        {loading && (
+          <div className="mt-8 flex items-center gap-3 rounded-xl border border-outline-variant bg-surface-container-lowest p-6 text-on-surface-variant" role="status">
+            <Loader2 className="h-5 w-5 animate-spin text-secondary" aria-hidden="true" />
+            Checking the ledger…
+          </div>
+        )}
+        {!loading && notFound && (
+          <div className="mt-8 rounded-xl border border-error/30 bg-error-container p-5 text-on-error-container" role="alert">
+            No public ballot matches this receipt ID.
+          </div>
+        )}
+        {receipt && <VoteReceiptCard receipt={receipt} />}
       </section>
     </div>
   );

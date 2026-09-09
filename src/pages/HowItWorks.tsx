@@ -10,26 +10,25 @@ import {
 
 const HowItWorks = () => {
   return (
-    <div className="px-4 pb-24 pt-10 sm:px-6 md:pb-10">
-      <div className="mx-auto max-w-6xl space-y-10">
-        <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="ledger-panel relative overflow-hidden p-8 md:p-12">
-            <div className="absolute -right-16 -top-16 h-64 w-64 rounded-full bg-primary-fixed-dim/60 blur-[100px]" />
-            <div className="relative z-10 max-w-3xl">
+    <div className="civic-container pb-28 pt-10 md:pb-12">
+      <div className="space-y-10">
+        <section className="grid gap-6 border-b border-outline-variant pb-10 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="py-4 md:py-8">
+            <div className="max-w-3xl">
               <span className="ledger-badge bg-secondary-container text-on-secondary-container">
                 <ShieldCheck className="h-4 w-4" />
                 How it works
               </span>
-              <h1 className="mt-5 font-headline text-5xl font-extrabold text-primary">
+              <h1 className="mt-5 font-headline text-3xl font-bold tracking-[-0.03em] text-primary sm:text-4xl">
                 How Votex Works
               </h1>
               <p className="mt-5 text-lg leading-relaxed text-on-surface-variant">
-                A coercion-resistant voting system that combines World ID uniqueness checks, passkey-derived cryptographic keys, and privacy-preserving nullification.
+                A public voting system combining World ID uniqueness checks, passkey-derived signing keys, delegation, and a coercion-mitigation nullification workflow.
               </p>
             </div>
           </div>
 
-          <aside className="rounded-[1.5rem] bg-primary-container p-6 text-on-primary shadow-ledger-lg sm:rounded-[2rem] sm:p-8">
+          <aside className="rounded-xl bg-primary p-6 text-on-primary sm:p-8">
             <ShieldCheck className="h-10 w-10 text-primary-fixed-dim" />
             <h2 className="mt-5 font-headline text-2xl font-bold text-white">
               Cryptographic Integrity
@@ -67,8 +66,8 @@ const HowItWorks = () => {
                 "If a voter is pressured or threatened, they can later nullify their ballot using a zero-knowledge workflow that looks identical to a harmless decoy request.",
             },
           ].map(({ icon: Icon, title, description }) => (
-            <article key={title} className="ledger-panel p-7">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-on-primary">
+            <article key={title} className="civic-card p-7">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-on-primary">
                 <Icon className="h-6 w-6" />
               </div>
               <h2 className="mt-6 font-headline text-2xl font-bold text-primary">{title}</h2>
@@ -78,7 +77,7 @@ const HowItWorks = () => {
         </section>
 
         <section>
-          <div className="ledger-panel p-8">
+          <div className="civic-card p-6 sm:p-8">
             <h2 className="font-headline text-3xl font-bold text-primary">Security guarantees</h2>
             <div className="mt-8 grid gap-4 md:grid-cols-2">
               {[
@@ -103,7 +102,7 @@ const HowItWorks = () => {
                   description: "World ID prevents duplicate participation without placing the voter’s real-world identity in the Votex ledger.",
                 },
               ].map(({ icon: Icon, title, description }) => (
-                <div key={title} className="rounded-[1.5rem] border border-outline-variant/12 bg-surface-container-low p-5">
+                <div key={title} className="rounded-xl border border-outline-variant/12 bg-surface-container-low p-5">
                   <Icon className="h-5 w-5 text-surface-tint" />
                   <h3 className="mt-4 font-headline text-xl font-bold text-primary">{title}</h3>
                   <p className="mt-2 text-sm leading-relaxed text-on-surface-variant">{description}</p>

@@ -8,6 +8,7 @@ import { WalletProvider } from "@/contexts/WalletContext"
 import ProtectedRoute from "@/components/ProtectedRoute"
 import NavBar from "@/components/NavBar"
 import ConnectivityBanner from "@/components/ConnectivityBanner"
+import AppFooter from "@/components/AppFooter"
 
 const Index = lazy(() => import("@/pages/Index"))
 const Dashboard = lazy(() => import("@/pages/Dashboard"))
@@ -33,7 +34,7 @@ function getLocalhostUrl() {
 
 const RouteLoading = () => (
   <div className="flex min-h-[calc(100vh-72px)] items-center justify-center px-4 py-10">
-    <div className="rounded-[2rem] border border-outline-variant/15 bg-surface-container-lowest px-8 py-10 text-center shadow-ledger">
+    <div className="rounded-xl border border-outline-variant/15 bg-surface-container-lowest px-8 py-10 text-center shadow-ledger">
       <p className="ledger-eyebrow">Votex</p>
       <h1 className="mt-3 font-headline text-3xl font-bold text-primary">
         Loading interface
@@ -62,7 +63,7 @@ const App: React.FC = () => {
           <Sonner />
           {redirectUrl ? (
             <div className="flex min-h-screen items-center justify-center px-4 py-10">
-              <div className="max-w-lg rounded-[2rem] border border-outline-variant/15 bg-surface-container-lowest px-8 py-10 text-center shadow-ledger">
+              <div className="max-w-lg rounded-xl border border-outline-variant/15 bg-surface-container-lowest px-8 py-10 text-center shadow-ledger">
                 <p className="ledger-eyebrow">Votex</p>
                 <h1 className="mt-3 font-headline text-3xl font-bold text-primary">
                   Redirecting to localhost
@@ -80,12 +81,7 @@ const App: React.FC = () => {
               </div>
             </div>
           ) : (
-            <BrowserRouter
-              future={{
-                v7_relativeSplatPath: true,
-                v7_startTransition: true,
-              }}
-            >
+            <BrowserRouter>
               <div className="ledger-shell flex min-h-screen flex-col">
                 <NavBar />
                 <ConnectivityBanner />
@@ -108,6 +104,7 @@ const App: React.FC = () => {
                     </Routes>
                   </Suspense>
                 </main>
+                <AppFooter />
               </div>
             </BrowserRouter>
           )}

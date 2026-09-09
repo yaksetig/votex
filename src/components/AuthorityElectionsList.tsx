@@ -80,7 +80,7 @@ const AuthorityElectionsList: React.FC<AuthorityElectionsListProps> = ({
   if (error) {
     return (
       <div className="ledger-panel p-8">
-        <div className="flex items-start gap-4 rounded-[1.5rem] bg-error-container/60 p-5 text-on-error-container">
+        <div className="flex items-start gap-4 rounded-xl bg-error-container/60 p-5 text-on-error-container">
           <AlertTriangle className="mt-1 h-5 w-5 shrink-0 text-error" />
           <div>
             <h2 className="font-headline text-xl font-bold text-primary">Election data unavailable</h2>
@@ -93,10 +93,10 @@ const AuthorityElectionsList: React.FC<AuthorityElectionsListProps> = ({
 
   return (
     <div className="space-y-8">
-      <header className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+      <header className="flex flex-col gap-6 border-b border-outline-variant pb-8 md:flex-row md:items-end md:justify-between">
         <div className="max-w-3xl">
           <p className="ledger-eyebrow">Authority command surface</p>
-          <h1 className="mt-3 font-headline text-4xl font-extrabold text-primary">
+          <h1 className="mt-3 font-headline text-3xl font-bold tracking-[-0.03em] text-primary">
             Election Authority Admin Panel
           </h1>
           <p className="mt-3 text-sm leading-relaxed text-on-surface-variant">
@@ -112,18 +112,18 @@ const AuthorityElectionsList: React.FC<AuthorityElectionsListProps> = ({
           { label: "Pending Tally", value: stats.pendingTally, icon: Clock3, tone: "text-tertiary-container" },
           { label: "Completed", value: stats.completed, icon: BarChart3, tone: "text-secondary" },
         ].map(({ label, value, icon: Icon, tone }) => (
-          <div key={label} className={cn("rounded-[1.75rem] border border-outline-variant/12 bg-surface-container-lowest p-6 shadow-sm", tone.includes("border-b") && "border-b-4")}>
+          <div key={label} className={cn("rounded-xl border border-outline-variant/12 bg-surface-container-lowest p-6 shadow-sm", tone.includes("border-b") && "border-b-4")}>
             <div className="mb-5 flex items-center justify-between">
               <Icon className={cn("h-6 w-6", tone.split(" ")[0])} />
             </div>
-            <div className={cn("font-headline text-5xl font-extrabold", tone.split(" ")[0])}>{value}</div>
-            <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant">{label}</p>
+            <div className={cn("font-headline text-4xl font-bold", tone.split(" ")[0])}>{value}</div>
+            <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.05em] text-on-surface-variant">{label}</p>
           </div>
         ))}
       </section>
 
-      <section className="rounded-[2rem] bg-surface-container-low p-1">
-        <div className="overflow-hidden rounded-[1.5rem] border border-outline-variant/10 bg-surface-container-lowest">
+      <section className="rounded-xl bg-surface-container-low p-1">
+        <div className="overflow-hidden rounded-xl border border-outline-variant/10 bg-surface-container-lowest">
           <div className="flex flex-col gap-4 border-b border-outline-variant/10 p-6 md:flex-row md:items-center md:justify-between">
             <div>
               <h2 className="font-headline text-2xl font-bold text-primary">Live Election Ledger</h2>
@@ -143,7 +143,7 @@ const AuthorityElectionsList: React.FC<AuthorityElectionsListProps> = ({
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full text-left">
-                <thead className="border-b border-outline-variant/8 bg-surface-container-lowest text-[11px] font-bold uppercase tracking-[0.18em] text-outline">
+                <thead className="border-b border-outline-variant/8 bg-surface-container-lowest text-[11px] font-bold uppercase tracking-[0.05em] text-outline">
                   <tr>
                     <th className="px-8 py-4">Election Title</th>
                     <th className="px-6 py-4 text-center">Status</th>
@@ -164,7 +164,7 @@ const AuthorityElectionsList: React.FC<AuthorityElectionsListProps> = ({
                         </div>
                       </td>
                       <td className="px-6 py-6 text-center">
-                        <span className={cn("inline-flex rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em]", getStatusPill(election))}>
+                        <span className={cn("inline-flex rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.05em]", getStatusPill(election))}>
                           {election.status === "closed_manually"
                             ? "Manually Closed"
                             : election.status === "active"

@@ -33,7 +33,7 @@ interface TallyStats {
 }
 
 const TabPaneLoading = () => (
-  <div className="rounded-[1.5rem] border border-outline-variant/15 bg-surface-container-low p-6 text-sm text-on-surface-variant">
+  <div className="rounded-xl border border-outline-variant/15 bg-surface-container-low p-6 text-sm text-on-surface-variant">
     Loading panel...
   </div>
 );
@@ -175,7 +175,7 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
   if (error || !election) {
     return (
       <div className="ledger-panel p-8">
-        <div className="flex items-start gap-4 rounded-[1.5rem] bg-error-container/60 p-5 text-on-error-container">
+        <div className="flex items-start gap-4 rounded-xl bg-error-container/60 p-5 text-on-error-container">
           <AlertTriangle className="mt-1 h-5 w-5 shrink-0 text-error" />
           <div>
             <h2 className="font-headline text-xl font-bold text-primary">Election unavailable</h2>
@@ -191,7 +191,7 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
 
   return (
     <div className="space-y-8">
-      <header className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+      <header className="flex flex-col gap-6 border-b border-outline-variant pb-8 md:flex-row md:items-end md:justify-between">
         <div>
           <button
             type="button"
@@ -212,7 +212,7 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
             </span>
           </div>
 
-          <h1 className="mt-4 font-headline text-4xl font-extrabold text-primary">
+          <h1 className="mt-4 font-headline text-3xl font-bold tracking-[-0.03em] text-primary">
             {election.title}
           </h1>
           <p className="mt-3 max-w-3xl text-sm leading-relaxed text-on-surface-variant">
@@ -229,49 +229,49 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
       </header>
 
       <section className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-[1.75rem] border border-outline-variant/12 bg-surface-container-lowest p-6 shadow-sm">
+        <div className="rounded-xl border border-outline-variant/12 bg-surface-container-lowest p-6 shadow-sm">
           <Vote className="h-6 w-6 text-primary" />
-          <div className="mt-5 font-headline text-5xl font-extrabold text-primary">2</div>
-          <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant">Voting options</p>
+          <div className="mt-5 font-headline text-4xl font-bold text-primary">2</div>
+          <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.05em] text-on-surface-variant">Voting options</p>
         </div>
-        <div className="rounded-[1.75rem] border border-outline-variant/12 bg-surface-container-lowest p-6 shadow-sm">
+        <div className="rounded-xl border border-outline-variant/12 bg-surface-container-lowest p-6 shadow-sm">
           <CheckCircle2 className="h-6 w-6 text-surface-tint" />
-          <div className="mt-5 font-headline text-5xl font-extrabold text-surface-tint">
+          <div className="mt-5 font-headline text-4xl font-bold text-secondary">
             {tallyStats?.totalVoters ?? 0}
           </div>
-          <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant">Tallied voters</p>
+          <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.05em] text-on-surface-variant">Tallied voters</p>
         </div>
-        <div className="rounded-[1.75rem] border border-outline-variant/12 bg-surface-container-lowest p-6 shadow-sm">
+        <div className="rounded-xl border border-outline-variant/12 bg-surface-container-lowest p-6 shadow-sm">
           <TrendingUp className="h-6 w-6 text-tertiary-container" />
-          <div className="mt-5 font-headline text-5xl font-extrabold text-tertiary-container">
+          <div className="mt-5 font-headline text-4xl font-bold text-tertiary-container">
             {tallyStats?.nullifiedVotes ?? 0}
           </div>
-          <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant">Nullified ballots</p>
+          <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.05em] text-on-surface-variant">Nullified ballots</p>
         </div>
-        <div className="rounded-[1.75rem] border border-outline-variant/12 bg-surface-container-lowest p-6 shadow-sm">
+        <div className="rounded-xl border border-outline-variant/12 bg-surface-container-lowest p-6 shadow-sm">
           <ShieldCheck className="h-6 w-6 text-secondary" />
-          <div className="mt-5 font-headline text-5xl font-extrabold text-secondary">
+          <div className="mt-5 font-headline text-4xl font-bold text-secondary">
             {tallyProcessed ? "Done" : isElectionEnded ? "Ready" : "Live"}
           </div>
-          <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant">Tally state</p>
+          <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.05em] text-on-surface-variant">Tally state</p>
         </div>
       </section>
 
-      <section className="rounded-[2rem] bg-surface-container-low p-2">
+      <section className="rounded-xl bg-surface-container-low p-2">
         <Tabs defaultValue="overview" className="w-full">
           <TabsList className="h-auto w-full flex-wrap justify-start gap-2 bg-transparent p-2">
-            <TabsTrigger value="overview" className="rounded-full px-5 py-3 data-[state=active]:bg-surface-container-lowest data-[state=active]:shadow-sm">
+            <TabsTrigger value="overview" className="px-5 py-3">
               Overview & Results
             </TabsTrigger>
-            <TabsTrigger value="edit" className="rounded-full px-5 py-3 data-[state=active]:bg-surface-container-lowest data-[state=active]:shadow-sm">
+            <TabsTrigger value="edit" className="px-5 py-3">
               Edit Election
             </TabsTrigger>
-            <TabsTrigger value="tally" className="rounded-full px-5 py-3 data-[state=active]:bg-surface-container-lowest data-[state=active]:shadow-sm">
+            <TabsTrigger value="tally" className="px-5 py-3">
               Process Tally
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="rounded-[1.5rem] bg-surface-container-lowest p-6 shadow-sm">
+          <TabsContent value="overview" className="rounded-xl bg-surface-container-lowest p-6 shadow-sm">
             <Suspense fallback={<TabPaneLoading />}>
               <TallyResultsDisplay
                 key={refreshKey}
@@ -283,14 +283,14 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
             </Suspense>
           </TabsContent>
 
-          <TabsContent value="edit" className="space-y-6 rounded-[1.5rem] bg-surface-container-lowest p-6 shadow-sm">
+          <TabsContent value="edit" className="space-y-6 rounded-xl bg-surface-container-lowest p-6 shadow-sm">
             {!canEdit && (
-              <div className="rounded-[1.25rem] border border-outline-variant/15 bg-surface-container-low p-4 text-sm text-on-surface-variant">
+              <div className="rounded-lg border border-outline-variant/15 bg-surface-container-low p-4 text-sm text-on-surface-variant">
                 Editing is disabled because this election has already been closed.
               </div>
             )}
             {canEdit && !safeToEdit && (
-              <div className="rounded-[1.25rem] border border-error/20 bg-error-container/60 p-4 text-sm text-on-error-container">
+              <div className="rounded-lg border border-error/20 bg-error-container/60 p-4 text-sm text-on-error-container">
                 Editing is disabled because this election already has votes. It may only be closed early.
               </div>
             )}
@@ -301,9 +301,9 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
             )}
           </TabsContent>
 
-          <TabsContent value="tally" className="space-y-6 rounded-[1.5rem] bg-surface-container-lowest p-6 shadow-sm">
+          <TabsContent value="tally" className="space-y-6 rounded-xl bg-surface-container-lowest p-6 shadow-sm">
             {tallyProcessed && tallyStats ? (
-              <div className="rounded-[1.5rem] border border-primary/15 bg-primary-fixed/30 p-6">
+              <div className="rounded-xl border border-primary/15 bg-primary-fixed/30 p-6">
                 <h3 className="font-headline text-2xl font-bold text-primary">Tally already processed</h3>
                 <p className="mt-3 text-sm leading-relaxed text-on-surface-variant">
                   Completed on {new Date(tallyStats.processedAt).toLocaleString()}
@@ -319,7 +319,7 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
                 />
               </Suspense>
             ) : (
-              <div className="rounded-[1.5rem] border border-outline-variant/15 bg-surface-container-low p-6">
+              <div className="rounded-xl border border-outline-variant/15 bg-surface-container-low p-6">
                 <h3 className="font-headline text-2xl font-bold text-primary">Tally processing locked</h3>
                 <p className="mt-3 text-sm leading-relaxed text-on-surface-variant">
                   This election is still active. Close it or wait for expiration before decrypting the final nullification accumulators.

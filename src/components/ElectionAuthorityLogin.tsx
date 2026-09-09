@@ -137,124 +137,69 @@ const ElectionAuthorityLogin: React.FC<ElectionAuthorityLoginProps> = ({ onLogin
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10 sm:px-6">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(173,198,255,0.45),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(225,194,155,0.35),transparent_28%),linear-gradient(180deg,#fbfcfd_0%,#f7f9fb_100%)]" />
-
-      <div className="relative z-10 grid w-full max-w-6xl gap-8 lg:grid-cols-[420px_minmax(0,1fr)]">
-        <aside className="rounded-[2.25rem] bg-primary-container p-8 text-on-primary shadow-ledger-lg">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10 text-primary-fixed-dim">
-            <ShieldCheck className="h-7 w-7" />
+      <div className="ledger-grid-glow absolute inset-0 opacity-50" />
+      <div className="relative z-10 w-full max-w-[480px]">
+        <header className="mb-8 text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-lg bg-primary text-on-primary shadow-sm">
+            <ShieldCheck className="h-8 w-8" aria-hidden="true" />
           </div>
-          <p className="mt-8 ledger-eyebrow text-on-primary-container">Election authority portal</p>
-          <h1 className="mt-3 font-headline text-4xl font-extrabold text-white">
-            Secure oversight for the Votex vote ledger.
-          </h1>
-          <p className="mt-4 text-sm leading-relaxed text-white/74">
-            Authenticate with your authority account, then prove possession of the authority secret that derives the BabyJubJub key governing election updates, tally processing, and audit control.
-          </p>
+          <h1 className="mt-4 font-headline text-3xl font-bold tracking-[-0.03em] text-primary">Votex</h1>
+          <p className="mt-2 text-xs font-semibold uppercase tracking-[0.08em] text-secondary">Election Authority Entrance</p>
+        </header>
 
-          <div className="mt-10 rounded-[1.5rem] bg-white/10 p-5">
-            <p className="ledger-eyebrow text-on-primary-container">Session model</p>
-            <ul className="mt-4 space-y-3 text-sm text-white/78">
-              <li>JWT-backed authority sessions</li>
-              <li>Server-verified key ownership proofs</li>
-              <li>Audit-linked management actions</li>
-            </ul>
-          </div>
-        </aside>
-
-        <section className="rounded-[2.25rem] border border-outline-variant/12 bg-surface-container-lowest p-8 shadow-ledger sm:p-10">
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-on-primary">
-              <Lock className="h-5 w-5" />
+        <section className="civic-card p-6 sm:p-8">
+          <div className="flex items-center gap-3 border-b border-outline-variant pb-5">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-container text-secondary">
+              <Lock className="h-5 w-5" aria-hidden="true" />
             </div>
             <div>
-              <p className="ledger-eyebrow">Authority authentication</p>
-              <h2 className="mt-1 font-headline text-3xl font-extrabold text-primary">
-                {requiresAuthorityLink
-                  ? "Link authority identity"
-                  : isSignUp
-                    ? "Register authority account"
-                    : "Sign in to continue"}
+              <p className="civic-label">Operator only</p>
+              <h2 className="mt-1 font-headline text-xl font-semibold text-primary">
+                {requiresAuthorityLink ? "Link authority identity" : isSignUp ? "Link fixed authority" : "Sign in to continue"}
               </h2>
             </div>
           </div>
 
-          <p className="mt-4 max-w-2xl text-sm leading-relaxed text-on-surface-variant">
+          <p className="mt-5 text-sm leading-6 text-on-surface-variant">
             {requiresAuthorityLink
-                ? "This Supabase Auth account is valid, but still needs to be bound to an authority key before it can manage elections."
-                : isSignUp
-                ? "Create an authority account and bind it to the BabyJubJub key that controls your election records."
-                : "Use your authority email and password to access the election administration surface."}
+              ? "This operator account is valid but must still prove ownership of the configured authority key."
+              : isSignUp
+                ? "Create the one operator account and prove ownership of the configured fixed authority key."
+                : "This gateway is for the configured Election Authority operator, not voter accounts."}
           </p>
 
-          <form onSubmit={handleSubmit} className="mt-10 space-y-6">
-            <div className="grid gap-6 md:grid-cols-2">
-              <div>
-                <Label htmlFor="email" className="ledger-eyebrow">
-                  Email
-                </Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  disabled={isSubmitting}
-                  className="mt-3"
-                  placeholder="authority@example.com"
-                />
+          <form onSubmit={handleSubmit} className="mt-6 space-y-5">
+            <div>
+              <Label htmlFor="email" className="civic-label">Email</Label>
+              <div className="relative mt-2">
+                <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-outline" aria-hidden="true" />
+                <Input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} disabled={isSubmitting} className="pl-10" placeholder="authority@example.com" />
               </div>
+            </div>
 
-              <div>
-                <Label htmlFor="password" className="ledger-eyebrow">
-                  Password
-                </Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  disabled={isSubmitting}
-                  className="mt-3"
-                  placeholder="Enter your password"
-                />
+            <div>
+              <Label htmlFor="password" className="civic-label">Password</Label>
+              <div className="relative mt-2">
+                <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-outline" aria-hidden="true" />
+                <Input id="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} disabled={isSubmitting} className="pl-10" placeholder="Enter your password" />
               </div>
             </div>
 
             {(isSignUp || requiresAuthorityLink) && (
-              <div className="grid gap-6 md:grid-cols-2">
+              <div className="space-y-5 rounded-lg border border-outline-variant bg-surface-container-low p-4">
                 <div>
-                  <Label htmlFor="authorityName" className="ledger-eyebrow">
-                    Authority name
-                  </Label>
-                  <Input
-                    id="authorityName"
-                    value={authorityName}
-                    onChange={(event) => setAuthorityName(event.target.value)}
-                    disabled={isSubmitting}
-                    className="mt-3"
-                  placeholder="Votex Election Authority"
-                  />
+                  <Label htmlFor="authorityName" className="civic-label">Authority name</Label>
+                  <Input id="authorityName" value={authorityName} onChange={(event) => setAuthorityName(event.target.value)} disabled={isSubmitting} className="mt-2" placeholder="Votex Election Authority" />
                 </div>
-
                 <div>
-                  <Label htmlFor="authoritySecret" className="ledger-eyebrow">
-                    Authority secret
-                  </Label>
-                  <Input
-                    id="authoritySecret"
-                    type="password"
-                    value={authoritySecret}
-                    onChange={(event) => setAuthoritySecret(event.target.value)}
-                    disabled={isSubmitting}
-                    className="mt-3"
-                    placeholder="Used to derive and prove ownership of the authority key"
-                  />
+                  <Label htmlFor="authoritySecret" className="civic-label">Authority secret</Label>
+                  <Input id="authoritySecret" type="password" value={authoritySecret} onChange={(event) => setAuthoritySecret(event.target.value)} disabled={isSubmitting} className="mt-2 font-mono" placeholder="votex-auth-v1_… recovery key" />
                 </div>
               </div>
             )}
 
             {error && (
-              <div className="rounded-[1.25rem] border border-error/20 bg-error-container/60 p-4 text-sm text-on-error-container">
+              <div className="rounded-lg border border-error/20 bg-error-container/60 p-4 text-sm text-on-error-container">
                 <div className="flex items-start gap-3">
                   <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-error" />
                   <span>{error}</span>
@@ -262,7 +207,12 @@ const ElectionAuthorityLogin: React.FC<ElectionAuthorityLoginProps> = ({ onLogin
               </div>
             )}
 
-            <div className="flex flex-wrap items-center justify-between gap-4 border-t border-outline-variant/15 pt-6">
+            <button type="submit" disabled={isSubmitting || checkingAuthority} className="ledger-button-primary w-full">
+              {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+              {requiresAuthorityLink ? "Link Authority" : isSignUp ? "Register & Link" : "Secure Sign In"}
+            </button>
+
+            <div className="flex flex-wrap items-center justify-between gap-4 border-t border-outline-variant pt-5">
               {bootstrapAvailable || isSignUp || requiresAuthorityLink ? (
                 <button
                   type="button"
@@ -271,7 +221,7 @@ const ElectionAuthorityLogin: React.FC<ElectionAuthorityLoginProps> = ({ onLogin
                     setRequiresAuthorityLink(false);
                     setError(null);
                   }}
-                  className="text-sm font-semibold text-surface-tint transition-colors hover:text-primary"
+                  className="text-sm font-semibold text-secondary transition-colors hover:text-primary"
                 >
                   {isSignUp || requiresAuthorityLink
                     ? "Already have an account? Sign in"
@@ -279,26 +229,20 @@ const ElectionAuthorityLogin: React.FC<ElectionAuthorityLoginProps> = ({ onLogin
                 </button>
               ) : <span />}
 
-              <button type="submit" disabled={isSubmitting || checkingAuthority} className="ledger-button-primary">
-                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
-                {requiresAuthorityLink
-                  ? "Link Authority"
-                  : isSignUp
-                    ? "Register & Link"
-                    : "Secure Sign In"}
-              </button>
+              <a href="mailto:support@votex.world" className="text-sm text-on-surface-variant hover:text-secondary">Support</a>
             </div>
 
-            <div className="rounded-[1.25rem] bg-surface-container-low p-4 text-sm leading-relaxed text-on-surface-variant">
+            <div className="rounded-lg bg-surface-container-low p-4 text-sm leading-relaxed text-on-surface-variant">
               <div className="flex items-start gap-3">
-                <KeyRound className="mt-0.5 h-4 w-4 text-surface-tint" />
+                <KeyRound className="mt-0.5 h-4 w-4 text-secondary" />
                 <span>
-                  Authority secrets are used only to derive the BabyJubJub key and sign a one-time ownership proof. They are never stored by the browser or server.
+                  Use only the generated 256-bit recovery key. It derives the BabyJubJub key locally and is never stored by the browser or server.
                 </span>
               </div>
             </div>
           </form>
         </section>
+        <p className="mt-6 text-center font-mono text-xs text-on-surface-variant">Operator actions are authenticated and recorded in the authority audit log.</p>
       </div>
     </div>
   );

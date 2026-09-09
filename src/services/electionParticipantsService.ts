@@ -66,42 +66,55 @@ export async function registerElectionParticipant(
   }
 }
 
-// Get all participants for an election (needed for nullification)
+async function fetchElectionParticipants(
+  electionId: string
+): Promise<ElectionParticipant[]> {
+  logger.debug("Fetching election participants");
+  const participants: ElectionParticipant[] = [];
+  const pageSize = 1000;
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await supabase
+      .from("public_participants")
+      .select("*")
+      .eq("election_id", electionId)
+      .order("joined_at", { ascending: true })
+      .range(offset, offset + pageSize - 1);
+    if (error) throw error;
+    participants.push(...(data || []).flatMap((participant) =>
+      participant.id && participant.election_id && participant.voter_pseudonym &&
+      participant.public_key_x && participant.public_key_y && participant.joined_at
+        ? [{
+            id: participant.id,
+            election_id: participant.election_id,
+            participant_id: participant.voter_pseudonym,
+            public_key_x: participant.public_key_x,
+            public_key_y: participant.public_key_y,
+            joined_at: participant.joined_at,
+          }]
+        : []
+    ));
+    if (!data || data.length < pageSize) break;
+  }
+
+  logger.debug(`Fetched ${participants.length} election participants`);
+  return participants;
+}
+
+// Ordinary UI reads preserve the existing empty-state behavior on failure.
 export async function getElectionParticipants(electionId: string): Promise<ElectionParticipant[]> {
   try {
-    logger.debug("Fetching election participants");
-    const participants: ElectionParticipant[] = [];
-    const pageSize = 1000;
-    for (let offset = 0; ; offset += pageSize) {
-      const { data, error } = await supabase
-        .from("public_participants")
-        .select("*")
-        .eq("election_id", electionId)
-        .order("joined_at", { ascending: true })
-        .range(offset, offset + pageSize - 1);
-      if (error) throw error;
-      participants.push(...(data || []).flatMap((participant) =>
-        participant.id && participant.election_id && participant.voter_pseudonym &&
-        participant.public_key_x && participant.public_key_y && participant.joined_at
-          ? [{
-              id: participant.id,
-              election_id: participant.election_id,
-              participant_id: participant.voter_pseudonym,
-              public_key_x: participant.public_key_x,
-              public_key_y: participant.public_key_y,
-              joined_at: participant.joined_at,
-            }]
-          : []
-      ));
-      if (!data || data.length < pageSize) break;
-    }
-
-    logger.debug(`Fetched ${participants.length} election participants`);
-    return participants;
+    return await fetchElectionParticipants(electionId);
   } catch (error) {
     logger.error("Error fetching election participants", error);
     return [];
   }
+}
+
+// Tallying must distinguish an empty election from a failed read.
+export async function getElectionParticipantsForTally(
+  electionId: string
+): Promise<ElectionParticipant[]> {
+  return fetchElectionParticipants(electionId);
 }
 
 // Check if a user is already a participant in an election

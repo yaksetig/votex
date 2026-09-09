@@ -97,7 +97,7 @@ export async function generateKAnonymousNullifications(
   onProgress?.({
     step: "preparing",
     completed: 0,
-    total: k,
+    total: 0,
     message: "Fetching election participants...",
   });
 

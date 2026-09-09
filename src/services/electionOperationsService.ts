@@ -1,5 +1,4 @@
 import { supabase } from "@/integrations/supabase/client";
-import { logElectionAuthorityAction } from "@/services/electionAuditService";
 import { logger } from "@/services/logger";
 
 export async function closeElectionEarly(electionId: string): Promise<boolean> {
@@ -24,22 +23,17 @@ export async function updateElectionDetails(
     option2?: string;
     end_date?: string;
   },
-  performedBy: string = "Election Authority"
+  _performedBy: string = "Election Authority"
 ): Promise<boolean> {
-  const { error } = await supabase
-    .from("elections")
-    .update({ ...updates, last_modified_by: performedBy })
-    .eq("id", electionId);
+  const { data, error } = await supabase.rpc("update_election_details_atomic", {
+    p_election_id: electionId,
+    p_updates: updates,
+  });
 
-  if (error) {
+  if (error || data !== true) {
     logger.error("Election update failed", error);
     return false;
   }
-
-  await logElectionAuthorityAction(electionId, "UPDATE_ELECTION", performedBy, {
-    updated_fields: Object.keys(updates),
-    updated_at: new Date().toISOString(),
-  });
   return true;
 }
 

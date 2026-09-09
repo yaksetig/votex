@@ -697,6 +697,17 @@ export type Database = {
         }
         Relationships: []
       }
+      public_election_activity: {
+        Row: {
+          action: string | null
+          election_id: string | null
+          id: string | null
+          occurred_at: string | null
+          pseudonym: string | null
+          record: string | null
+        }
+        Relationships: []
+      }
       public_elections: {
         Row: {
           authority_id: string | null
@@ -830,6 +841,10 @@ export type Database = {
         Args: { authority_id_param: string }
         Returns: boolean
       }
+      record_authority_authentication: {
+        Args: { p_details?: Json }
+        Returns: boolean
+      }
       submit_nullification_batch: {
         Args: { p_election_id: string; p_items: Json; p_submitter_id: string }
         Returns: Json
@@ -842,6 +857,10 @@ export type Database = {
           p_results: Json
         }
         Returns: string
+      }
+      update_election_details_atomic: {
+        Args: { p_election_id: string; p_updates: Json }
+        Returns: boolean
       }
       write_delegation_atomic: {
         Args: {

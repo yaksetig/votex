@@ -35,8 +35,9 @@ include "node_modules/circomlib/circuits/bitify.circom";
  * Constraints:
  *   1. x is binary
  *   2. If x=1: pk_voter = sk_voter * G (ownership proof)
- *   3. ciphertext = Enc(x; r) under pk_authority
- *   4. gate_output is correctly computed from accumulator with x' and s
+ *   3. r and s are canonical nonzero prime-subgroup scalars
+ *   4. ciphertext = Enc(x; r) under pk_authority
+ *   5. gate_output is correctly computed from accumulator with x' and s
  *
  * The new accumulator = ciphertext - gate_output is verified publicly.
  *
@@ -91,6 +92,18 @@ template NullificationXOR() {
     // ================================================
     component r_bits = Num2Bits_strict();
     r_bits.in <== r;
+
+    // Encryption randomness must be a canonical nonzero scalar in (0, q).
+    component r_is_zero = IsZero();
+    r_is_zero.in <== r;
+    r_is_zero.out === 0;
+    component r_exceeds_subgroup_order = CompConstant(
+        2736030358979909402780800718157159386076813972158567259200215660948447373040
+    );
+    for (var i = 0; i < 254; i++) {
+        r_exceeds_subgroup_order.in[i] <== r_bits.out[i];
+    }
+    r_exceeds_subgroup_order.out === 0;
 
     // c1 = r * G (fixed-base)
     component c1_compute = EscalarMulFix(254, [
@@ -154,6 +167,18 @@ template NullificationXOR() {
     // s * G (fixed-base)
     component s_bits = Num2Bits_strict();
     s_bits.in <== s;
+
+    // Gate rerandomization must use the same canonical nonzero scalar range.
+    component s_is_zero = IsZero();
+    s_is_zero.in <== s;
+    s_is_zero.out === 0;
+    component s_exceeds_subgroup_order = CompConstant(
+        2736030358979909402780800718157159386076813972158567259200215660948447373040
+    );
+    for (var i = 0; i < 254; i++) {
+        s_exceeds_subgroup_order.in[i] <== s_bits.out[i];
+    }
+    s_exceeds_subgroup_order.out === 0;
 
     component s_g = EscalarMulFix(254, [
         5299619240641551281634865583518297030282874472190772894086521144482721001553,

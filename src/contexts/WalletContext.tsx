@@ -3,6 +3,7 @@ import React, { createContext, useState, useEffect, useContext, ReactNode } from
 import { useToast } from "@/hooks/use-toast";
 import { clearStoredCredential } from '@/services/passkeyService';
 import { revokeStoredWorldIdSession, validateStoredWorldIdSession } from '@/services/worldIdSessionService';
+import { clearStoredKeypair } from '@/services/keypairService';
 
 interface WalletContextType {
   isAuthLoading: boolean;
@@ -90,17 +91,24 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   
   // Function to reset identity (for logout)
   const resetIdentity = async () => {
-    await revokeStoredWorldIdSession();
+    const serverRevoked = await revokeStoredWorldIdSession();
     clearStoredCredential(); // Also clear the passkey credential ID
+    clearStoredKeypair();
     setUserId(null);
     setIsWorldIDVerified(false);
     setJustVerified(false);
     setDerivedPublicKey(null);
     
-    toast({
-      title: "Identity reset",
-      description: "Your identity has been cleared.",
-    });
+    toast(serverRevoked
+      ? {
+          title: "Identity reset",
+          description: "Your local identity was cleared and the server session was revoked.",
+        }
+      : {
+          variant: "destructive",
+          title: "Local identity cleared",
+          description: "Server revocation could not be confirmed. Retry from a trusted device before assuming copied sessions are invalid.",
+        });
   };
   
   // Expose context values

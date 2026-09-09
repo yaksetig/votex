@@ -38,6 +38,14 @@ export class EdwardsPoint {
     return left === right;
   }
 
+  isIdentity(): boolean {
+    return this.x === 0n && this.y === 1n;
+  }
+
+  isInPrimeSubgroup(): boolean {
+    return this.isOnCurve() && this.multiply(CURVE_ORDER).isIdentity();
+  }
+
   add(other: EdwardsPoint): EdwardsPoint {
     const x1 = this.x,
       y1 = this.y;
@@ -71,6 +79,10 @@ export class EdwardsPoint {
   }
 
   multiply(scalar: bigint): EdwardsPoint {
+    if (scalar < 0n) {
+      throw new Error("Point multiplication scalar cannot be negative");
+    }
+
     let result = EdwardsPoint.identity();
     let addend = new EdwardsPoint(this.x, this.y);
     let k = scalar;
@@ -97,6 +109,10 @@ export class EdwardsPoint {
 
 // Derive public key from private key
 export function derivePublicKey(privateKey: bigint): EdwardsPoint {
+  if (privateKey <= 0n || privateKey >= CURVE_ORDER) {
+    throw new Error("Private key scalar is outside the prime subgroup range");
+  }
+
   const basePoint = EdwardsPoint.base();
   const publicKey = basePoint.multiply(privateKey);
 
@@ -140,6 +156,19 @@ export function elgamalEncrypt(
   randomValue?: bigint
 ): ElGamalCiphertext {
   const r = randomValue ?? randomScalar(CURVE_ORDER);
+  if (!Number.isSafeInteger(message) || message < 0) {
+    throw new Error("ElGamal message must be a non-negative safe integer");
+  }
+  if (
+    publicKey.isIdentity() ||
+    !publicKey.isOnCurve() ||
+    !publicKey.isInPrimeSubgroup()
+  ) {
+    throw new Error("ElGamal public key must be a non-identity prime-subgroup point");
+  }
+  if (r <= 0n || r >= CURVE_ORDER) {
+    throw new Error("ElGamal randomness must be in the prime subgroup scalar range");
+  }
   const basePoint = EdwardsPoint.base();
 
   const c1 = basePoint.multiply(r);
@@ -188,6 +217,25 @@ export function computeXorGate(
   authorityPublicKey: EdwardsPoint,
   s: bigint
 ): ElGamalCiphertext {
+  if (x !== 0 && x !== 1) {
+    throw new Error("XOR selector must be binary");
+  }
+  if (s <= 0n || s >= CURVE_ORDER) {
+    throw new Error("XOR gate randomness must be in the prime subgroup scalar range");
+  }
+  if (
+    authorityPublicKey.isIdentity() ||
+    !authorityPublicKey.isOnCurve() ||
+    !authorityPublicKey.isInPrimeSubgroup()
+  ) {
+    throw new Error("Authority key must be a non-identity prime-subgroup point");
+  }
+  for (const point of [accumulator.c1, accumulator.c2]) {
+    if (!point.isOnCurve() || !point.isInPrimeSubgroup()) {
+      throw new Error("Accumulator contains an invalid BabyJubJub point");
+    }
+  }
+
   const basePoint = EdwardsPoint.base();
 
   // x' = 2x - 1: when x=0 -> -1 (negate), when x=1 -> +1 (keep)

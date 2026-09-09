@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { mod, modInverse, toBytesBE, randomScalar } from "../services/crypto/utils";
+import {
+  mod,
+  modInverse,
+  parseCanonicalFieldElement,
+  randomScalar,
+  toBytesBE,
+} from "../services/crypto/utils";
 import { CURVE_ORDER, FIELD_SIZE } from "../services/crypto/constants";
 
 describe("mod", () => {
@@ -61,7 +67,7 @@ describe("toBytesBE", () => {
 describe("randomScalar", () => {
   it("generates a value less than the order", () => {
     const scalar = randomScalar(CURVE_ORDER);
-    expect(scalar >= 0n).toBe(true);
+    expect(scalar > 0n).toBe(true);
     expect(scalar < CURVE_ORDER).toBe(true);
   });
 
@@ -70,5 +76,19 @@ describe("randomScalar", () => {
     const b = randomScalar(CURVE_ORDER);
     // Extremely unlikely to collide in a 254-bit space
     expect(a).not.toBe(b);
+  });
+});
+
+describe("parseCanonicalFieldElement", () => {
+  it("accepts canonical in-field decimal values", () => {
+    expect(parseCanonicalFieldElement("0")).toBe(0n);
+    expect(parseCanonicalFieldElement((FIELD_SIZE - 1n).toString()))
+      .toBe(FIELD_SIZE - 1n);
+  });
+
+  it("rejects aliases, signed values, and out-of-field values", () => {
+    expect(() => parseCanonicalFieldElement("00")).toThrow();
+    expect(() => parseCanonicalFieldElement("-1")).toThrow();
+    expect(() => parseCanonicalFieldElement(FIELD_SIZE.toString())).toThrow();
   });
 });

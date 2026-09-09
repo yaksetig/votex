@@ -140,21 +140,24 @@ export async function validateStoredWorldIdSession(): Promise<ActiveWorldIdSessi
   };
 }
 
-export async function revokeStoredWorldIdSession(): Promise<void> {
+export async function revokeStoredWorldIdSession(): Promise<boolean> {
   const storedSession = getStoredSession();
+  let serverRevoked = true;
 
   if (storedSession?.token) {
     try {
-      await supabase.functions.invoke("worldid-session", {
+      const { data, error } = await supabase.functions.invoke("worldid-session", {
         body: {
           action: "revoke",
           sessionToken: storedSession.token,
         },
       });
+      serverRevoked = !error && data?.success === true;
     } catch {
-      // Best-effort revocation; local cleanup still happens below.
+      serverRevoked = false;
     }
   }
 
   clearStoredWorldIdSession();
+  return serverRevoked;
 }

@@ -22,6 +22,8 @@ import {
 import { randomScalar } from "../services/crypto/utils";
 import { deriveAuthorityKeyMaterial } from "../services/eddsaService";
 
+const AUTHORITY_TEST_SECRET = `votex-auth-v1_${"1".repeat(64)}`;
+
 /**
  * Pure decryption for tests — avoids the Supabase discrete-log lookup.
  * Decrypts ElGamal-in-the-exponent: m*G = c2 - sk*c1.
@@ -190,7 +192,7 @@ describe("Authority ownership proof format", () => {
       "../services/authorityOwnershipProofService"
     );
 
-    const pk = await deriveAuthorityPublicKey("correct horse battery staple");
+    const pk = await deriveAuthorityPublicKey(AUTHORITY_TEST_SECRET);
     const point = new EdwardsPoint(BigInt(pk.x), BigInt(pk.y));
     expect(point.isOnCurve()).toBe(true);
   });
@@ -200,7 +202,7 @@ describe("Authority ownership proof format", () => {
       "../services/authorityOwnershipProofService"
     );
 
-    const secret = "authority-demo-secret";
+    const secret = AUTHORITY_TEST_SECRET;
     const pk1 = await deriveAuthorityPublicKey(secret);
     const pk2 = await deriveAuthorityPublicKey(secret);
     expect(pk1).toEqual(pk2);
@@ -211,12 +213,22 @@ describe("Authority ownership proof format", () => {
       "../services/authorityOwnershipProofService"
     );
 
-    const secret = "authority-demo-secret";
+    const secret = AUTHORITY_TEST_SECRET;
     const pk = await deriveAuthorityPublicKey(secret);
     const keyMaterial = await deriveAuthorityKeyMaterial(secret);
     const expected = EdwardsPoint.base().multiply(keyMaterial.scalar);
     expect(pk.x).toBe(expected.x.toString());
     expect(pk.y).toBe(expected.y.toString());
+  });
+
+  it("rejects human-memorable authority passwords", async () => {
+    const { deriveAuthorityPublicKey } = await import(
+      "../services/authorityOwnershipProofService"
+    );
+
+    await expect(deriveAuthorityPublicKey("correct horse battery staple")).rejects.toThrow(
+      "generated votex-auth-v1 recovery key"
+    );
   });
 });
 

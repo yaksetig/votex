@@ -26,13 +26,13 @@ const Success: React.FC = () => {
   }
 
   return (
-    <div className="relative flex min-h-[calc(100vh-73px)] items-center justify-center overflow-hidden px-4 py-10 sm:px-6">
-      <div className="absolute inset-0 bg-primary/10 backdrop-blur-md" />
-      <div className="relative z-10 w-full max-w-md rounded-[2.5rem] border border-white/20 bg-white/80 p-10 text-center shadow-[0_40px_120px_rgba(0,20,54,0.2)] backdrop-blur-2xl">
-        <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-surface-tint text-white">
-          <CheckCircle2 className="h-10 w-10" />
+    <div className="relative flex min-h-[calc(100vh-64px)] items-center justify-center overflow-hidden px-4 py-10 sm:px-6">
+      <div className="ledger-grid-glow absolute inset-0 opacity-50" />
+      <div className="civic-card relative z-10 w-full max-w-md p-8 text-center sm:p-10">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-secondary-container text-on-secondary-container">
+          <CheckCircle2 className="h-8 w-8" />
         </div>
-        <h1 className="mt-6 font-headline text-3xl font-extrabold text-primary">Identity Confirmed</h1>
+        <h1 className="mt-6 font-headline text-3xl font-bold text-primary">Identity Confirmed</h1>
         <p className="mt-3 leading-relaxed text-on-surface-variant">
           World ID verification completed successfully. Your passkey-secured session is active and ready for ballot access.
         </p>

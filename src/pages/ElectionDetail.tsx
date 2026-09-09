@@ -29,6 +29,7 @@ import { Election } from "@/types/election";
 import type { KAnonymityProgress } from "@/services/kAnonymityNullificationService";
 import { useDeriveKeypair } from "@/hooks/useDeriveKeypair";
 import VoteReceiptCard from "@/components/VoteReceiptCard";
+import ElectionPublicAudit from "@/components/ElectionPublicAudit";
 import type { VoteReceipt } from "@/types/api";
 
 const ElectionDetail = () => {
@@ -520,8 +521,8 @@ const ElectionDetail = () => {
 
   return (
     <>
-      <div className="px-4 pb-24 pt-10 sm:px-6 md:pb-10">
-        <div className="mx-auto max-w-6xl space-y-10">
+      <div className="civic-container pb-28 pt-8 md:pb-12">
+        <div className="space-y-8">
           <button
             type="button"
             onClick={() => navigate("/elections")}
@@ -531,34 +532,37 @@ const ElectionDetail = () => {
             Back to Elections
           </button>
 
-          <section className="ledger-panel relative overflow-hidden p-5 sm:p-8 md:p-12">
-            <div className="absolute -right-8 top-0 h-64 w-64 rounded-full bg-primary-fixed-dim/50 blur-[90px]" />
-            <div className="relative z-10">
+          <section className="border-b border-outline-variant pb-8">
+            <div>
               <div className="mb-6 flex flex-wrap items-center gap-3">
                 {hasVoted ? (
-                  <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-surface-tint">
+                  <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.05em] text-surface-tint">
                     <CheckCircle2 className="h-4 w-4" />
                     Vote recorded
                   </span>
+                ) : electionClosed ? (
+                  <span className="rounded-full bg-surface-container px-4 py-2 text-xs font-semibold uppercase tracking-[0.05em] text-on-surface-variant">
+                    Election closed
+                  </span>
                 ) : (
-                  <span className="rounded-full bg-secondary-container px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-on-secondary-container">
+                  <span className="rounded-full bg-secondary-container px-4 py-2 text-xs font-semibold uppercase tracking-[0.05em] text-on-secondary-container">
                     Active ballot
                   </span>
                 )}
                 {!electionClosed && (
-                  <span className="text-xs font-semibold uppercase tracking-[0.16em] text-on-surface-variant">
+                  <span className="text-xs font-semibold uppercase tracking-[0.05em] text-on-surface-variant">
                     Ends {formatDistanceToNow(new Date(election.end_date), { addSuffix: true })}
                   </span>
                 )}
               </div>
-              <h1 className="font-headline text-2xl font-extrabold text-primary sm:text-4xl md:text-5xl">
+              <h1 className="font-headline text-3xl font-bold tracking-[-0.03em] text-primary sm:text-4xl">
                 {election.title}
               </h1>
               <p className="mt-4 max-w-3xl text-base leading-relaxed text-on-surface-variant">
                 {election.description}
               </p>
               {hasVoted && votedChoice && (
-                <div className="mt-6 inline-flex items-center gap-4 rounded-[1.25rem] bg-surface-container-low px-5 py-4">
+                <div className="mt-6 inline-flex items-center gap-4 rounded-lg bg-surface-container-low px-5 py-4">
                   <div>
                     <p className="ledger-eyebrow">Your vote</p>
                     <p className="mt-2 font-headline text-xl font-bold text-primary">
@@ -571,8 +575,8 @@ const ElectionDetail = () => {
             </div>
           </section>
 
-          <section className="grid gap-6 sm:gap-10 lg:grid-cols-12">
-            <div className="space-y-8 lg:col-span-7">
+          <section className="grid gap-6 lg:grid-cols-12">
+            <div className="space-y-6 lg:col-span-8">
               {needsKeypair && (
                 <div className="ledger-panel p-6">
                   <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
@@ -605,7 +609,7 @@ const ElectionDetail = () => {
                       return (
                         <div
                           key={option}
-                          className={`rounded-[1.5rem] border p-6 ${
+                          className={`rounded-xl border p-6 ${
                             isWinner
                               ? "border-surface-tint bg-primary-fixed"
                               : "border-outline-variant/15 bg-surface-container-lowest"
@@ -657,7 +661,7 @@ const ElectionDetail = () => {
                           key={option}
                           type="button"
                           onClick={() => setSelectedOption(option)}
-                          className={`rounded-[1.5rem] border p-6 text-left transition-all ${
+                          className={`rounded-xl border p-6 text-left transition-all ${
                             selected
                               ? "border-surface-tint bg-primary-fixed shadow-[0_18px_36px_rgba(0,90,194,0.12)]"
                               : "border-outline-variant/15 bg-surface-container-lowest hover:border-surface-tint/30"
@@ -676,7 +680,7 @@ const ElectionDetail = () => {
                                 style={{ width: `${percentage}%` }}
                               />
                             </div>
-                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
+                            <p className="text-xs font-semibold uppercase tracking-[0.05em] text-on-surface-variant">
                               {count} verified vote{count === 1 ? "" : "s"}
                             </p>
                           </div>
@@ -746,7 +750,7 @@ const ElectionDetail = () => {
                       <button
                         type="button"
                         onClick={() => setShowNullificationDialog(true)}
-                        className="group flex w-full items-center gap-4 rounded-[1.25rem] border border-outline-variant/20 bg-surface-container-lowest p-5 transition-all hover:border-surface-tint/40 sm:gap-5 sm:rounded-[1.5rem] sm:p-8"
+                        className="group flex w-full items-center gap-4 rounded-lg border border-outline-variant/20 bg-surface-container-lowest p-5 transition-all hover:border-surface-tint/40 sm:gap-5 sm:rounded-xl sm:p-8"
                       >
                         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-surface-container-high transition-colors group-hover:bg-primary sm:h-16 sm:w-16">
                           <ShieldCheck className="h-6 w-6 text-on-surface-variant transition-colors group-hover:text-white sm:h-8 sm:w-8" />
@@ -758,7 +762,7 @@ const ElectionDetail = () => {
                       </button>
                     </div>
 
-                    <div className="mt-8 rounded-[1.25rem] bg-tertiary-fixed/25 p-4">
+                    <div className="mt-8 rounded-lg bg-tertiary-fixed/25 p-4">
                       <p className="text-sm leading-relaxed text-on-surface-variant">
                         <strong className="text-primary">Note:</strong> To external observers, actual and dummy nullifications look exactly the same.
                       </p>
@@ -768,8 +772,8 @@ const ElectionDetail = () => {
               )}
             </div>
 
-            <aside className="space-y-6 lg:col-span-5">
-              <div className="rounded-[1.5rem] bg-primary-container p-5 text-on-primary shadow-ledger-lg sm:rounded-[2rem] sm:p-6">
+            <aside className="space-y-6 lg:col-span-4">
+              <div className="rounded-xl bg-primary p-5 text-on-primary sm:p-6">
                 <h3 className="font-headline text-lg font-bold sm:text-xl">Security Architecture</h3>
                 <ul className="mt-6 space-y-5 text-sm">
                   <li className="flex gap-4">
@@ -782,7 +786,7 @@ const ElectionDetail = () => {
                   <li className="flex gap-4">
                     <Fingerprint className="mt-0.5 h-5 w-5 text-primary-fixed-dim" />
                     <div>
-                      <p className="font-semibold text-white">k-Anonymity (k=6)</p>
+                      <p className="font-semibold text-white">Adaptive k-anonymity (up to k=6)</p>
                       <p className="mt-1 text-white/72">Each nullification is mixed with decoys to obscure timing and intent.</p>
                     </div>
                   </li>
@@ -802,11 +806,11 @@ const ElectionDetail = () => {
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="rounded-[1.25rem] bg-surface-container-low p-4">
+                    <div className="rounded-lg bg-surface-container-low p-4">
                       <p className="ledger-eyebrow">Participants</p>
                       <p className="mt-2 font-headline text-3xl font-extrabold text-primary">{participants.length}</p>
                     </div>
-                    <div className="rounded-[1.25rem] bg-surface-container-low p-4">
+                    <div className="rounded-lg bg-surface-container-low p-4">
                       <p className="ledger-eyebrow">Status</p>
                       <p className="mt-2 font-headline text-2xl font-extrabold text-surface-tint">
                         {electionClosed ? "Closed" : "Live"}
@@ -823,6 +827,7 @@ const ElectionDetail = () => {
               </div>
             </aside>
           </section>
+          <ElectionPublicAudit electionId={election.id} />
         </div>
       </div>
 

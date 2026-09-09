@@ -1,6 +1,6 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { logElectionAuthorityAction } from '@/services/electionAuditService';
+import { logAuthorityAuthentication } from '@/services/electionAuditService';
 import { logger } from '@/services/logger';
 
 export interface AuthorityAuthResult {
@@ -72,7 +72,7 @@ export async function signInAuthority(
       };
     }
 
-    await logElectionAuthorityAction('GLOBAL', 'AUTHENTICATION', authority.name, {
+    await logAuthorityAuthentication({
       authority_id: authority.id,
       timestamp: new Date().toISOString(),
     });

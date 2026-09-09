@@ -95,7 +95,7 @@ The active hash/KDF usage is:
 - WebAuthn PRF / hmac-secret:
   - root secret material from the authenticator
 - HKDF-SHA256:
-  - derives versioned 32-byte seeds from passkey output and authority secrets
+  - derives versioned 32-byte seeds from passkey output and generated 256-bit authority recovery keys
 - SHA-256:
   - hashes vote/authority messages into field elements before EdDSA signing
   - hashes `pk_x || pk_y` into the World ID binding signal
@@ -605,7 +605,7 @@ The tally flow is implemented in `src/services/tallyService.ts`.
 
 At tally time:
 
-1. the authority derives key material from the authority secret
+1. the authority derives key material from the generated 256-bit recovery key
 2. the scalar is used as the BabyJub/ElGamal private key
 3. all accumulators are decrypted through the discrete-log lookup table
 4. all delegations are decrypted to participant indices
@@ -614,9 +614,9 @@ At tally time:
 
 Decision:
 
-- the same deterministic authority secret feeds both authority-link EdDSA identity and tally-time ElGamal decryption
+- the same deterministic authority recovery key feeds both authority-link EdDSA identity and tally-time ElGamal decryption
 
-This keeps operational UX simple, but it also means the authority secret is highly sensitive because it controls both identity proofing and tally decryption.
+This keeps operational UX simple, but it also means the recovery key is highly sensitive because it controls both identity proofing and tally decryption.
 
 ## 12. What Is Custom or Out of the Ordinary
 

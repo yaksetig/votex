@@ -17,9 +17,10 @@ import {
   ElGamalCiphertext,
 } from "@/services/elGamalService";
 import { decryptElGamalInExponent } from "@/services/elGamalTallyService";
-import { getElectionParticipants } from "@/services/electionParticipantsService";
+import { getElectionParticipantsForTally } from "@/services/electionParticipantsService";
 import { getStoredWorldIdSessionToken } from "@/services/worldIdSessionService";
 import { logger } from "@/services/logger";
+import { parseCanonicalFieldElement } from "@/services/crypto/utils";
 
 interface StoredDelegation {
   id: string;
@@ -170,29 +171,26 @@ export async function getActiveDelegation(
 async function getElectionDelegations(
   electionId: string
 ): Promise<StoredDelegation[]> {
-  try {
-    const delegations: StoredDelegation[] = [];
-    const pageSize = 1000;
-    for (let offset = 0; ; offset += pageSize) {
-      const { data, error } = await supabase
-        .from("public_delegations")
-        .select("*")
-        .eq("election_id", electionId)
-        .eq("status", "active")
-        .order("created_at", { ascending: true })
-        .range(offset, offset + pageSize - 1);
-      if (error) throw error;
-      delegations.push(...(data || []).map((delegation) => ({
-        ...delegation,
-        delegator_id: delegation.delegator_pseudonym,
-      }) as StoredDelegation));
-      if (!data || data.length < pageSize) break;
+  const delegations: StoredDelegation[] = [];
+  const pageSize = 1000;
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await supabase
+      .from("public_delegations")
+      .select("*")
+      .eq("election_id", electionId)
+      .eq("status", "active")
+      .order("created_at", { ascending: true })
+      .range(offset, offset + pageSize - 1);
+    if (error) {
+      throw new Error("Failed to load active delegations");
     }
-    return delegations;
-  } catch (error) {
-    logger.error("Error in getElectionDelegations:", error);
-    return [];
+    delegations.push(...(data || []).map((delegation) => ({
+      ...delegation,
+      delegator_id: delegation.delegator_pseudonym,
+    }) as StoredDelegation));
+    if (!data || data.length < pageSize) break;
   }
+  return delegations;
 }
 
 // -----------------------------------------------------------------------
@@ -204,13 +202,23 @@ async function getElectionDelegations(
  */
 function delegationToCiphertext(d: StoredDelegation): ElGamalCiphertext {
   const c1 = new EdwardsPoint(
-    BigInt(d.delegate_ct_c1_x),
-    BigInt(d.delegate_ct_c1_y)
+    parseCanonicalFieldElement(d.delegate_ct_c1_x),
+    parseCanonicalFieldElement(d.delegate_ct_c1_y)
   );
   const c2 = new EdwardsPoint(
-    BigInt(d.delegate_ct_c2_x),
-    BigInt(d.delegate_ct_c2_y)
+    parseCanonicalFieldElement(d.delegate_ct_c2_x),
+    parseCanonicalFieldElement(d.delegate_ct_c2_y)
   );
+  if (
+    c1.isIdentity() ||
+    c2.isIdentity() ||
+    !c1.isOnCurve() ||
+    !c1.isInPrimeSubgroup() ||
+    !c2.isOnCurve() ||
+    !c2.isInPrimeSubgroup()
+  ) {
+    throw new Error(`Delegation ${d.id} contains an invalid BabyJubJub ciphertext`);
+  }
   return { c1, c2, r: 0n, ciphertext: [c1.x, c1.y, c2.x, c2.y] };
 }
 
@@ -229,7 +237,7 @@ export async function resolveDelegations(
   delegatorIds: Set<string>;
 }> {
   const delegations = await getElectionDelegations(electionId);
-  const participants = await getElectionParticipants(electionId);
+  const participants = await getElectionParticipantsForTally(electionId);
 
   // Sort participants by joined_at for stable index mapping
   const sorted = [...participants].sort(
@@ -245,10 +253,9 @@ export async function resolveDelegations(
     const index = await decryptElGamalInExponent(ct, authorityPrivateKey);
 
     if (index === null || index < 0 || index >= sorted.length) {
-      logger.warn(
-        `Failed to resolve delegation from ${d.delegator_id}: decrypted index=${index}`
+      throw new Error(
+        `Delegation from ${d.delegator_id} could not be decoded safely`
       );
-      continue;
     }
 
     const delegate = sorted[index];

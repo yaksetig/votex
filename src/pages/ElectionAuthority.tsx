@@ -34,7 +34,7 @@ interface AuthorityShellProps {
 
 const AuthorityPaneLoading = () => (
   <div className="flex min-h-[40vh] items-center justify-center">
-    <div className="rounded-[2rem] border border-outline-variant/15 bg-surface-container-lowest px-8 py-10 text-center shadow-ledger">
+    <div className="rounded-xl border border-outline-variant/15 bg-surface-container-lowest px-8 py-10 text-center shadow-ledger">
       <p className="ledger-eyebrow">Authority workspace</p>
       <h2 className="mt-3 font-headline text-2xl font-bold text-primary">
         Loading view
@@ -52,17 +52,26 @@ const AuthorityShell: React.FC<AuthorityShellProps> = ({
 }) => {
   return (
     <div className="min-h-screen bg-background">
-      <aside className="fixed left-0 top-0 hidden h-screen w-72 border-r border-outline-variant/15 bg-slate-50 px-5 py-6 lg:flex lg:flex-col">
-        <div className="mb-10 px-2 pt-4">
-          <h1 className="text-lg font-black tracking-tight text-slate-900">Election Authority</h1>
-          <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.22em] text-surface-tint">
-            Secure Session Active
-          </p>
+      <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-outline-variant bg-surface px-4 lg:hidden">
+        <div>
+          <p className="font-headline text-lg font-bold text-primary">Votex Authority</p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.05em] text-secondary">Secure session active</p>
+        </div>
+        <button type="button" onClick={onLogout} aria-label="Log out" className="flex h-10 w-10 items-center justify-center rounded-lg text-error hover:bg-error-container">
+          <LogOut className="h-5 w-5" aria-hidden="true" />
+        </button>
+      </header>
+
+      <aside className="fixed left-0 top-0 hidden h-screen w-64 border-r border-outline-variant bg-surface px-4 py-6 lg:flex lg:flex-col">
+        <div className="mb-8 px-3 pt-2">
+          <h1 className="font-headline text-xl font-bold tracking-[-0.02em] text-primary">Votex</h1>
+          <p className="mt-1 text-sm text-on-surface-variant">Authority Portal</p>
         </div>
 
-        <div className="mb-8 rounded-[1.5rem] bg-primary-container p-4 text-on-primary">
-          <p className="ledger-eyebrow text-on-primary-container">Authenticated authority</p>
+        <div className="mb-8 rounded-xl bg-primary p-4 text-on-primary">
+          <p className="civic-label text-white/55">Authenticated authority</p>
           <p className="mt-2 font-headline text-xl font-bold text-white">{authorityName}</p>
+          <p className="mt-3 inline-flex items-center gap-2 text-xs font-semibold text-secondary-fixed"><span className="h-2 w-2 rounded-full bg-secondary-fixed" />Session active</p>
         </div>
 
         <nav className="flex-1 space-y-1">
@@ -72,10 +81,10 @@ const AuthorityShell: React.FC<AuthorityShellProps> = ({
               key={id}
               onClick={() => onNavigate(id)}
               className={cn(
-                "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-transform duration-200",
+                "flex w-full items-center gap-3 rounded-full px-4 py-3 text-sm font-medium transition-colors",
                 activeItem === id
-                  ? "translate-x-1 bg-primary-fixed text-primary"
-                  : "text-on-surface-variant hover:translate-x-1 hover:bg-surface-container-low"
+                  ? "bg-secondary-container text-on-secondary-container"
+                  : "text-on-surface-variant hover:bg-surface-container-high"
               )}
             >
               <Icon className="h-4 w-4" />
@@ -103,9 +112,28 @@ const AuthorityShell: React.FC<AuthorityShellProps> = ({
         </div>
       </aside>
 
-      <main className="px-4 py-8 lg:ml-72 lg:px-8">
-        <div className="mx-auto max-w-7xl">{children}</div>
+      <main className="px-4 pb-28 pt-8 lg:ml-64 lg:px-10 lg:pb-10">
+        <div className="mx-auto max-w-[1200px]">{children}</div>
       </main>
+
+      <nav aria-label="Authority mobile navigation" className="fixed bottom-0 left-0 z-50 flex w-full items-center justify-around border-t border-outline-variant bg-surface px-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 lg:hidden">
+        {AUTHORITY_NAV.map(({ id, label, icon: Icon }) => (
+          <button
+            type="button"
+            key={id}
+            onClick={() => onNavigate(id)}
+            className={cn(
+              "flex min-w-24 flex-col items-center rounded-full px-4 py-1.5 text-[10px] font-semibold uppercase tracking-[0.05em]",
+              activeItem === id ? "bg-secondary-container text-on-secondary-container" : "text-on-surface-variant"
+            )}
+          >
+            <Icon className="mb-1 h-5 w-5" aria-hidden="true" />{label}
+          </button>
+        ))}
+        <a href="mailto:support@votex.world" className="flex min-w-24 flex-col items-center rounded-full px-4 py-1.5 text-[10px] font-semibold uppercase tracking-[0.05em] text-on-surface-variant">
+          <HelpCircle className="mb-1 h-5 w-5" aria-hidden="true" />Support
+        </a>
+      </nav>
     </div>
   );
 };
@@ -173,7 +201,7 @@ const ElectionAuthority = () => {
   if (isCheckingSession) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="rounded-[2rem] border border-outline-variant/15 bg-surface-container-lowest px-8 py-10 text-center shadow-ledger">
+        <div className="rounded-xl border border-outline-variant/15 bg-surface-container-lowest px-8 py-10 text-center shadow-ledger">
           <p className="ledger-eyebrow">Authority gateway</p>
           <h1 className="mt-3 font-headline text-3xl font-bold text-primary">Checking session integrity</h1>
         </div>

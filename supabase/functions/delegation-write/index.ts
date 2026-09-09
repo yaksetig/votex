@@ -9,6 +9,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { jsonResponse } from "../_shared/http.ts";
 import { validateWorldIdSession } from "../_shared/session.ts";
+import { isCanonicalPrimeSubgroupPoint } from "../_shared/babyjub.ts";
 
 interface DelegationWriteRequest {
   action: "create" | "revoke";
@@ -18,10 +19,6 @@ interface DelegationWriteRequest {
     c1: { x: string; y: string };
     c2: { x: string; y: string };
   };
-}
-
-function isDecimalString(value: unknown): value is string {
-  return typeof value === "string" && /^[0-9]+$/.test(value);
 }
 
 Deno.serve(async (req) => {
@@ -54,10 +51,14 @@ Deno.serve(async (req) => {
 
     const ct = body.ciphertext;
     if (body.action === "create" && (
-      !isDecimalString(ct?.c1?.x) || !isDecimalString(ct?.c1?.y) ||
-      !isDecimalString(ct?.c2?.x) || !isDecimalString(ct?.c2?.y)
+      !ct?.c1 ||
+      !ct.c2 ||
+      !isCanonicalPrimeSubgroupPoint(ct.c1, false) ||
+      !isCanonicalPrimeSubgroupPoint(ct.c2, false)
     )) {
-      return jsonResponse(400, { error: "Missing or malformed delegation ciphertext" });
+      return jsonResponse(400, {
+        error: "Delegation ciphertext must contain canonical BabyJubJub prime-subgroup points",
+      });
     }
 
     const { data: delegationId, error: writeError } = await supabase.rpc(

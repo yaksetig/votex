@@ -78,4 +78,19 @@ describe("ElGamal encryption", () => {
     expect(ct.ciphertext[2]).toBe(ct.c2.x);
     expect(ct.ciphertext[3]).toBe(ct.c2.y);
   });
+
+  it("rejects zero randomness", () => {
+    expect(() => elgamalEncrypt(authorityPk, 1, 0n)).toThrow(
+      "randomness must be in the prime subgroup scalar range"
+    );
+  });
+
+  it("rejects invalid authority points and negative multiplication scalars", () => {
+    expect(() => elgamalEncrypt(new EdwardsPoint(1n, 1n), 1, 7n)).toThrow(
+      "prime-subgroup point"
+    );
+    expect(() => EdwardsPoint.base().multiply(-1n)).toThrow(
+      "cannot be negative"
+    );
+  });
 });

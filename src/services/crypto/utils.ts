@@ -1,4 +1,4 @@
-import { CURVE_ORDER } from "./constants";
+import { CURVE_ORDER, FIELD_SIZE } from "./constants";
 
 export function mod(a: bigint, m: bigint): bigint {
   return ((a % m) + m) % m;
@@ -36,9 +36,40 @@ export function bytesToHex(bytes: Uint8Array): string {
 }
 
 export function randomScalar(order: bigint = CURVE_ORDER): bigint {
-  const buf = crypto.getRandomValues(new Uint8Array(32));
-  const hex = Array.from(buf)
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-  return BigInt("0x" + hex) % order;
+  if (order <= 1n) {
+    throw new Error("Scalar order must be greater than one");
+  }
+
+  // Rejection sampling avoids modulo bias and never returns the zero scalar.
+  const bitLength = (order - 1n).toString(2).length;
+  const byteLength = Math.ceil(bitLength / 8);
+  const unusedHighBits = byteLength * 8 - bitLength;
+
+  for (;;) {
+    const bytes = crypto.getRandomValues(new Uint8Array(byteLength));
+    if (unusedHighBits > 0) {
+      bytes[0] &= 0xff >>> unusedHighBits;
+    }
+
+    const hex = Array.from(bytes)
+      .map((byte) => byte.toString(16).padStart(2, "0"))
+      .join("");
+    const candidate = BigInt(`0x${hex}`);
+    if (candidate > 0n && candidate < order) {
+      return candidate;
+    }
+  }
+}
+
+export function parseCanonicalFieldElement(value: string): bigint {
+  if (!/^(0|[1-9][0-9]*)$/.test(value)) {
+    throw new Error("Field element must use canonical unsigned decimal encoding");
+  }
+
+  const parsed = BigInt(value);
+  if (parsed >= FIELD_SIZE) {
+    throw new Error("Field element is outside the BabyJubJub base field");
+  }
+
+  return parsed;
 }

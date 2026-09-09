@@ -23,6 +23,12 @@ test-results
 circuits/zklean/.lake/
 circuits/build/
 circuits/*.zkey
+circuits/*.ptau
+
+# Local audit working material (not part of the shipped repo)
+audit-context/
+audit-reports/
+static_analysis_semgrep_1/
 
 # Supabase CLI temp
 supabase/.temp/

@@ -10,6 +10,7 @@ import {
   derivePublicKey,
 } from "../services/elGamalService";
 import { CURVE_ORDER } from "../services/crypto/constants";
+import type { VerificationKey } from "../types/proof";
 
 // Exercises the COMPILED circuit (not the TS model) by attempting witness
 // generation against public/circuits/nullification_xor.wasm. A malformed
@@ -19,11 +20,15 @@ import { CURVE_ORDER } from "../services/crypto/constants";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const wasmPath = resolve(here, "../../public/circuits/nullification_xor.wasm");
+const zkeyPath = resolve(here, "../../public/circuits/nullification_xor_final.zkey");
+const verificationKeyPath = resolve(here, "../../public/circuits/verification_key_xor.json");
 
 let wasm: Uint8Array;
+let verificationKey: VerificationKey;
 
 beforeAll(async () => {
   wasm = new Uint8Array(await readFile(wasmPath));
+  verificationKey = JSON.parse(await readFile(verificationKeyPath, "utf8")) as VerificationKey;
 });
 
 interface CircuitInput {
@@ -100,6 +105,17 @@ describe("compiled nullification_xor circuit", () => {
     await expect(calculateWitness(buildValidInput())).resolves.toBeUndefined();
   });
 
+  it("produces a proof accepted by the matching verification key", async () => {
+    const { proof, publicSignals } = await snarkjs.groth16.fullProve(
+      buildValidInput() as unknown as Record<string, string | string[]>,
+      wasmPath,
+      zkeyPath
+    );
+    await expect(
+      snarkjs.groth16.verify(verificationKey, publicSignals, proof)
+    ).resolves.toBe(true);
+  }, 30_000);
+
   it("rejects a non-binary nullification bit (x=2)", async () => {
     const input = buildValidInput();
     input.x = "2";
@@ -111,6 +127,36 @@ describe("compiled nullification_xor circuit", () => {
     // For x=1 the circuit forces sk_voter * G == pk_voter; a mismatched key
     // must fail the constraint system.
     input.sk_voter = ((BigInt(input.sk_voter) + 1n) % CURVE_ORDER).toString();
+    await expect(calculateWitness(input)).rejects.toBeDefined();
+  });
+
+  it("rejects zero encryption randomness", async () => {
+    const input = buildValidInput();
+    const base = EdwardsPoint.base();
+    input.r = "0";
+    input.ciphertext = ["0", "1", base.x.toString(), base.y.toString()];
+    await expect(calculateWitness(input)).rejects.toBeDefined();
+  });
+
+  it("rejects zero gate randomness", async () => {
+    const input = buildValidInput();
+    input.s = "0";
+    input.gate_output = ["0", "1", "0", "1"];
+    await expect(calculateWitness(input)).rejects.toBeDefined();
+  });
+
+  it("rejects subgroup-order aliases for encryption randomness", async () => {
+    const input = buildValidInput();
+    const base = EdwardsPoint.base();
+    input.r = CURVE_ORDER.toString();
+    input.ciphertext = ["0", "1", base.x.toString(), base.y.toString()];
+    await expect(calculateWitness(input)).rejects.toBeDefined();
+  });
+
+  it("rejects subgroup-order aliases for gate randomness", async () => {
+    const input = buildValidInput();
+    input.s = CURVE_ORDER.toString();
+    input.gate_output = ["0", "1", "0", "1"];
     await expect(calculateWitness(input)).rejects.toBeDefined();
   });
 });

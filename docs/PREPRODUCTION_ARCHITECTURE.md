@@ -14,13 +14,14 @@ protocol details in `CRYPTOGRAPHY.md`.
 
 ## Fixed Election Authority bootstrap
 
-1. Generate the authority secret outside source control. Keep it in a password
-   manager; never pass it as a command-line argument.
+1. Run `npm run generate:authority-secret` on a trusted offline workstation.
+   Store the generated 256-bit `votex-auth-v1_…` recovery key in a password
+   manager; never pass it as a command-line argument or invent a human password.
 2. Generate a UUID and configure it as the production edge-function
    `FIXED_AUTHORITY_ID`.
 3. Run
    `npm run bootstrap:authority -- --authority-id <configured-uuid>`. The
-   interactive command reads the secret with hidden terminal input, derives the
+   interactive command reads the generated recovery key with hidden terminal input, derives the
    existing Votex public key locally, and creates only the fixed authority row.
    The private secret is never printed, stored, or sent to Supabase.
 4. Create the authority’s Supabase Auth account through the bootstrap UI.
@@ -28,8 +29,13 @@ protocol details in `CRYPTOGRAPHY.md`.
    existing ownership-proof message and links only the configured row.
 6. Confirm `fixed-authority-status` reports `configured=true` and `linked=true`.
 
-The secret is entered only for local derivation and proof/tally operations. It
+The recovery key is entered only for local derivation and proof/tally operations. It
 must never be added to SQL, environment variables, logs, or the database.
+
+An installation that previously used a human-chosen authority secret must
+rotate to this format only between elections. Updating the authority public key
+while an election has encrypted accumulators or delegations would make that
+state undecryptable with the new recovery key.
 
 ## Election creation
 

@@ -1,445 +1,309 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowRight,
+  ChevronLeft,
+  ChevronRight,
+  Clock3,
   Plus,
+  Search,
   ShieldCheck,
-  Timer,
   Users,
 } from "lucide-react";
 import { formatDistanceToNowStrict } from "date-fns";
 import { useWallet } from "@/contexts/WalletContext";
-import { isElectionClosed } from "@/lib/electionStatus";
-import { useElectionsList, type ElectionRecord } from "@/hooks/queries/useElectionsList";
+import { getElectionStatus, type ElectionStatus } from "@/lib/electionStatus";
+import { useElectionsList } from "@/hooks/queries/useElectionsList";
 import ElectionForm from "@/components/ElectionForm";
 import type { FormData } from "@/components/ElectionForm/types";
 import { createElection } from "@/services/electionCreationService";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
+
+type ElectionFilter = "all" | "active" | "closed";
+type ElectionSort = "closing" | "participation";
+
+const PAGE_SIZE = 6;
+
+function statusLabel(status: ElectionStatus) {
+  if (status === "closed_manually") return "Closed";
+  if (status === "expired") return "Expired";
+  return "Active";
+}
 
 const Elections = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const searchQuery = searchParams.get("q")?.toLowerCase() ?? "";
+  const searchQuery = searchParams.get("q")?.trim().toLowerCase() ?? "";
   const { isWorldIDVerified } = useWallet();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const {
     data: elections = [],
-    isLoading: loading,
+    isLoading,
     isError,
-    error: electionsError,
-    refetch: refetchElections,
+    error,
+    refetch,
   } = useElectionsList();
   const [showForm, setShowForm] = useState(false);
+  const [filter, setFilter] = useState<ElectionFilter>("all");
+  const [sort, setSort] = useState<ElectionSort>("closing");
+  const [page, setPage] = useState(1);
+
+  useEffect(() => setPage(1), [filter, sort, searchQuery]);
 
   useEffect(() => {
-    if (isError) {
-      toast({
-        variant: "destructive",
-        title: "Failed to load elections",
-        description:
-          electionsError instanceof Error
-            ? electionsError.message
-            : "The election browser could not be loaded.",
-      });
-    }
-  }, [isError, electionsError, toast]);
+    if (!isError) return;
+    toast({
+      variant: "destructive",
+      title: "Failed to load elections",
+      description: error instanceof Error ? error.message : "The election browser could not be loaded.",
+    });
+  }, [isError, error, toast]);
 
   const handleFormSubmit = async (formData: FormData) => {
     try {
       await createElection(formData);
-
-      toast({
-        title: "Election published",
-        description: `"${formData.title}" is now live on the ledger.`,
-      });
-
+      toast({ title: "Election published", description: `"${formData.title}" is now live on the ledger.` });
       setShowForm(false);
+      setFilter("all");
+      setPage(1);
       await Promise.all([
-        refetchElections(),
+        refetch(),
         queryClient.invalidateQueries({ queryKey: ["elections-list"] }),
       ]);
-    } catch (error) {
+    } catch (submitError) {
       toast({
         variant: "destructive",
         title: "Publish failed",
-        description:
-          error instanceof Error
-            ? error.message
-            : "The election could not be created.",
+        description: submitError instanceof Error ? submitError.message : "The election could not be created.",
       });
     }
   };
 
-  const { activeElections, archivedElections, featuredElection } = useMemo(() => {
-    const matchesSearch = (election: ElectionRecord) => {
-      if (!searchQuery) return true;
-      return (
+  const visibleElections = useMemo(() => {
+    const matched = elections.filter((election) => {
+      const status = getElectionStatus(election);
+      const matchesText =
+        !searchQuery ||
         election.title.toLowerCase().includes(searchQuery) ||
-        election.description?.toLowerCase().includes(searchQuery)
-      );
-    };
+        election.description?.toLowerCase().includes(searchQuery);
+      const matchesFilter =
+        filter === "all" ||
+        (filter === "active" && status === "active") ||
+        (filter === "closed" && status !== "active");
+      return matchesText && matchesFilter;
+    });
 
-    const active = elections.filter(
-      (election) => !isElectionClosed(election) && matchesSearch(election)
-    );
-    const archived = elections.filter(
-      (election) => isElectionClosed(election) && matchesSearch(election)
-    );
+    return [...matched].sort((left, right) => {
+      if (sort === "participation") return right.voteCount - left.voteCount;
+      const leftStatus = getElectionStatus(left);
+      const rightStatus = getElectionStatus(right);
+      if (leftStatus === "active" && rightStatus !== "active") return -1;
+      if (leftStatus !== "active" && rightStatus === "active") return 1;
+      return new Date(left.end_date).getTime() - new Date(right.end_date).getTime();
+    });
+  }, [elections, filter, searchQuery, sort]);
 
-    return {
-      activeElections: active,
-      archivedElections: archived,
-      featuredElection: active[0] ?? null,
-    };
-  }, [elections, searchQuery]);
+  const activeCount = elections.filter((election) => getElectionStatus(election) === "active").length;
+  const totalPages = Math.max(1, Math.ceil(visibleElections.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pageElections = visibleElections.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
-  const secondaryActiveElections = featuredElection
-    ? activeElections.filter((election) => election.id !== featuredElection.id)
-    : activeElections;
-  const visibleElectionCount = activeElections.length + archivedElections.length;
-
-  if (loading) {
+  if (isLoading) {
     return (
-      <div className="px-4 pb-24 pt-10 sm:px-6 md:pb-10">
-        <div className="mx-auto max-w-7xl space-y-6">
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-            <div className="ledger-panel h-56 animate-pulse" />
-            <div className="ledger-panel h-56 animate-pulse" />
-          </div>
-          <div className="grid gap-6 md:grid-cols-12">
-            <div className="ledger-panel h-[28rem] md:col-span-8 animate-pulse" />
-            <div className="ledger-panel h-[28rem] md:col-span-4 animate-pulse" />
-          </div>
-          <div className="grid gap-6 md:grid-cols-3">
-            <div className="ledger-panel h-72 animate-pulse" />
-            <div className="ledger-panel h-72 animate-pulse" />
-            <div className="ledger-panel h-72 animate-pulse" />
-          </div>
+      <div className="civic-container space-y-8 pb-28 pt-10 md:pb-12">
+        <div className="h-32 animate-pulse rounded-xl bg-surface-container" />
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }, (_, index) => <div key={index} className="h-80 animate-pulse rounded-xl bg-surface-container" />)}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="px-4 pb-24 pt-10 sm:px-6 md:pb-10">
-      <div className="mx-auto max-w-7xl space-y-10">
-        {isError && (
-          <section className="rounded-[1.5rem] bg-error-container/70 p-5 text-on-error-container" role="alert">
-            <h2 className="font-headline text-xl font-bold">Election browser unavailable</h2>
-            <p className="mt-2 text-sm">The public ledger could not be loaded. Check your connection and retry.</p>
-            <button type="button" className="ledger-button-secondary mt-4" onClick={() => void refetchElections()}>
-              Retry
-            </button>
-          </section>
-        )}
-        <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="flex flex-col justify-end">
-            <div className="max-w-3xl">
-              <h1 className="font-headline text-3xl font-extrabold tracking-tight text-primary sm:text-5xl md:text-6xl">
-                Active Elections
-              </h1>
-              <p className="mt-4 max-w-2xl text-lg leading-relaxed text-on-surface-variant">
-                Browse cryptographically verified binary elections. Ballot choices and World ID-derived pseudonyms are public for auditability; real-world identities are not written to the Votex ledger.
-              </p>
-            </div>
-
-            <div className="mt-8 flex flex-wrap gap-3">
-              {isWorldIDVerified && (
-                <button
-                  type="button"
-                  onClick={() => setShowForm((current) => !current)}
-                  className="ledger-button-primary"
-                >
-                  <Plus className="h-4 w-4" />
-                  {showForm ? "Close Composer" : "Create Election"}
-                </button>
-              )}
-            </div>
-          </div>
-
-          <aside className="relative overflow-hidden rounded-[1.5rem] border border-outline-variant/12 bg-surface-container-lowest p-5 shadow-ledger sm:rounded-[2rem] sm:p-6">
-            <div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-primary-fixed-dim/35 blur-[80px]" />
-            <div className="relative z-10">
-              <p className="ledger-eyebrow">Election browser</p>
-              <div className="mt-5 grid grid-cols-2 gap-4">
-                <div className="rounded-[1.5rem] bg-primary p-5 text-on-primary shadow-ledger">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-white/70">
-                    Live now
-                  </p>
-                  <p className="mt-4 font-headline text-5xl font-extrabold text-white">
-                    {activeElections.length}
-                  </p>
-                </div>
-                <div className="rounded-[1.5rem] bg-surface-container-low p-5">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant">
-                    Archived
-                  </p>
-                  <p className="mt-4 font-headline text-5xl font-extrabold text-primary">
-                    {archivedElections.length}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-4 rounded-[1.5rem] border border-outline-variant/12 bg-surface-container-low px-5 py-4">
-                <div className="flex items-end justify-between gap-4">
-                  <div>
-                    <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant">
-                      Visible elections
-                    </p>
-                    <p className="mt-2 text-sm leading-relaxed text-on-surface-variant">
-                      Active ballots appear first. Closed elections stay available for audit review and final result inspection.
-                    </p>
-                  </div>
-                  <p className="shrink-0 font-headline text-4xl font-extrabold text-surface-tint">
-                    {visibleElectionCount.toLocaleString()}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </aside>
+    <div className="civic-container pb-28 pt-10 md:pb-12">
+      {isError && (
+        <section className="mb-8 rounded-xl border border-error/30 bg-error-container p-5 text-on-error-container" role="alert">
+          <h2 className="font-headline text-xl font-semibold">Election browser unavailable</h2>
+          <p className="mt-2 text-sm">The public ledger could not be loaded. Check your connection and retry.</p>
+          <button type="button" className="ledger-button-secondary mt-4" onClick={() => void refetch()}>Retry</button>
         </section>
+      )}
 
-        {showForm && (
-          <section className="ledger-panel p-8">
-            <ElectionForm
-              onSubmit={handleFormSubmit}
-              onCancel={() => setShowForm(false)}
-            />
-          </section>
-        )}
+      <header className="flex flex-col gap-6 border-b border-outline-variant pb-8 md:flex-row md:items-end md:justify-between">
+        <div className="max-w-3xl">
+          <p className="civic-label text-secondary">Public election browser</p>
+          <h1 className="mt-3 font-headline text-3xl font-bold tracking-[-0.03em] text-primary sm:text-4xl">
+            Active Polls &amp; Elections
+          </h1>
+          <p className="mt-4 max-w-2xl text-base leading-7 text-on-surface-variant">
+            Explore binary elections and inspect live public results. Ballot choices and voter pseudonyms are visible for independent auditing.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="rounded-lg border border-outline-variant bg-surface-container-low px-4 py-3 text-sm">
+            <span className="font-bold text-secondary">{activeCount}</span>
+            <span className="ml-2 text-on-surface-variant">active now</span>
+          </div>
+          {isWorldIDVerified ? (
+            <button type="button" onClick={() => setShowForm((current) => !current)} className="ledger-button-primary">
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              {showForm ? "Close Composer" : "Create Election"}
+            </button>
+          ) : (
+            <button type="button" onClick={() => navigate("/dashboard")} className="ledger-button-secondary">
+              <ShieldCheck className="h-4 w-4" aria-hidden="true" /> Verify to Create
+            </button>
+          )}
+        </div>
+      </header>
 
-        <section>
-          <div className="rounded-[1.5rem] bg-surface-container-low p-4 sm:rounded-[2rem] sm:p-8">
-            {featuredElection ? (
-              <div className="relative overflow-hidden rounded-[1.25rem] bg-surface-container-lowest p-5 shadow-ledger sm:rounded-[1.75rem] sm:p-8">
-                <div className="absolute -right-16 -top-16 h-72 w-72 rounded-full bg-surface-tint/10 blur-[120px]" />
-                <div className="relative z-10 flex h-full flex-col justify-between">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-3">
-                      <span className="rounded-full bg-green-100 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-green-800">
-                        Active
-                      </span>
-                      <span className="inline-flex items-center gap-1 text-xs font-medium text-on-surface-variant">
-                        <Users className="h-4 w-4" />
-                        {featuredElection.voteCount.toLocaleString()} participants
-                      </span>
-                    </div>
+      {showForm && (
+        <section className="ledger-panel mt-8 p-5 sm:p-8">
+          <ElectionForm onSubmit={handleFormSubmit} onCancel={() => setShowForm(false)} />
+        </section>
+      )}
 
-                    <h2 className="mt-4 max-w-2xl font-headline text-2xl font-bold text-primary sm:mt-6 sm:text-4xl">
-                      {featuredElection.title}
-                    </h2>
-                    <p className="mt-4 max-w-2xl text-sm leading-relaxed text-on-surface-variant">
-                      {featuredElection.description}
-                    </p>
+      <section className="mt-8 rounded-xl border border-outline-variant bg-surface-container-lowest p-2 shadow-sm">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-center gap-2 overflow-x-auto p-1" aria-label="Election status filter">
+            {(["all", "active", "closed"] as const).map((value) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={filter === value}
+                onClick={() => setFilter(value)}
+                className={cn(
+                  "min-h-10 whitespace-nowrap rounded-lg px-4 text-sm font-semibold transition-colors",
+                  filter === value ? "bg-secondary text-on-secondary" : "text-on-surface-variant hover:bg-surface-container-low"
+                )}
+              >
+                {value === "all" ? "All Elections" : value === "active" ? "Active" : "Closed & Expired"}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-3 px-2 pb-2 lg:pb-0">
+            <Search className="h-4 w-4 text-outline lg:hidden" aria-hidden="true" />
+            <p className="min-w-0 flex-1 truncate text-sm text-on-surface-variant lg:hidden">
+              {searchQuery ? `Search: ${searchQuery}` : `${visibleElections.length} elections`}
+            </p>
+            <label className="flex items-center gap-2 text-sm text-on-surface-variant">
+              <span className="hidden sm:inline">Sort</span>
+              <select
+                value={sort}
+                onChange={(event) => setSort(event.target.value as ElectionSort)}
+                className="rounded-lg border border-outline-variant bg-surface px-3 py-2 text-sm font-semibold text-primary focus:border-secondary focus:ring-secondary"
+              >
+                <option value="closing">Closing Soon</option>
+                <option value="participation">Most Participation</option>
+              </select>
+            </label>
+          </div>
+        </div>
+      </section>
 
-                    <div className="mt-8 grid gap-4 md:grid-cols-2">
-                      {[featuredElection.option1, featuredElection.option2].map((option, idx) => {
-                        const count = idx === 0 ? featuredElection.option1Count : featuredElection.option2Count;
-                        const total = featuredElection.option1Count + featuredElection.option2Count;
-                        const pct = total > 0 ? Math.round((count / total) * 100) : 0;
-                        return (
-                          <div key={option} className="rounded-[1.5rem] border border-outline-variant/12 bg-surface-container-low p-6">
-                            <span className="ledger-eyebrow">Option {idx === 0 ? "A" : "B"}</span>
-                            <span className="mt-2 block font-headline text-2xl font-bold text-primary">{option}</span>
-                            {total > 0 && (
-                              <div className="mt-4 space-y-1">
-                                <div className="flex items-center justify-between text-xs text-on-surface-variant">
-                                  <span>{count} vote{count !== 1 ? "s" : ""}</span>
-                                  <span className="font-bold text-surface-tint">{pct}%</span>
-                                </div>
-                                <div className="h-1.5 rounded-full bg-surface-container-high">
-                                  <div className="h-full rounded-full bg-surface-tint transition-all" style={{ width: `${pct}%` }} />
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
+      {pageElections.length === 0 ? (
+        <section className="mt-8 flex min-h-72 flex-col items-center justify-center rounded-xl border border-dashed border-outline-variant bg-surface-container-low p-8 text-center">
+          <Search className="h-10 w-10 text-outline" aria-hidden="true" />
+          <h2 className="mt-5 font-headline text-xl font-semibold text-primary">No elections found</h2>
+          <p className="mt-2 max-w-md text-sm text-on-surface-variant">Try another search or status filter.</p>
+          <button type="button" className="ledger-button-secondary mt-5" onClick={() => setFilter("all")}>Show All Elections</button>
+        </section>
+      ) : (
+        <section className="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3" aria-label="Elections">
+          {pageElections.map((election) => {
+            const status = getElectionStatus(election);
+            const total = election.option1Count + election.option2Count;
+            const option1Percent = total ? Math.round((election.option1Count / total) * 100) : 0;
+            const option2Percent = total ? 100 - option1Percent : 0;
+
+            return (
+              <article key={election.id} className="civic-card flex min-h-[340px] flex-col overflow-hidden transition-transform hover:-translate-y-0.5 hover:shadow-ledger">
+                <div className="h-1 bg-secondary" />
+                <div className="flex flex-1 flex-col p-6">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className={cn(
+                      "rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.05em]",
+                      status === "active" ? "bg-secondary-container text-on-secondary-container" : "bg-surface-container-high text-on-surface-variant"
+                    )}>
+                      {statusLabel(status)}
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 text-xs text-on-surface-variant">
+                      <Users className="h-4 w-4" aria-hidden="true" /> {election.voteCount.toLocaleString()} votes
+                    </span>
                   </div>
 
-                  <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-on-surface-variant">
-                        Time Remaining
-                      </span>
-                      <div className="mt-2 font-headline text-3xl font-extrabold text-surface-tint">
-                        {formatDistanceToNowStrict(new Date(featuredElection.end_date))}
-                      </div>
-                    </div>
+                  <h2 className="mt-5 font-headline text-xl font-semibold text-primary">{election.title}</h2>
+                  <p className="mt-3 line-clamp-3 text-sm leading-6 text-on-surface-variant">{election.description}</p>
 
+                  <div className="mt-6 space-y-4">
+                    {[
+                      { label: election.option1, count: election.option1Count, percent: option1Percent },
+                      { label: election.option2, count: election.option2Count, percent: option2Percent },
+                    ].map((option, index) => (
+                      <div key={option.label}>
+                        <div className="flex items-center justify-between gap-3 text-sm">
+                          <span className="min-w-0 truncate font-semibold text-primary">{index === 0 ? "A" : "B"}. {option.label}</span>
+                          <span className="shrink-0 font-bold text-secondary">{total ? `${option.percent}%` : "—"}</span>
+                        </div>
+                        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-container-high">
+                          <div className="h-full rounded-full bg-secondary" style={{ width: `${option.percent}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-auto flex items-end justify-between gap-4 border-t border-outline-variant/50 pt-5">
+                    <div>
+                      <p className="civic-label">{status === "active" ? "Closes in" : "Closed"}</p>
+                      <p className="mt-1 inline-flex items-center gap-1.5 text-sm font-semibold text-primary">
+                        <Clock3 className="h-4 w-4 text-secondary" aria-hidden="true" />
+                        {status === "active"
+                          ? formatDistanceToNowStrict(new Date(election.end_date))
+                          : new Date(election.closed_manually_at ?? election.end_date).toLocaleDateString()}
+                      </p>
+                    </div>
                     <button
                       type="button"
-                      onClick={() => navigate(`/elections/${featuredElection.id}`)}
-                      className="ledger-button-primary"
+                      onClick={() => navigate(`/elections/${election.id}`)}
+                      className="inline-flex items-center gap-2 text-sm font-bold text-secondary hover:text-primary"
                     >
-                      Vote
-                      <ArrowRight className="h-4 w-4" />
+                      {status === "active" ? "Vote" : "Results"}
+                      <ArrowRight className="h-4 w-4" aria-hidden="true" />
                     </button>
                   </div>
                 </div>
-              </div>
-            ) : (
-              <div className="flex h-full min-h-[24rem] items-center justify-center rounded-[1.75rem] bg-surface-container-lowest p-8 text-center shadow-ledger">
-                <div>
-                  <h2 className="font-headline text-3xl font-bold text-primary">
-                    No active elections
-                  </h2>
-                  <p className="mt-3 text-sm leading-relaxed text-on-surface-variant">
-                    Publish a new binary proposal to start collecting verified votes.
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
+              </article>
+            );
+          })}
         </section>
+      )}
 
-        <section>
-          <div className="mb-8 flex items-center justify-between">
-            <h2 className="font-headline text-2xl font-bold text-primary">
-              Ongoing Elections
-            </h2>
-          </div>
-
-          {secondaryActiveElections.length === 0 ? (
-            <div className="ledger-panel p-10 text-center">
-              <h3 className="font-headline text-2xl font-bold text-primary">
-                No additional live elections
-              </h3>
-              <p className="mt-3 text-sm text-on-surface-variant">
-                The featured ballot above is currently the only active election.
-              </p>
-            </div>
-          ) : (
-            <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-              {secondaryActiveElections.map((election) => (
-                <article
-                  key={election.id}
-                  className="rounded-[2rem] border border-outline-variant/12 bg-surface-container-lowest p-6 shadow-ledger transition-all hover:-translate-y-1 hover:shadow-ledger-lg"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <span className="rounded-full bg-green-100 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-green-800">
-                      Active
-                    </span>
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-on-surface-variant">
-                      {election.voteCount.toLocaleString()} votes
-                    </span>
-                  </div>
-
-                  <h3 className="mt-6 font-headline text-2xl font-bold text-primary">
-                    {election.title}
-                  </h3>
-                  <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-on-surface-variant">
-                    {election.description}
-                  </p>
-
-                  <div className="mt-6 space-y-2">
-                    {[election.option1, election.option2].map((option, idx) => {
-                      const count = idx === 0 ? election.option1Count : election.option2Count;
-                      const total = election.option1Count + election.option2Count;
-                      const pct = total > 0 ? Math.round((count / total) * 100) : 0;
-                      return (
-                        <div key={option} className="flex items-center gap-3">
-                          <span className="w-16 truncate text-xs font-semibold text-on-surface-variant">{option}</span>
-                          <div className="h-1.5 flex-1 rounded-full bg-surface-container-high">
-                            <div className="h-full rounded-full bg-surface-tint transition-all" style={{ width: `${total > 0 ? pct : 0}%` }} />
-                          </div>
-                          <span className="w-8 text-right text-xs font-bold text-surface-tint">{total > 0 ? `${pct}%` : "–"}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className="mt-3 flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant">
-                    <span>{election.voteCount} vote{election.voteCount !== 1 ? "s" : ""}</span>
-                    <span className="inline-flex items-center gap-1">
-                      <Timer className="h-4 w-4" />
-                      {formatDistanceToNowStrict(new Date(election.end_date))}
-                    </span>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/elections/${election.id}`)}
-                    className="mt-6 w-full rounded-[1rem] border border-surface-tint px-4 py-3 text-sm font-bold text-surface-tint transition-all hover:bg-surface-tint hover:text-white"
-                  >
-                    Vote
-                  </button>
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section>
-          <div className="mb-8 flex items-center justify-between">
-            <h2 className="font-headline text-2xl font-bold text-primary">
-              Past Elections
-            </h2>
-          </div>
-
-          {archivedElections.length === 0 ? (
-            <div className="ledger-panel p-10 text-center">
-              <h3 className="font-headline text-2xl font-bold text-primary">
-                No archived elections yet
-              </h3>
-              <p className="mt-3 text-sm text-on-surface-variant">
-                Closed elections will appear here once voting periods end.
-              </p>
-            </div>
-          ) : (
-            <div className="grid gap-6 md:grid-cols-2">
-              {archivedElections.map((election) => (
-                <article
-                  key={election.id}
-                  className="flex items-start gap-4 rounded-[1.5rem] border border-outline-variant/12 bg-surface-container-lowest p-4 shadow-ledger sm:items-center sm:gap-6 sm:rounded-[2rem] sm:p-6"
-                >
-                  <div className="hidden h-20 w-20 shrink-0 items-center justify-center rounded-[1.5rem] bg-surface-container-high text-on-surface-variant sm:flex">
-                    <ShieldCheck className="h-8 w-8" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="mb-2 flex flex-wrap items-center gap-2">
-                      <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600">
-                        Closed
-                      </span>
-                      <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-on-surface-variant">
-                        Tallied on {new Date(election.end_date).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <h3 className="font-headline text-xl font-bold text-primary">
-                      {election.title}
-                    </h3>
-                    <div className="mt-3 space-y-1.5">
-                      {[election.option1, election.option2].map((option, idx) => {
-                        const count = idx === 0 ? election.option1Count : election.option2Count;
-                        const total = election.option1Count + election.option2Count;
-                        const pct = total > 0 ? Math.round((count / total) * 100) : 0;
-                        return (
-                          <div key={option} className="flex items-center gap-3">
-                            <span className="w-16 truncate text-xs font-semibold text-on-surface-variant">{option}</span>
-                            <div className="h-1.5 flex-1 rounded-full bg-surface-container-high">
-                              <div className="h-full rounded-full bg-surface-tint transition-all" style={{ width: `${total > 0 ? pct : 0}%` }} />
-                            </div>
-                            <span className="w-8 text-right text-xs font-bold text-surface-tint">{total > 0 ? `${pct}%` : "–"}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/elections/${election.id}`)}
-                    className="text-sm font-bold text-surface-tint"
-                  >
-                    Details
-                  </button>
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
-      </div>
+      {totalPages > 1 && (
+        <nav aria-label="Election pages" className="mt-10 flex items-center justify-center gap-3">
+          <button
+            type="button"
+            aria-label="Previous page"
+            disabled={safePage === 1}
+            onClick={() => setPage((current) => Math.max(1, current - 1))}
+            className="ledger-button-secondary h-10 min-h-10 px-3"
+          >
+            <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+          </button>
+          <span className="text-sm font-semibold text-on-surface-variant">Page {safePage} of {totalPages}</span>
+          <button
+            type="button"
+            aria-label="Next page"
+            disabled={safePage === totalPages}
+            onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+            className="ledger-button-secondary h-10 min-h-10 px-3"
+          >
+            <ChevronRight className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </nav>
+      )}
     </div>
   );
 };

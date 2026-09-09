@@ -30,7 +30,7 @@ const KAnonymityProgressDialog: React.FC<KAnonymityProgressDialogProps> = ({
         <DialogDescription className="sr-only">
           Progress dialog for k-anonymity nullification proof generation.
         </DialogDescription>
-        <div className="flex min-h-full flex-col justify-center overflow-hidden rounded-none bg-surface-container-lowest sm:min-h-0 sm:rounded-[2rem] sm:border sm:border-outline-variant/12 sm:shadow-[0_30px_90px_rgba(0,20,54,0.22)]">
+        <div className="flex min-h-full flex-col justify-center overflow-hidden rounded-none bg-surface-container-lowest sm:min-h-0 sm:rounded-xl sm:border sm:border-outline-variant/12 sm:shadow-[0_30px_90px_rgba(0,20,54,0.22)]">
           <div className="p-5 sm:p-8">
             <div className="mb-8 flex items-start justify-between gap-4">
               <div>
@@ -48,19 +48,19 @@ const KAnonymityProgressDialog: React.FC<KAnonymityProgressDialogProps> = ({
 
             <div className="space-y-6">
               <div>
-                <div className="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-[0.14em]">
+                <div className="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-[0.05em]">
                   <span className="text-on-surface">{progress?.message || "Preparing encrypted submissions..."}</span>
                   <span className="text-surface-tint">{percentage}%</span>
                 </div>
                 <div className="h-2 w-full rounded-full bg-surface-container-high">
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-primary to-surface-tint transition-all duration-500"
+                    className="h-full rounded-full bg-secondary transition-all duration-500"
                     style={{ width: `${percentage}%` }}
                   />
                 </div>
               </div>
 
-              <div className="rounded-[1.25rem] bg-surface-container-low p-5">
+              <div className="rounded-lg bg-surface-container-low p-5">
                 <div className="flex items-center justify-between text-sm">
                   <span className="font-medium text-on-surface">Participant slots</span>
                   <span className="font-semibold text-surface-tint">
@@ -73,10 +73,14 @@ const KAnonymityProgressDialog: React.FC<KAnonymityProgressDialogProps> = ({
               </div>
             </div>
 
-            <div className="mt-8 flex items-center gap-3 rounded-[1.25rem] bg-primary-container px-4 py-3 text-on-primary">
+            <div className="mt-8 flex items-center gap-3 rounded-lg bg-primary px-4 py-3 text-on-primary">
               <ShieldCheck className="h-5 w-5 text-primary-fixed-dim" />
               <p className="text-sm leading-relaxed text-white/78">
-                Multi-party proof generation is protecting the timing and meaning of this request.
+                {progress?.total === 1
+                  ? "Only one proof slot is available. Encryption hides the submitted bit, but this election cannot provide a multi-participant anonymity set."
+                  : progress?.total
+                  ? `${progress.total} encrypted proof slots make this submitted batch look the same whether your request is real or a decoy.`
+                  : "The available encrypted proof slots will determine this election's anonymity set."}
               </p>
             </div>
           </div>

@@ -1,10 +1,8 @@
 import { spawnSync } from "node:child_process";
 
-const acceptedAdvisories = new Set([
-  "GHSA-848j-6mx2-7j84",
-  "GHSA-58qx-3vcg-4xpx",
-  "GHSA-96hv-2xvq-fx4p",
-]);
+// High/Critical acceptances must be explicit, time-bounded, and reviewed.
+// The current release has no accepted High/Critical production advisory.
+const acceptedAdvisories = new Set([]);
 
 const audit = spawnSync(
   process.platform === "win32" ? "npm.cmd" : "npm",

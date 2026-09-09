@@ -33,12 +33,12 @@ const ElectionForm: React.FC<ElectionFormProps> = ({ onSubmit, onCancel }) => {
             <Sparkles className="h-4 w-4" />
             Ledger composer
           </span>
-          <h2 className="mt-4 font-headline text-3xl font-extrabold text-primary">Create a new binary election</h2>
+          <h2 className="mt-4 font-headline text-2xl font-semibold text-primary">Create a new binary election</h2>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-on-surface-variant">
             Publish a consensus question with two mutually exclusive outcomes. Your verified World ID session creates the election under the fixed Votex Election Authority.
           </p>
         </div>
-        <div className="rounded-[1.5rem] bg-surface-container-low px-5 py-4">
+        <div className="rounded-xl bg-surface-container-low px-5 py-4">
           <p className="ledger-eyebrow">Authority binding</p>
           <p className="mt-2 text-sm font-semibold text-primary">Votex Election Authority</p>
         </div>
@@ -46,15 +46,15 @@ const ElectionForm: React.FC<ElectionFormProps> = ({ onSubmit, onCancel }) => {
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1.2fr)_360px]">
         <div className="space-y-6">
-          <div className="rounded-[1.75rem] border border-outline-variant/12 bg-surface-container-lowest p-6">
+          <div className="rounded-xl border border-outline-variant/12 bg-surface-container-lowest p-6">
             <Label htmlFor="title" className="ledger-eyebrow">
               Election title
             </Label>
-            <Input id="title" {...register("title")} className="mt-3" placeholder="2024 Municipal Digital Infrastructure Bond" />
+            <Input id="title" {...register("title")} className="mt-3" placeholder="Community infrastructure proposal" />
             {errors.title && <p className="mt-2 text-sm text-error">{errors.title.message}</p>}
           </div>
 
-          <div className="rounded-[1.75rem] border border-outline-variant/12 bg-surface-container-lowest p-6">
+          <div className="rounded-xl border border-outline-variant/12 bg-surface-container-lowest p-6">
             <Label htmlFor="description" className="ledger-eyebrow">
               Context
             </Label>
@@ -68,7 +68,7 @@ const ElectionForm: React.FC<ElectionFormProps> = ({ onSubmit, onCancel }) => {
           </div>
 
           <div className="grid gap-6 md:grid-cols-2">
-            <div className="rounded-[1.75rem] border border-outline-variant/12 bg-surface-container-lowest p-6">
+            <div className="rounded-xl border border-outline-variant/12 bg-surface-container-lowest p-6">
               <Label htmlFor="option1" className="ledger-eyebrow">
                 Option A
               </Label>
@@ -76,7 +76,7 @@ const ElectionForm: React.FC<ElectionFormProps> = ({ onSubmit, onCancel }) => {
               {errors.option1 && <p className="mt-2 text-sm text-error">{errors.option1.message}</p>}
             </div>
 
-            <div className="rounded-[1.75rem] border border-outline-variant/12 bg-surface-container-lowest p-6">
+            <div className="rounded-xl border border-outline-variant/12 bg-surface-container-lowest p-6">
               <Label htmlFor="option2" className="ledger-eyebrow">
                 Option B
               </Label>
@@ -87,9 +87,9 @@ const ElectionForm: React.FC<ElectionFormProps> = ({ onSubmit, onCancel }) => {
         </div>
 
         <aside className="space-y-6">
-          <div className="rounded-[1.75rem] border border-outline-variant/12 bg-surface-container-lowest p-6">
+          <div className="rounded-xl border border-outline-variant/12 bg-surface-container-lowest p-6">
             <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-on-primary">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-on-primary">
                 <CalendarDays className="h-5 w-5" />
               </div>
               <div>
@@ -102,7 +102,7 @@ const ElectionForm: React.FC<ElectionFormProps> = ({ onSubmit, onCancel }) => {
             {errors.endDate && <p className="mt-2 text-sm text-error">{errors.endDate.message}</p>}
           </div>
 
-          <div className="rounded-[1.75rem] bg-primary-container p-6 text-on-primary">
+          <div className="rounded-xl bg-primary p-6 text-on-primary">
             <p className="ledger-eyebrow text-on-primary-container">Publishing notes</p>
             <p className="mt-3 text-sm leading-relaxed text-white/74">
               Once live, votes begin forming the Votex ledger trail for this election. Keep labels short and precise to preserve signature clarity and audit readability.
@@ -115,7 +115,7 @@ const ElectionForm: React.FC<ElectionFormProps> = ({ onSubmit, onCancel }) => {
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
-        <Button type="submit" className="bg-gradient-to-br from-primary to-primary-container text-on-primary" disabled={isSubmitting}>
+        <Button type="submit" className="bg-secondary text-on-primary" disabled={isSubmitting}>
           {isSubmitting ? "Publishing..." : "Publish Election"}
         </Button>
       </div>

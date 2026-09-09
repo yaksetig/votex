@@ -4,7 +4,10 @@ import { handleSessionRequest } from "./handler.ts";
 
 // Fake supabase client returning canned rows per table. Each table maps to the
 // row maybeSingle() should resolve to (or null). insert/update are no-ops.
-function fakeClient(rows: Record<string, Record<string, unknown> | null>) {
+function fakeClient(
+  rows: Record<string, Record<string, unknown> | null>,
+  updateError: Record<string, unknown> | null = null
+) {
   return {
     from(table: string) {
       return {
@@ -23,7 +26,7 @@ function fakeClient(rows: Record<string, Record<string, unknown> | null>) {
           return Promise.resolve({ error: null });
         },
         update() {
-          return { eq() { return Promise.resolve({ error: null }); } };
+          return { eq() { return Promise.resolve({ error: updateError }); } };
         },
       };
     },
@@ -86,4 +89,25 @@ Deno.test("create: matching verifier issues a session token", async () => {
   const body = await res.json();
   assertEquals(body.userId, "0xabc");
   assertEquals(typeof body.sessionToken, "string");
+});
+
+Deno.test("revoke: database update failure is not reported as success", async () => {
+  const client = fakeClient(
+    {
+      world_id_sessions: {
+        expires_at: new Date(Date.now() + 60_000).toISOString(),
+        nullifier_hash: "0xabc",
+        revoked_at: null,
+      },
+    },
+    { code: "DATABASE_ERROR" }
+  );
+
+  const res = await handleSessionRequest(client, {
+    action: "revoke",
+    sessionToken: "copied-token",
+  });
+
+  assertEquals(res.status, 500);
+  assertEquals((await res.json()).error, "Failed to revoke session");
 });

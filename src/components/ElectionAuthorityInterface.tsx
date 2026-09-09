@@ -92,7 +92,7 @@ const ElectionAuthorityInterface: React.FC<ElectionAuthorityInterfaceProps> = ({
   if (tallyResults && stats) {
     return (
       <div className="space-y-8">
-        <section className="rounded-[2rem] bg-primary-container p-8 text-on-primary shadow-ledger-lg">
+        <section className="rounded-xl bg-primary p-8 text-on-primary">
           <div className="flex items-start gap-4">
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white/10 text-primary-fixed-dim">
               <CheckCircle2 className="h-7 w-7" />
@@ -116,7 +116,7 @@ const ElectionAuthorityInterface: React.FC<ElectionAuthorityInterfaceProps> = ({
             <div className="mt-5 font-headline text-4xl font-extrabold text-primary">
               {stats.totalVoters}
             </div>
-            <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant">
+            <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.05em] text-on-surface-variant">
               Total Voters
             </p>
           </div>
@@ -125,7 +125,7 @@ const ElectionAuthorityInterface: React.FC<ElectionAuthorityInterfaceProps> = ({
             <div className="mt-5 font-headline text-4xl font-extrabold text-tertiary-container">
               {stats.nullifiedVotes}
             </div>
-            <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant">
+            <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.05em] text-on-surface-variant">
               Nullified Votes
             </p>
           </div>
@@ -134,7 +134,7 @@ const ElectionAuthorityInterface: React.FC<ElectionAuthorityInterfaceProps> = ({
             <div className="mt-5 font-headline text-4xl font-extrabold text-secondary">
               {stats.totalNullifications}
             </div>
-            <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant">
+            <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.05em] text-on-surface-variant">
               Total Nullifications
             </p>
           </div>
@@ -160,14 +160,14 @@ const ElectionAuthorityInterface: React.FC<ElectionAuthorityInterfaceProps> = ({
 
   return (
     <div className="space-y-8">
-      <section className="rounded-[2rem] bg-primary-container p-8 text-on-primary shadow-ledger-lg">
+      <section className="rounded-xl bg-primary p-8 text-on-primary">
         <div className="flex items-start gap-4">
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white/10 text-primary-fixed-dim">
             <Lock className="h-7 w-7" />
           </div>
           <div>
             <p className="ledger-eyebrow text-on-primary-container">Authority-only operation</p>
-            <h2 className="mt-2 font-headline text-3xl font-extrabold text-white">
+            <h2 className="mt-2 font-headline text-2xl font-semibold text-white">
               Process the final tally for {electionTitle}
             </h2>
             <p className="mt-3 max-w-3xl text-sm leading-relaxed text-white/76">
@@ -180,7 +180,7 @@ const ElectionAuthorityInterface: React.FC<ElectionAuthorityInterfaceProps> = ({
       <section className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_360px]">
         <div className="ledger-subpanel">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-white">
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-white">
               <Calculator className="h-5 w-5" />
             </div>
             <div>
@@ -203,13 +203,13 @@ const ElectionAuthorityInterface: React.FC<ElectionAuthorityInterfaceProps> = ({
             type="password"
             value={authoritySecret}
             onChange={(event) => setAuthoritySecret(event.target.value)}
-            placeholder="Enter the authority secret"
+            placeholder="Enter the votex-auth-v1_… recovery key"
             className="mt-3"
             disabled={isProcessing}
           />
 
           {error && (
-            <div className="mt-5 rounded-[1.25rem] border border-error/20 bg-error-container/70 p-4 text-sm text-on-error-container">
+            <div className="mt-5 rounded-lg border border-error/20 bg-error-container/70 p-4 text-sm text-on-error-container">
               {error}
             </div>
           )}
@@ -248,24 +248,24 @@ const ElectionAuthorityInterface: React.FC<ElectionAuthorityInterfaceProps> = ({
           <div className="ledger-subpanel">
             <p className="ledger-eyebrow">Processing sequence</p>
             <div className="mt-4 space-y-4">
-              <div className="rounded-[1.25rem] bg-surface-container-high p-4">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">
+              <div className="rounded-lg bg-surface-container-high p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.05em] text-primary">
                   Step 1
                 </p>
                 <p className="mt-1 text-sm text-on-surface-variant">
                   Decrypt XOR accumulators.
                 </p>
               </div>
-              <div className="rounded-[1.25rem] bg-surface-container-high p-4 opacity-80">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">
+              <div className="rounded-lg bg-surface-container-high p-4 opacity-80">
+                <p className="text-xs font-bold uppercase tracking-[0.05em] text-primary">
                   Step 2
                 </p>
                 <p className="mt-1 text-sm text-on-surface-variant">
                   Resolve final ballot validity.
                 </p>
               </div>
-              <div className="rounded-[1.25rem] bg-surface-container-high p-4 opacity-70">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">
+              <div className="rounded-lg bg-surface-container-high p-4 opacity-70">
+                <p className="text-xs font-bold uppercase tracking-[0.05em] text-primary">
                   Step 3
                 </p>
                 <p className="mt-1 text-sm text-on-surface-variant">

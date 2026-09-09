@@ -15,6 +15,7 @@ const PLACEHOLDER_PUBLIC_KEY = {
   x: "5299619240641551281634865583518297030282874472190772894086521144482721001553",
   y: "16950150798460657717958625567821834550301663161624707787222815936182638968203",
 };
+const AUTHORITY_SECRET_PATTERN = /^votex-auth-v1_[0-9a-f]{64}$/;
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -88,8 +89,10 @@ async function promptHidden(message) {
 
 export async function deriveAuthorityPublicKey(authoritySecret) {
   const normalizedSecret = authoritySecret.trim();
-  if (!normalizedSecret) {
-    throw new Error("Authority secret is required");
+  if (!AUTHORITY_SECRET_PATTERN.test(normalizedSecret)) {
+    throw new Error(
+      "Authority secret must be generated with npm run generate:authority-secret"
+    );
   }
 
   const seed = Buffer.from(
@@ -126,7 +129,7 @@ async function main() {
   }
 
   let authoritySecret = await promptHidden(
-    "Authority secret (input hidden; it will not be stored): "
+    "Generated authority recovery key (input hidden; it will not be stored): "
   );
   const publicKey = await deriveAuthorityPublicKey(authoritySecret);
   authoritySecret = "";

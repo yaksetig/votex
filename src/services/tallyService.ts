@@ -8,7 +8,7 @@ import {
   accumulatorToCiphertext,
 } from "@/services/accumulatorService";
 import { resolveDelegations } from "@/services/delegationService";
-import { getElectionParticipants } from "@/services/electionParticipantsService";
+import { getElectionParticipantsForTally } from "@/services/electionParticipantsService";
 import { logger } from "@/services/logger";
 import { deriveAuthorityKeyMaterial } from "@/services/eddsaService";
 
@@ -46,6 +46,34 @@ async function getTrackedVoterIds(
   return voterIds;
 }
 
+async function getElectionAuthorityPublicKey(
+  electionId: string
+): Promise<{ x: string; y: string }> {
+  const { data: election, error: electionError } = await supabase
+    .from("public_elections")
+    .select("authority_id")
+    .eq("id", electionId)
+    .maybeSingle();
+  if (electionError || !election?.authority_id) {
+    throw new Error("Failed to resolve the election authority");
+  }
+
+  const { data: authority, error: authorityError } = await supabase
+    .from("public_election_authorities")
+    .select("public_key_x, public_key_y")
+    .eq("id", election.authority_id)
+    .maybeSingle();
+  if (
+    authorityError ||
+    !authority?.public_key_x ||
+    !authority.public_key_y
+  ) {
+    throw new Error("Failed to load the election authority key");
+  }
+
+  return { x: authority.public_key_x, y: authority.public_key_y };
+}
+
 // Process the entire election tally using the authority's secret.
 // With XOR accumulators, each voter's accumulator decrypts to either
 // 0 (vote valid) or 1 (vote nullified). No count leakage.
@@ -60,7 +88,7 @@ export async function processElectionTally(
 
     // Ensure discrete log table covers nullification (0/1) plus delegation
     // indices (up to participant count).
-    const participants = await getElectionParticipants(electionId);
+    const participants = await getElectionParticipantsForTally(electionId);
     const minTableSize = Math.max(2, participants.length);
     const tableInitialized = await ensureDiscreteLogTable(minTableSize);
     if (!tableInitialized) {
@@ -74,20 +102,38 @@ export async function processElectionTally(
       `Found ${accumulators.length} voter accumulators for election`
     );
 
-    const authorityKeyMaterial = await deriveAuthorityKeyMaterial(authoritySecret);
+    const [authorityKeyMaterial, registeredAuthorityKey] = await Promise.all([
+      deriveAuthorityKeyMaterial(authoritySecret),
+      getElectionAuthorityPublicKey(electionId),
+    ]);
+    if (
+      authorityKeyMaterial.publicKey.x.toString() !== registeredAuthorityKey.x ||
+      authorityKeyMaterial.publicKey.y.toString() !== registeredAuthorityKey.y
+    ) {
+      throw new Error("Authority secret does not match this election's registered key");
+    }
     const privateKey = authorityKeyMaterial.scalar;
     const nullificationMap = new Map<string, { count: number; nullified: boolean }>();
 
     for (const acc of accumulators) {
       const ciphertext = accumulatorToCiphertext(acc);
+      for (const point of [ciphertext.c1, ciphertext.c2]) {
+        if (!point.isOnCurve() || !point.isInPrimeSubgroup()) {
+          throw new Error(`Accumulator for ${acc.voter_id} contains an invalid point`);
+        }
+      }
       const decryptedValue = await decryptElGamalInExponent(
         ciphertext,
         privateKey
       );
 
+      if (decryptedValue !== 0 && decryptedValue !== 1) {
+        throw new Error(`Accumulator for ${acc.voter_id} could not be decoded safely`);
+      }
+
       const voteNullified = decryptedValue === 1;
       nullificationMap.set(acc.voter_id, {
-        count: decryptedValue ?? 0,
+        count: decryptedValue,
         nullified: voteNullified,
       });
 

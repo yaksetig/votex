@@ -66,9 +66,15 @@ test("verified voter creates, delegates, signs, audits, nullifies, closes, and t
   await page.getByRole("button", { name: "Close Election Early" }).click();
   await expect(page.getByText("Election closed", { exact: true })).toBeVisible();
   await page.getByRole("tab", { name: "Process Tally" }).click();
-  await page.getByLabel("Authority secret").fill("e2e-authority-secret");
+  await page.getByLabel("Authority secret").fill(`votex-auth-v1_${"2".repeat(64)}`);
   await page.getByRole("button", { name: "Begin Tally Processing" }).click();
   await expect(page.getByText("Tally processed", { exact: true })).toBeVisible();
+
+  const electionId = String(backend.elections[0].id);
+  await page.goto(`/elections/${electionId}`);
+  await page.getByRole("tab", { name: "Audit Trail" }).click();
+  await expect(page.getByText("CLOSE_ELECTION", { exact: true })).toBeVisible();
+  await expect(page.getByText("Delegation revoked", { exact: true })).toBeVisible();
 
   expect(backend.elections).toHaveLength(1);
   expect(backend.participants).toHaveLength(6);

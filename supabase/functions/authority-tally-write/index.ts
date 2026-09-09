@@ -132,10 +132,13 @@ Deno.serve(async (req) => {
     if (tallyError) {
       console.error("Atomic tally write failed", tallyError.code);
       const alreadyProcessed = tallyError.message === "TALLY_ALREADY_PROCESSED";
-      return jsonResponse(alreadyProcessed ? 409 : 500, {
+      const incomplete = tallyError.message === "INCOMPLETE_TALLY_RESULTS";
+      return jsonResponse(alreadyProcessed ? 409 : incomplete ? 400 : 500, {
         code: alreadyProcessed ? "CONFLICT" : "VALIDATION_ERROR",
         error: alreadyProcessed
           ? "A tally has already been processed for this election"
+          : incomplete
+          ? "The tally result set is incomplete or contains unexpected voters"
           : "The tally results could not be stored",
       });
     }

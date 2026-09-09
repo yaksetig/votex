@@ -36,16 +36,15 @@ const FAQ_ITEMS = [
 
 const FAQ = () => {
   return (
-    <div className="px-4 pb-24 pt-10 sm:px-6 md:pb-10">
-      <div className="mx-auto max-w-6xl space-y-10">
-        <section className="ledger-panel relative overflow-hidden p-8 md:p-12">
-          <div className="absolute -right-16 -top-16 h-64 w-64 rounded-full bg-primary-fixed-dim/60 blur-[100px]" />
-          <div className="relative z-10 max-w-3xl">
+    <div className="civic-container pb-28 pt-10 md:pb-12">
+      <div className="mx-auto max-w-4xl space-y-10">
+        <section className="border-b border-outline-variant pb-8">
+          <div className="max-w-3xl">
             <span className="ledger-badge bg-secondary-container text-on-secondary-container">
               <CircleHelp className="h-4 w-4" />
               Frequently asked questions
             </span>
-            <h1 className="mt-5 font-headline text-5xl font-extrabold text-primary">
+            <h1 className="mt-5 font-headline text-3xl font-bold tracking-[-0.03em] text-primary sm:text-4xl">
               FAQ
             </h1>
             <p className="mt-5 text-lg leading-relaxed text-on-surface-variant">
@@ -56,8 +55,8 @@ const FAQ = () => {
 
         <section className="space-y-4">
           {FAQ_ITEMS.map(({ question, answer }) => (
-            <article key={question} className="ledger-panel p-7">
-              <h2 className="font-headline text-2xl font-bold text-primary">{question}</h2>
+            <article key={question} className="civic-card p-6">
+              <h2 className="font-headline text-xl font-semibold text-primary">{question}</h2>
               <p className="mt-3 text-sm leading-relaxed text-on-surface-variant">{answer}</p>
             </article>
           ))}

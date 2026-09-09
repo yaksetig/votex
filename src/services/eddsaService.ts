@@ -5,6 +5,8 @@ import { CURVE_ORDER } from "@/services/crypto/constants";
 import { bytesToHex } from "@/services/crypto/utils";
 
 export const KEYPAIR_VERSION = "eddsa-seed-v1";
+export const AUTHORITY_SECRET_PREFIX = "votex-auth-v1_";
+const AUTHORITY_SECRET_PATTERN = /^votex-auth-v1_[0-9a-f]{64}$/;
 
 const HKDF_SALT = new TextEncoder().encode("votex:eddsa:seed-derivation");
 const PASSKEY_SEED_INFO = new TextEncoder().encode("votex:eddsa:passkey-seed:v1");
@@ -125,8 +127,10 @@ async function deriveAuthoritySeedFromSecret(
   authoritySecret: string
 ): Promise<Uint8Array> {
   const trimmedSecret = authoritySecret.trim();
-  if (!trimmedSecret) {
-    throw new Error("Authority secret is required");
+  if (!AUTHORITY_SECRET_PATTERN.test(trimmedSecret)) {
+    throw new Error(
+      "Authority secret must be a generated votex-auth-v1 recovery key"
+    );
   }
 
   return hkdfSha256(
