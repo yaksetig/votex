@@ -84,6 +84,18 @@ Deno.test("edge verifier rejects wrong message, wrong key, out-of-range S, and m
   if (await verifyPoseidonSignature(serialize({ ...payload, R8: { x: "0", y: "1" } }), publicKey, message)) {
     throw new Error("accepted the identity as R8");
   }
+  const FIELD_SIZE = 21888242871839275222246405745257275088548364400416034343698204186575808495617n;
+  const aliasedR8 = { x: (BigInt(payload.R8.x) + FIELD_SIZE).toString(), y: payload.R8.y };
+  if (await verifyPoseidonSignature(serialize({ ...payload, R8: aliasedR8 }), publicKey, message)) {
+    throw new Error("accepted a non-canonical R8.x (x + p)");
+  }
+  const aliasedKey = { x: (BigInt(publicKey.x) + FIELD_SIZE).toString(), y: publicKey.y };
+  if (await verifyPoseidonSignature(serialize(payload), aliasedKey, message)) {
+    throw new Error("accepted a non-canonical public key (x + p)");
+  }
+  if (await verifyPoseidonSignature(serialize({ ...payload, S: `0${payload.S}` }), publicKey, message)) {
+    throw new Error("accepted a zero-padded S");
+  }
   let threw = false;
   try {
     await verifyPoseidonSignature("{}", publicKey, message);

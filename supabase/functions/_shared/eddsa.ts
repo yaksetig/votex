@@ -6,6 +6,23 @@ import { buildEddsa } from "npm:circomlibjs@0.1.7";
 
 const CURVE_ORDER =
   2736030358979909402780800718157159386076813972158567259200215660948447373041n;
+const FIELD_SIZE =
+  21888242871839275222246405745257275088548364400416034343698204186575808495617n;
+const CANONICAL_DECIMAL = /^(0|[1-9][0-9]*)$/;
+const MAX_DECIMAL_DIGITS = FIELD_SIZE.toString().length;
+
+/**
+ * Parse a coordinate or scalar as a canonical decimal string in [0, p).
+ * Rejects aliases such as x + p, hex, signs, whitespace and oversized input
+ * so the same point has exactly one accepted encoding.
+ */
+function parseCanonicalFieldElement(value: unknown): bigint | null {
+  if (typeof value !== "string" || value.length > MAX_DECIMAL_DIGITS || !CANONICAL_DECIMAL.test(value)) {
+    return null;
+  }
+  const parsed = BigInt(value);
+  return parsed < FIELD_SIZE ? parsed : null;
+}
 
 // deno-lint-ignore no-explicit-any
 type EddsaInstance = any;
@@ -79,19 +96,21 @@ export async function verifyPoseidonSignature(
     return false;
   }
 
-  const S = BigInt(parsed.S);
-  if (S < 0n || S >= CURVE_ORDER) {
+  const S = parseCanonicalFieldElement(parsed.S);
+  if (S === null || S >= CURVE_ORDER) {
     return false;
   }
 
-  const noncePoint = {
-    x: BigInt(parsed.R8.x),
-    y: BigInt(parsed.R8.y),
-  };
-  const authorityPoint = {
-    x: BigInt(publicKey.x),
-    y: BigInt(publicKey.y),
-  };
+  const r8x = parseCanonicalFieldElement(parsed.R8.x);
+  const r8y = parseCanonicalFieldElement(parsed.R8.y);
+  const pkx = parseCanonicalFieldElement(publicKey.x);
+  const pky = parseCanonicalFieldElement(publicKey.y);
+  if (r8x === null || r8y === null || pkx === null || pky === null) {
+    return false;
+  }
+
+  const noncePoint = { x: r8x, y: r8y };
+  const authorityPoint = { x: pkx, y: pky };
 
   const [publicKeyValid, nonceValid] = await Promise.all([
     validatePoint(authorityPoint),

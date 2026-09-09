@@ -9,6 +9,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { jsonResponse } from "../_shared/http.ts";
 import { validateWorldIdSession } from "../_shared/session.ts";
+import { isCanonicalPrimeSubgroupPoint } from "../_shared/babyjub.ts";
 
 interface RegisterParticipantRequest {
   electionId: string;
@@ -24,9 +25,22 @@ Deno.serve(async (req) => {
   try {
     const body = (await req.json()) as RegisterParticipantRequest;
 
-    if (!body.electionId || !body.sessionToken || !body.publicKey?.x || !body.publicKey?.y) {
+    if (
+      typeof body.electionId !== "string" ||
+      !body.electionId ||
+      typeof body.sessionToken !== "string" ||
+      !body.sessionToken ||
+      typeof body.publicKey?.x !== "string" ||
+      typeof body.publicKey?.y !== "string"
+    ) {
       return jsonResponse(400, {
         error: "Missing electionId, sessionToken, or publicKey",
+      });
+    }
+
+    if (!isCanonicalPrimeSubgroupPoint(body.publicKey, false)) {
+      return jsonResponse(400, {
+        error: "Public key is not a canonical BabyJubJub subgroup point",
       });
     }
 

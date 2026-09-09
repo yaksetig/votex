@@ -9,6 +9,11 @@ import { validateWorldIdSession } from "../_shared/session.ts";
 import { verifyPoseidonSignature } from "../_shared/eddsa.ts";
 
 const VOTE_TIMESTAMP_SKEW_MS = 10 * 60 * 1000;
+// A serialised EdDSA-Poseidon payload (two coordinates, S, message) is well
+// under 1 KB; the cap stops multi-megabyte blobs from being stored in
+// votes.signature and served to every client through public_votes.
+const MAX_SIGNATURE_LENGTH = 2048;
+const MAX_CHOICE_LENGTH = 512;
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -45,9 +50,13 @@ Deno.serve(async (req) => {
     }
 
     if (
+      typeof body.choice !== "string" ||
       !body.choice ||
+      body.choice.length > MAX_CHOICE_LENGTH ||
+      typeof body.signature !== "string" ||
       !body.signature ||
-      typeof body.timestamp !== "number" ||
+      body.signature.length > MAX_SIGNATURE_LENGTH ||
+      !Number.isSafeInteger(body.timestamp) ||
       (body.idempotencyKey && !UUID_PATTERN.test(body.idempotencyKey))
     ) {
       return jsonResponse(400, {

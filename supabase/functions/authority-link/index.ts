@@ -179,17 +179,27 @@ Deno.serve(async (req) => {
     }
 
     if (!existing.auth_user_id) {
-      const { error: updateError } = await supabase
+      const { data: linked, error: updateError } = await supabase
         .from("election_authorities")
         .update({ auth_user_id: user.id })
         .eq("id", existing.id)
-        .is("auth_user_id", null);
+        .is("auth_user_id", null)
+        .select("id");
 
       if (updateError) {
         console.error("Authority link update error:", updateError);
         return jsonResponse(500, {
           code: "CONFLICT",
           error: "Failed to link the fixed Election Authority",
+        });
+      }
+
+      // Zero rows means another account won the race between our read and
+      // this guarded update; reporting success here would be a lie.
+      if (!Array.isArray(linked) || linked.length !== 1) {
+        return jsonResponse(409, {
+          code: "CONFLICT",
+          error: "The fixed Election Authority was linked by another account",
         });
       }
     }

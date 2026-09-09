@@ -180,9 +180,49 @@ export function parseNullificationSignals(
   };
 }
 
+const CANONICAL_DECIMAL = /^(0|[1-9][0-9]*)$/;
+const MAX_DECIMAL_DIGITS = FIELD_SIZE.toString().length;
+
+function isCanonicalDecimal(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value.length <= MAX_DECIMAL_DIGITS &&
+    CANONICAL_DECIMAL.test(value)
+  );
+}
+
+/**
+ * Shape-check a proof payload before handing it to snarkjs: exactly the
+ * expected number of public signals, every coordinate a bounded canonical
+ * decimal (V8 BigInt parsing is superlinear, so unbounded digit strings are a
+ * cheap CPU sink), and the declared protocol/curve.
+ */
+export function isWellFormedProofPayload(payload: unknown): payload is NullificationProofPayload {
+  if (!payload || typeof payload !== "object") return false;
+  const { proof, publicSignals } = payload as Partial<NullificationProofPayload>;
+  if (
+    !Array.isArray(publicSignals) ||
+    publicSignals.length !== NULLIFICATION_PUBLIC_SIGNAL_COUNT ||
+    !publicSignals.every(isCanonicalDecimal)
+  ) {
+    return false;
+  }
+  if (!proof || typeof proof !== "object") return false;
+  if (proof.protocol !== "groth16" || proof.curve !== "bn128") return false;
+  const g1 = (value: unknown) => Array.isArray(value) && value.length === 3 && value.every(isCanonicalDecimal);
+  const g2 = (value: unknown) =>
+    Array.isArray(value) && value.length === 3 &&
+    value.every((pair) => Array.isArray(pair) && pair.length === 2 && pair.every(isCanonicalDecimal));
+  return g1(proof.pi_a) && g2(proof.pi_b) && g1(proof.pi_c);
+}
+
 export async function verifyNullificationProofPayload(
   payload: NullificationProofPayload
 ): Promise<ParsedNullificationSignals | null> {
+  if (!isWellFormedProofPayload(payload)) {
+    return null;
+  }
+
   const valid = await snarkjs.groth16.verify(
     verificationKeyXor,
     payload.publicSignals,
