@@ -55,3 +55,16 @@ npm run release:verify
 
 Never place an authority secret, service-role key, Supabase access token,
 database password, or Cloudflare API token in repository files or logs.
+
+## Repository settings the workflow cannot enforce
+
+The release job only runs for a successful CI run of a push to `main` in this
+repository (`workflow_run.event == 'push'` and matching `head_repository`), so a
+fork pull request on a branch named `main` cannot trigger a deploy. Two
+settings still live outside the workflow and should be configured in GitHub:
+
+- Branch protection (or a ruleset) on `main` requiring the CI checks and a
+  review before merge.
+- A `production` environment with required reviewers, restricted to the
+  `main` branch. The job declares `environment: production`, so the deploy
+  waits for that approval once the environment exists.

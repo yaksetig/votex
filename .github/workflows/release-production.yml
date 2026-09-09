@@ -15,10 +15,17 @@ permissions:
 
 jobs:
   release:
+    # workflow_run fires for CI runs on pull requests too, including forks.
+    # A fork branch named "main" satisfies head_branch == 'main', so the gate
+    # also requires the triggering run to be a push to this repository.
     if: >-
       vars.PRODUCTION_RELEASE_ENABLED == 'true' &&
       ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
-      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'))
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.head_repository.full_name == github.repository))
     runs-on: ubuntu-latest
     environment: production
     env:
@@ -39,7 +46,7 @@ jobs:
           cache: npm
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.109.1
       - run: npm ci
       - name: Validate release configuration
         run: npm run release:check
