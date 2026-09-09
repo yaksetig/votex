@@ -105,6 +105,7 @@ Since `x' in {-1,1}`, the operation `x' * P` on an Edwards curve point is condit
 | `accumulator[4]` | Current XOR accumulator `[[y]]` |
 | `pk_voter[2]` | Voter's BabyJubJub public key |
 | `pk_authority[2]` | Election authority's public key `H` |
+| `election_id` | Election UUID as a 128-bit integer (binds the proof to one election) |
 
 **Private inputs:** `x` (nullification bit), `r` (encryption randomness), `s` (gate randomness), `sk_voter`
 

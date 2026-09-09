@@ -25,6 +25,9 @@ include "node_modules/circomlib/circuits/bitify.circom";
  *   accumulator[4] - current XOR accumulator [[y]] = (acc_c1, acc_c2)
  *   pk_voter[2]    - voter's BabyJubJub public key
  *   pk_authority[2] - election authority's public key H
+ *   election_id    - the election UUID as a 128-bit field element; binds the
+ *                    proof to one election so it cannot be replayed against
+ *                    the same voter's slot in another election
  *
  * Private inputs:
  *   x         - nullification bit (0 = dummy, 1 = actual)
@@ -38,6 +41,7 @@ include "node_modules/circomlib/circuits/bitify.circom";
  *   3. r and s are canonical nonzero prime-subgroup scalars
  *   4. ciphertext = Enc(x; r) under pk_authority
  *   5. gate_output is correctly computed from accumulator with x' and s
+ *   6. election_id fits in 128 bits (keeps it constrained and canonical)
  *
  * The new accumulator = ciphertext - gate_output is verified publicly.
  *
@@ -53,12 +57,22 @@ template NullificationXOR() {
     signal input accumulator[4];    // Current [[y]]: [a1.x, a1.y, a2.x, a2.y]
     signal input pk_voter[2];       // Voter's public key [x, y]
     signal input pk_authority[2];   // Authority's public key H [x, y]
+    signal input election_id;       // Election UUID as a 128-bit integer
 
     // Private inputs
     signal input x;                 // Nullification bit: 0 or 1
     signal input r;                 // Randomness for fresh encryption
     signal input s;                 // Randomness for gate computation
     signal input sk_voter;          // Voter's private key
+
+    // ================================================
+    // Constraint 0: election binding
+    // The election id is a public input that appears in no other
+    // constraint; range-checking it to 128 bits keeps it in the R1CS
+    // (so it is part of the verified statement) and rejects aliases.
+    // ================================================
+    component election_id_bits = Num2Bits(128);
+    election_id_bits.in <== election_id;
 
     // ================================================
     // Constraint 1: x is binary (0 or 1)
@@ -217,4 +231,4 @@ template NullificationXOR() {
     gate_c2_add.yout === gate_output[3];
 }
 
-component main {public [ciphertext, gate_output, accumulator, pk_voter, pk_authority]} = NullificationXOR();
+component main {public [ciphertext, gate_output, accumulator, pk_voter, pk_authority, election_id]} = NullificationXOR();

@@ -8,6 +8,7 @@ export interface ProofInput {
     accumulator: string[];
     pk_voter: string[];
     pk_authority: string[];
+    election_id: string;
     x: string;
     r: string;
     s: string;
@@ -39,6 +40,7 @@ export async function generateProofsInParallel(
         ...proofInput.input.accumulator,
         ...proofInput.input.pk_voter,
         ...proofInput.input.pk_authority,
+        proofInput.input.election_id,
       ],
     };
   });

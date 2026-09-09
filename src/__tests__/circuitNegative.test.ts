@@ -10,6 +10,7 @@ import {
   derivePublicKey,
 } from "../services/elGamalService";
 import { CURVE_ORDER } from "../services/crypto/constants";
+import { electionIdToField } from "../services/crypto/utils";
 import type { VerificationKey } from "../types/proof";
 
 // Exercises the COMPILED circuit (not the TS model) by attempting witness
@@ -37,11 +38,14 @@ interface CircuitInput {
   accumulator: string[];
   pk_voter: string[];
   pk_authority: string[];
+  election_id: string;
   x: string;
   r: string;
   s: string;
   sk_voter: string;
 }
+
+const TEST_ELECTION_ID = "3f2504e0-4f89-11d3-9a0c-0305e82c3301";
 
 // Build a fully-consistent witness input for a real nullification (x=1).
 function buildValidInput(): CircuitInput {
@@ -83,6 +87,7 @@ function buildValidInput(): CircuitInput {
     accumulator: ["0", "1", "0", "1"],
     pk_voter: [pkVoter.x.toString(), pkVoter.y.toString()],
     pk_authority: [pkAuthority.x.toString(), pkAuthority.y.toString()],
+    election_id: electionIdToField(TEST_ELECTION_ID),
     x: x.toString(),
     r: r.toString(),
     s: s.toString(),
@@ -114,7 +119,23 @@ describe("compiled nullification_xor circuit", () => {
     await expect(
       snarkjs.groth16.verify(verificationKey, publicSignals, proof)
     ).resolves.toBe(true);
-  }, 30_000);
+
+    // The election id is public signal 16; a proof presented for a different
+    // election must not verify (cross-election replay regression).
+    expect(publicSignals).toHaveLength(17);
+    expect(publicSignals[16]).toBe(electionIdToField(TEST_ELECTION_ID));
+    const replayed = [...publicSignals];
+    replayed[16] = electionIdToField("00000000-0000-0000-0000-000000000001");
+    await expect(
+      snarkjs.groth16.verify(verificationKey, replayed, proof)
+    ).resolves.toBe(false);
+  }, 60_000);
+
+  it("rejects an election id wider than 128 bits", async () => {
+    const input = buildValidInput();
+    input.election_id = (1n << 128n).toString();
+    await expect(calculateWitness(input)).rejects.toThrow();
+  });
 
   it("rejects a non-binary nullification bit (x=2)", async () => {
     const input = buildValidInput();

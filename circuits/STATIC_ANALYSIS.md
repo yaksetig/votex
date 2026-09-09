@@ -1,6 +1,6 @@
 # Circuit Static Analysis Results
 
-Last updated: 2026-05-19
+Last updated: 2026-09-09
 
 ## Default Command
 
@@ -29,6 +29,14 @@ circomspect: No issues found.
 ### Interpretation
 
 This means `circomspect` found no warning- or error-level findings in either checked-in Votex circuit. It does not mean the circuits have been formally proven correct.
+
+Re-run on 2026-09-09 after adding the `election_id` public input: `circomspect`
+still reports no issues. `circom --inspect` now emits one additional `CA02`
+note for `NullificationXOR`: the 128 output bits of `election_id_bits`
+(`Num2Bits(128)`) are not used by the parent template. That is intentional;
+the component exists only to range-check the public election id and keep it
+in the R1CS. The remaining `CA02` notes are inside imported `circomlib`
+templates, as before.
 
 ## Circomspect Info-Level Notes
 

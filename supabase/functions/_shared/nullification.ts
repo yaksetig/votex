@@ -39,8 +39,24 @@ export interface ParsedNullificationSignals {
   accumulator: JsonCiphertext;
   authorityPublicKey: JsonPoint;
   ciphertext: JsonCiphertext;
+  /** Election UUID as a decimal 128-bit field element (see electionIdToField). */
+  electionId: string;
   gateOutput: JsonCiphertext;
   voterPublicKey: JsonPoint;
+}
+
+export const NULLIFICATION_PUBLIC_SIGNAL_COUNT = 17;
+
+/**
+ * Encode an election UUID as the 128-bit field element the circuit binds
+ * proofs to. Must match `electionIdToField` in src/services/crypto/utils.ts.
+ */
+export function electionIdToField(electionId: string): string {
+  const hex = electionId.replace(/-/g, "").toLowerCase();
+  if (!/^[0-9a-f]{32}$/.test(hex)) {
+    throw new Error("Election id must be a UUID");
+  }
+  return BigInt(`0x${hex}`).toString();
 }
 
 class EdwardsPoint {
@@ -136,8 +152,13 @@ function signalPoint(publicSignals: string[], startIndex: number): JsonPoint {
 export function parseNullificationSignals(
   publicSignals: string[]
 ): ParsedNullificationSignals {
-  if (!Array.isArray(publicSignals) || publicSignals.length !== 16) {
-    throw new Error("Nullification proof must expose exactly 16 public signals");
+  if (
+    !Array.isArray(publicSignals) ||
+    publicSignals.length !== NULLIFICATION_PUBLIC_SIGNAL_COUNT
+  ) {
+    throw new Error(
+      `Nullification proof must expose exactly ${NULLIFICATION_PUBLIC_SIGNAL_COUNT} public signals`
+    );
   }
 
   return {
@@ -155,6 +176,7 @@ export function parseNullificationSignals(
     },
     voterPublicKey: signalPoint(publicSignals, 12),
     authorityPublicKey: signalPoint(publicSignals, 14),
+    electionId: BigInt(publicSignals[16]).toString(),
   };
 }
 

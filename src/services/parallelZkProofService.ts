@@ -11,6 +11,7 @@ export interface ProofInput {
     accumulator: string[];
     pk_voter: string[];
     pk_authority: string[];
+    election_id: string;
     x: string;
     r: string;
     s: string;

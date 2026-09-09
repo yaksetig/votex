@@ -21,7 +21,7 @@ new_acc = Enc(x; r) - gate
 The legacy additive circuit at `circuits/nullification.circom` is retained for
 reference and is not used by the application.
 
-## Public inputs (16 field elements)
+## Public inputs (17 field elements)
 
 | Signal | Elements | Description |
 |---|---:|---|
@@ -30,6 +30,11 @@ reference and is not used by the application.
 | `accumulator` | 4 | Current encrypted accumulator state |
 | `pk_voter` | 2 | Target participant's BabyJubJub public key |
 | `pk_authority` | 2 | Election authority's BabyJubJub public key |
+| `election_id` | 1 | Election UUID as a 128-bit integer; binds the proof to one election |
+
+The public signals are emitted in that order, so `publicSignals[16]` is the
+election binding. `nullification-write` rejects a proof whose election signal
+differs from the batch's election.
 
 ## Private inputs (4 field elements)
 

@@ -15,14 +15,29 @@ function sha256(relativePath: string): string {
 
 describe("pre-production trust boundaries", () => {
   it("keeps the reviewed cryptographic circuit and artifacts byte-for-byte unchanged", () => {
-    expect(sha256("public/circuits/nullification_xor.wasm"))
-      .toBe("e733bf8b10d4056abe6fd24645626e19ae213df8cab87087aede5d0daa9fcb69");
-    expect(sha256("public/circuits/nullification_xor_final.zkey"))
-      .toBe("70799f1e6d4c4646c8cb6dc8ee834522cf8a09e4e182ed8455c32987a03105d8");
-    expect(sha256("public/circuits/verification_key_xor.json"))
-      .toBe("28decd81101f51471a55a27c7b22e87a0b5ae720920f2670654791f884d13a0c");
-    expect(sha256("circuits/nullification_xor.circom"))
-      .toBe("09cb5dcc3ca880dd52ef070553d012b9320d061e1ec3d08dcabe4c4e01ae78d8");
+    const config = JSON.parse(read("release.config.json").toString("utf8")) as {
+      circuitArtifacts: Record<string, string>;
+    };
+    const pins = config.circuitArtifacts;
+    expect(Object.keys(pins).sort()).toEqual([
+      "circuits/nullification_xor.circom",
+      "public/circuits/nullification_xor.wasm",
+      "public/circuits/nullification_xor_final.zkey",
+      "public/circuits/verification_key_xor.json",
+    ]);
+    for (const [relativePath, expected] of Object.entries(pins)) {
+      expect(expected).toMatch(/^[0-9a-f]{64}$/);
+      expect(sha256(relativePath), relativePath).toBe(expected);
+    }
+  });
+
+  it("ships one verification key: JSON artifact and edge-function module agree", () => {
+    const json = JSON.parse(read("public/circuits/verification_key_xor.json").toString("utf8"));
+    const module = read("supabase/functions/_shared/verificationKeyXor.ts").toString("utf8");
+    const embedded = JSON.parse(module.slice(module.indexOf("= ") + 2).replace(/;\s*$/, ""));
+    expect(embedded).toEqual(json);
+    expect(json.nPublic).toBe(17);
+    expect(json.IC).toHaveLength(18);
   });
 
   it("closes direct election creation and grants transactional writes only to service_role", () => {

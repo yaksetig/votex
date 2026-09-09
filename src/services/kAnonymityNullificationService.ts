@@ -23,7 +23,7 @@ import {
   EdwardsPoint,
   ElGamalCiphertext,
 } from "@/services/elGamalService";
-import { randomScalar } from "@/services/crypto/utils";
+import { electionIdToField, randomScalar } from "@/services/crypto/utils";
 import { CURVE_ORDER } from "@/services/crypto/constants";
 import {
   getOrCreateAccumulator,
@@ -146,6 +146,7 @@ export async function generateKAnonymousNullifications(
 
   const nullificationItems: NullificationBatchItem[] = [];
   const proofInputs: ProofInput[] = [];
+  const electionIdField = electionIdToField(electionId);
 
   for (let i = 0; i < slotsToNullify.length; i++) {
     const { participant, isReal } = slotsToNullify[i];
@@ -208,6 +209,9 @@ export async function generateKAnonymousNullifications(
         // (x=1) this forces the proof to match the submitter's own slot.
         pk_voter: [participant.public_key_x, participant.public_key_y],
         pk_authority: [authorityPublicKey.x, authorityPublicKey.y],
+        // Binds the proof to this election; the server rejects a proof whose
+        // public election signal differs from the batch's election.
+        election_id: electionIdField,
         x: x.toString(),
         r: r.toString(),
         s: s.toString(),

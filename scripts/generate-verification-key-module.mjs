@@ -12,7 +12,7 @@ const verificationKey = JSON.parse(await readFile(inputPath, "utf8"));
 if (
   verificationKey.protocol !== "groth16" ||
   verificationKey.curve !== "bn128" ||
-  verificationKey.nPublic !== 16
+  verificationKey.nPublic !== 17
 ) {
   throw new Error("Unexpected XOR nullification verification-key shape");
 }

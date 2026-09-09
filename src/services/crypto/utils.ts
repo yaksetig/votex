@@ -73,3 +73,16 @@ export function parseCanonicalFieldElement(value: string): bigint {
 
   return parsed;
 }
+
+/**
+ * Encode an election UUID as the 128-bit field element the nullification
+ * circuit binds proofs to. Must match `electionIdToField` in
+ * supabase/functions/_shared/nullification.ts.
+ */
+export function electionIdToField(electionId: string): string {
+  const hex = electionId.replace(/-/g, "").toLowerCase();
+  if (!/^[0-9a-f]{32}$/.test(hex)) {
+    throw new Error("Election id must be a UUID");
+  }
+  return BigInt(`0x${hex}`).toString();
+}

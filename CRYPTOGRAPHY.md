@@ -510,8 +510,18 @@ It proves:
 2. if `x = 1`, the voter knows a matching private key for `pk_voter`
 3. the fresh ElGamal ciphertext is valid
 4. the conditional gate output is valid
+5. the public `election_id` signal is a 128-bit integer
 
 It does not prove the final accumulator update directly inside the circuit. The final subtraction is done publicly outside the circuit.
+
+The 17 public signals are, in order: `ciphertext[4]`, `gate_output[4]`,
+`accumulator[4]`, `pk_voter[2]`, `pk_authority[2]`, `election_id`. The election
+binding was added on 2026-09-09: before it, one fixed authority key, one global
+voter key per person, an identical identity-point starting accumulator, and a
+public proof ledger made a voter's first proof in election A a valid statement
+in election B, so anyone could replay a real nullification against that voter
+in another election. Proofs recorded before migration `20260909000000` verify
+under the previous key, kept at `circuits/legacy/verification_key_xor_v1.json`.
 
 ## 9.2 Proving flow
 
@@ -527,12 +537,11 @@ Proof generation uses:
 
 The worker path allows multiple proofs to be generated in parallel in the browser.
 
-## 9.3 Standalone verification helper
+## 9.3 Client-side verification
 
-Client-side proof verification lives in `src/services/parallelZkProofService.ts`
-(`verifyNullificationProof`). It is a convenience/standalone helper only — it is
-**not** relied on for soundness, because a client cannot be trusted to verify
-its own proof. The authoritative verification happens server-side (see §9.5).
+There is no client-side verification helper. A client cannot be trusted to
+verify its own proof, so the only verification that matters happens
+server-side (see §9.5).
 
 ## 9.4 Artifact loading model
 
@@ -560,9 +569,10 @@ binds the proof's public signals to the real protocol state:
   read from the database or any client-supplied file, so it cannot be swapped at
   the trust boundary.
 - The verified public signals are checked by byte equality against the
-  registered authority key, the targeted participant's registered key, and the
-  stored accumulator ciphertext and version. A prover therefore cannot inject
-  adversarial points or target another voter's slot without that voter's key.
+  registered authority key, the targeted participant's registered key, the
+  stored accumulator ciphertext and version, and the election id of the batch.
+  A prover therefore cannot inject adversarial points, target another voter's
+  slot without that voter's key, or replay a proof into another election.
 - Persistence goes through the transactional `submit_nullification_batch`
   SECURITY DEFINER RPC (migration `20260422000000`), which takes `FOR UPDATE`
   row locks and is all-or-nothing. The `nullifications` and

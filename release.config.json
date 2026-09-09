@@ -10,17 +10,56 @@
     "ceremonyTranscript": "",
     "transcriptSha256": ""
   },
+  "circuitArtifacts": {
+    "circuits/nullification_xor.circom": "2f8abb80b6abd4b4aface956dae445031e132fc9ac4d83a1dd7007338034f911",
+    "public/circuits/nullification_xor.wasm": "af362ad3d74f4313963f1409ba918e63f3136a18c86a0014a90925b9323f25b8",
+    "public/circuits/nullification_xor_final.zkey": "799d43cb4a92d01dd6abf5e70a7afbb9f21b405c7e65daa6990a14fe9bd67782",
+    "public/circuits/verification_key_xor.json": "e6f16fb1711a9b664736a68017c970a8bcea3ee8d889fb8444f0e0df23782d75"
+  },
   "functions": [
-    { "name": "authority-link", "verifyJwt": true },
-    { "name": "authority-tally-write", "verifyJwt": true },
-    { "name": "create-election", "verifyJwt": false },
-    { "name": "delegation-write", "verifyJwt": true },
-    { "name": "fixed-authority-status", "verifyJwt": false },
-    { "name": "nullification-write", "verifyJwt": false },
-    { "name": "register-keypair", "verifyJwt": false },
-    { "name": "register-participant", "verifyJwt": true },
-    { "name": "rp-signature", "verifyJwt": true },
-    { "name": "vote-tracking-write", "verifyJwt": true },
-    { "name": "worldid-session", "verifyJwt": true }
+    {
+      "name": "authority-link",
+      "verifyJwt": true
+    },
+    {
+      "name": "authority-tally-write",
+      "verifyJwt": true
+    },
+    {
+      "name": "create-election",
+      "verifyJwt": false
+    },
+    {
+      "name": "delegation-write",
+      "verifyJwt": true
+    },
+    {
+      "name": "fixed-authority-status",
+      "verifyJwt": false
+    },
+    {
+      "name": "nullification-write",
+      "verifyJwt": false
+    },
+    {
+      "name": "register-keypair",
+      "verifyJwt": false
+    },
+    {
+      "name": "register-participant",
+      "verifyJwt": true
+    },
+    {
+      "name": "rp-signature",
+      "verifyJwt": true
+    },
+    {
+      "name": "vote-tracking-write",
+      "verifyJwt": true
+    },
+    {
+      "name": "worldid-session",
+      "verifyJwt": true
+    }
   ]
 }

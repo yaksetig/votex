@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 import {
   computeAccumulatorUpdate,
+  electionIdToField,
   equalCiphertexts,
   equalPoints,
   identityCiphertextJson,
@@ -248,6 +249,7 @@ Deno.serve(async (req) => {
       (accumulators || []).map((row) => [row.voter_id, row as AccumulatorRow])
     );
 
+    const expectedElectionField = electionIdToField(election.id);
     const preparedItems: PreparedNullificationItem[] = [];
     for (const item of body.nullifications) {
       if (!item.userId || typeof item.accumulatorVersion !== "number" || !item.zkp) {
@@ -258,6 +260,12 @@ Deno.serve(async (req) => {
       if (!parsed) {
         return jsonResponse(400, {
           error: `Nullification proof verification failed for participant ${item.userId}`,
+        });
+      }
+
+      if (parsed.electionId !== expectedElectionField) {
+        return jsonResponse(400, {
+          error: `Nullification proof is bound to a different election for participant ${item.userId}`,
         });
       }
 
