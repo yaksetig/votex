@@ -4,6 +4,7 @@ import { ElGamalCiphertext } from "@/services/elGamalService";
 import { Groth16Proof } from "@/types/proof";
 import { logger } from "@/services/logger";
 import { getStoredWorldIdSessionToken } from "@/services/worldIdSessionService";
+import { readFunctionError } from "@/types/api";
 
 export interface NullificationProof {
   proof: Groth16Proof;
@@ -19,6 +20,19 @@ export interface Nullification {
   created_at: string;
 }
 
+export type NullificationWriteCode =
+  | "ACCUMULATOR_CONFLICT"
+  | "RATE_LIMITED"
+  | "ELECTION_CLOSED"
+  | "NO_SESSION"
+  | "UNKNOWN";
+
+export interface NullificationWriteResult {
+  ok: boolean;
+  code?: NullificationWriteCode;
+  message?: string;
+}
+
 // Batch store nullifications through the trusted server-side write path.
 export async function storeNullificationBatchWithAccumulators(
   electionId: string,
@@ -29,7 +43,7 @@ export async function storeNullificationBatchWithAccumulators(
     accumulatorVersion: number;
     zkp: { proof: Groth16Proof; publicSignals: string[] };
   }>
-): Promise<boolean> {
+): Promise<NullificationWriteResult> {
   try {
     logger.debug(
       `Submitting batch of ${nullifications.length} XOR nullifications for election ${electionId}`
@@ -38,7 +52,7 @@ export async function storeNullificationBatchWithAccumulators(
     const sessionToken = getStoredWorldIdSessionToken();
     if (!sessionToken) {
       logger.error("Cannot submit nullification batch without an active voter session");
-      return false;
+      return { ok: false, code: "NO_SESSION", message: "No active voter session" };
     }
 
     const { data, error } = await supabase.functions.invoke("nullification-write", {
@@ -56,21 +70,45 @@ export async function storeNullificationBatchWithAccumulators(
 
     if (error) {
       logger.error("Error submitting nullification batch:", error);
-      return false;
+      const detail = await readFunctionError(error, "UNKNOWN", "Nullification write failed");
+      return {
+        ok: false,
+        code: normalizeWriteCode(detail.code),
+        message: detail.message,
+      };
     }
 
     if (data?.error) {
       logger.error("Nullification write was rejected:", data.error);
-      return false;
+      return {
+        ok: false,
+        code: normalizeWriteCode(data.code),
+        message: String(data.error),
+      };
     }
 
     logger.debug(
       `Successfully stored batch of ${nullifications.length} nullifications via the trusted write path`
     );
-    return true;
+    return { ok: true };
   } catch (error) {
     logger.error("Error in storeNullificationBatchWithAccumulators:", error);
-    return false;
+    return {
+      ok: false,
+      code: "UNKNOWN",
+      message: error instanceof Error ? error.message : "Nullification write failed",
+    };
+  }
+}
+
+function normalizeWriteCode(code: unknown): NullificationWriteCode {
+  switch (code) {
+    case "ACCUMULATOR_CONFLICT":
+    case "RATE_LIMITED":
+    case "ELECTION_CLOSED":
+      return code;
+    default:
+      return "UNKNOWN";
   }
 }
 

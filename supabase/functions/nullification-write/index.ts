@@ -88,15 +88,27 @@ async function persistNullificationBatch(
 
   const message = error.message || "";
 
+  if (message.includes("RATE_LIMITED")) {
+    return jsonResponse(429, {
+      code: "RATE_LIMITED",
+      error: "Only one nullification batch per minute is accepted. Please retry shortly.",
+    });
+  }
+
+  if (message.includes("ELECTION_CLOSED")) {
+    return jsonResponse(409, { code: "ELECTION_CLOSED", error: "Election is closed" });
+  }
+
   if (message.includes("mismatch")) {
-    return jsonResponse(409, { error: message });
+    return jsonResponse(409, { code: "ACCUMULATOR_CONFLICT", error: message });
   }
 
   if (
     message.includes("not a participant") ||
     message.includes("must include the submitter") ||
     message.includes("incomplete item") ||
-    message.includes("non-empty array")
+    message.includes("non-empty array") ||
+    message.includes("exceeds the maximum")
   ) {
     return jsonResponse(400, { error: message });
   }
@@ -141,9 +153,10 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const session = await validateWorldIdSession(supabase, body.sessionToken, {
-      touchLastUsed: true,
-    });
+    // Deliberately no last_used_at touch: a timestamp that coincides with the
+    // batch's created_at would identify the submitter to anyone who can read
+    // world_id_sessions.
+    const session = await validateWorldIdSession(supabase, body.sessionToken);
     if (!session.valid || !session.userId) {
       return jsonResponse(401, {
         error: session.detail || "Voter session validation failed",
@@ -295,12 +308,14 @@ Deno.serve(async (req) => {
 
       if (currentVersion !== item.accumulatorVersion) {
         return jsonResponse(409, {
+          code: "ACCUMULATOR_CONFLICT",
           error: `Accumulator version mismatch for participant ${item.userId}`,
         });
       }
 
       if (!equalCiphertexts(parsed.accumulator, currentAccumulator)) {
         return jsonResponse(409, {
+          code: "ACCUMULATOR_CONFLICT",
           error: `Accumulator state mismatch for participant ${item.userId}`,
         });
       }

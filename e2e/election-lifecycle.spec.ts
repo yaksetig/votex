@@ -49,7 +49,7 @@ test("verified voter creates, delegates, signs, audits, nullifies, closes, and t
     await expect(page.getByRole("heading", { name: "Submit a Nullification" })).toBeVisible();
     await page.getByRole("button", { name: /Nullify Vote/ }).click();
     await page.getByRole("button", { name: /Dummy Nullification/ }).click();
-    await expect(page.getByText("Dummy nullification submitted", { exact: true })).toBeVisible({
+    await expect(page.getByText("Nullification request submitted", { exact: true })).toBeVisible({
       timeout: 90_000,
     });
   }

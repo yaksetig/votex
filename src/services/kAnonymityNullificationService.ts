@@ -53,6 +53,24 @@ export interface KAnonymityProgress {
   message: string;
 }
 
+// Unbiased CSPRNG Fisher-Yates shuffle (rejection-sampled indices).
+export function secureShuffle<T>(items: T[]): T[] {
+  const shuffled = [...items];
+  const buffer = new Uint32Array(1);
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const range = i + 1;
+    const limit = Math.floor(0x100000000 / range) * range;
+    let candidate: number;
+    do {
+      crypto.getRandomValues(buffer);
+      candidate = buffer[0];
+    } while (candidate >= limit);
+    const j = candidate % range;
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
 // Cryptographically secure random selection of participants
 function selectRandomParticipants(
   participants: ElectionParticipant[],
@@ -67,16 +85,7 @@ function selectRandomParticipants(
     return otherParticipants;
   }
 
-  const shuffled = [...otherParticipants];
-  const randomValues = new Uint32Array(shuffled.length);
-  crypto.getRandomValues(randomValues);
-
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = randomValues[i] % (i + 1);
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-
-  return shuffled.slice(0, count);
+  return secureShuffle(otherParticipants).slice(0, count);
 }
 
 // Generate k-anonymous nullifications using XOR accumulators
@@ -123,13 +132,16 @@ export async function generateKAnonymousNullifications(
     voterUserId
   );
 
+  // Shuffle so the submitter's own slot sits at a random position. The
+  // server also processes batches in a client-independent order, but the
+  // request body itself must not reveal which slot is the submitter's.
   const slotsToNullify: {
     participant: ElectionParticipant;
     isReal: boolean;
-  }[] = [
+  }[] = secureShuffle([
     { participant: ownParticipant, isReal: isActualNullification },
     ...otherSlots.map((p) => ({ participant: p, isReal: false })),
-  ];
+  ]);
 
   // Step 3: For each slot, fetch accumulator, compute gate, build proof input
   onProgress?.({
