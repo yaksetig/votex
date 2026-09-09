@@ -61,4 +61,27 @@ describe("pre-production trust boundaries", () => {
     expect(migration).toContain("CREATE OR REPLACE VIEW public.public_election_activity");
     expect(migration).toContain("delegations_canonical_ciphertext_coordinates");
   });
+
+  it("strips write privileges from every public projection and makes new objects deny-by-default", () => {
+    const migration = read("supabase/migrations/20260909000000_revoke_view_writes_and_sql_cleanup.sql").toString("utf8");
+    expect(migration).toContain("REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER");
+    for (const view of [
+      "public_votes",
+      "public_elections",
+      "public_participants",
+      "public_delegations",
+      "public_nullifications",
+      "public_nullification_accumulators",
+      "public_election_authorities",
+      "public_authority_audit_events",
+      "public_tallies",
+      "public_election_activity",
+    ]) {
+      expect(migration).toContain(`public.${view}`);
+    }
+    expect(migration).toContain("ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public\n  REVOKE ALL ON TABLES FROM anon, authenticated");
+    expect(migration).toContain("ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public\n  REVOKE ALL ON FUNCTIONS FROM PUBLIC, anon, authenticated");
+    expect(migration).toContain("DROP TABLE IF EXISTS public.discrete_log_lookup");
+    expect(migration).toContain("WHERE election_id IS NOT NULL");
+  });
 });
