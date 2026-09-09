@@ -20,6 +20,8 @@ import { decryptElGamalInExponent } from "@/services/elGamalTallyService";
 import { getElectionParticipantsForTally } from "@/services/electionParticipantsService";
 import { getStoredWorldIdSessionToken } from "@/services/worldIdSessionService";
 import { logger } from "@/services/logger";
+import { signMessageWithStoredSeed } from "@/services/eddsaService";
+import type { StoredKeypair } from "@/types/keypair";
 import { parseCanonicalFieldElement } from "@/services/crypto/utils";
 
 interface StoredDelegation {
@@ -45,6 +47,52 @@ interface DelegationResolution {
 // Write operations
 // -----------------------------------------------------------------------
 
+export interface DelegationCiphertextStrings {
+  c1: { x: string; y: string };
+  c2: { x: string; y: string };
+}
+
+export interface DelegationAuthorization {
+  issuedAt: number;
+  signature: string;
+}
+
+/**
+ * Domain-separated message the delegator signs. Must match
+ * supabase/functions/_shared/delegation.ts.
+ */
+export function buildDelegationMessage(
+  action: "create" | "revoke",
+  electionId: string,
+  issuedAt: number,
+  ciphertext?: DelegationCiphertextStrings
+): string {
+  const parts = ["votex:delegation:v1", action, electionId];
+  if (action === "create") {
+    if (!ciphertext) {
+      throw new Error("create delegation message requires a ciphertext");
+    }
+    parts.push(ciphertext.c1.x, ciphertext.c1.y, ciphertext.c2.x, ciphertext.c2.y);
+  }
+  parts.push(issuedAt.toString());
+  return parts.join(":");
+}
+
+export async function createDelegationAuthorization(
+  keypair: StoredKeypair,
+  action: "create" | "revoke",
+  electionId: string,
+  ciphertext?: DelegationCiphertextStrings
+): Promise<DelegationAuthorization> {
+  if (!keypair.seed) {
+    throw new Error("Voting key seed is unavailable; sign in again to delegate");
+  }
+  const issuedAt = Date.now();
+  const message = buildDelegationMessage(action, electionId, issuedAt, ciphertext);
+  const signature = await signMessageWithStoredSeed(keypair.seed, message);
+  return { issuedAt, signature: JSON.stringify(signature) };
+}
+
 /**
  * Create a private delegation.
  *
@@ -58,7 +106,8 @@ interface DelegationResolution {
 export async function createDelegation(
   electionId: string,
   delegateIndex: number,
-  authorityPk: EdwardsPoint
+  authorityPk: EdwardsPoint,
+  keypair: StoredKeypair
 ): Promise<boolean> {
   try {
     logger.debug(
@@ -73,16 +122,27 @@ export async function createDelegation(
 
     // Encrypt the delegate index with the authority's public key
     const ct = elgamalEncrypt(authorityPk, delegateIndex);
+    const ciphertext = {
+      c1: { x: ct.c1.x.toString(), y: ct.c1.y.toString() },
+      c2: { x: ct.c2.x.toString(), y: ct.c2.y.toString() },
+    };
+
+    // A session alone must not be able to delegate a ballot away: sign the
+    // exact action with the registered voting key.
+    const authorization = await createDelegationAuthorization(
+      keypair,
+      "create",
+      electionId,
+      ciphertext
+    );
 
     const { data, error } = await supabase.functions.invoke("delegation-write", {
       body: {
         action: "create",
         electionId,
         sessionToken,
-        ciphertext: {
-          c1: { x: ct.c1.x.toString(), y: ct.c1.y.toString() },
-          c2: { x: ct.c2.x.toString(), y: ct.c2.y.toString() },
-        },
+        ciphertext,
+        authorization,
       },
     });
 
@@ -102,7 +162,10 @@ export async function createDelegation(
 /**
  * Revoke the session holder's active delegation so they can vote directly again.
  */
-export async function revokeDelegation(electionId: string): Promise<boolean> {
+export async function revokeDelegation(
+  electionId: string,
+  keypair: StoredKeypair
+): Promise<boolean> {
   try {
     const sessionToken = getStoredWorldIdSessionToken();
     if (!sessionToken) {
@@ -110,11 +173,18 @@ export async function revokeDelegation(electionId: string): Promise<boolean> {
       return false;
     }
 
+    const authorization = await createDelegationAuthorization(
+      keypair,
+      "revoke",
+      electionId
+    );
+
     const { data, error } = await supabase.functions.invoke("delegation-write", {
       body: {
         action: "revoke",
         electionId,
         sessionToken,
+        authorization,
       },
     });
 

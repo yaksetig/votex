@@ -49,3 +49,48 @@ Deno.test("pinned edge verifier loads and accepts an existing-format signature",
     throw new Error("The edge verifier rejected a valid existing-format signature");
   }
 });
+
+Deno.test("edge verifier rejects wrong message, wrong key, out-of-range S, and malformed payloads", async () => {
+  const eddsa = await buildEddsa();
+  const seed = new Uint8Array(32).fill(7);
+  const otherSeed = new Uint8Array(32).fill(8);
+  const message = "votex:edge-verifier:negative";
+  const toKey = (point: unknown[]) => ({
+    x: BigInt(eddsa.F.toObject(point[0])).toString(),
+    y: BigInt(eddsa.F.toObject(point[1])).toString(),
+  });
+  const publicKey = toKey(eddsa.prv2pub(seed));
+  const otherKey = toKey(eddsa.prv2pub(otherSeed));
+  const signature = eddsa.signPoseidon(seed, eddsa.F.e(await hashMessageToField(message)));
+  const payload = {
+    R8: toKey(signature.R8),
+    S: signature.S.toString(),
+    message,
+  };
+
+  const serialize = (p: Record<string, unknown>) => JSON.stringify(p);
+  if (!(await verifyPoseidonSignature(serialize(payload), publicKey, message))) {
+    throw new Error("control signature should verify");
+  }
+  if (await verifyPoseidonSignature(serialize(payload), publicKey, message + "x")) {
+    throw new Error("accepted a different expected message");
+  }
+  if (await verifyPoseidonSignature(serialize(payload), otherKey, message)) {
+    throw new Error("accepted a signature under the wrong key");
+  }
+  if (await verifyPoseidonSignature(serialize({ ...payload, S: CURVE_ORDER.toString() }), publicKey, message)) {
+    throw new Error("accepted S >= subgroup order");
+  }
+  if (await verifyPoseidonSignature(serialize({ ...payload, R8: { x: "0", y: "1" } }), publicKey, message)) {
+    throw new Error("accepted the identity as R8");
+  }
+  let threw = false;
+  try {
+    await verifyPoseidonSignature("{}", publicKey, message);
+  } catch {
+    threw = true;
+  }
+  if (!threw) {
+    throw new Error("malformed payload did not throw");
+  }
+});

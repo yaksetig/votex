@@ -619,12 +619,21 @@ Properties:
 - only the authority can decrypt which participant index was chosen
 - the authority resolves weights at tally time
 
+Authorization (since 2026-09-09): every create or revoke carries an
+EdDSA-Poseidon signature by the delegator's registered voting key over
+
+- `votex:delegation:v1:create:${electionId}:${c1.x}:${c1.y}:${c2.x}:${c2.y}:${issuedAt}`
+- `votex:delegation:v1:revoke:${electionId}:${issuedAt}`
+
+`delegation-write` verifies it against the participant's registered key with a
+five-minute freshness window and stores it in `delegations.delegator_signature`.
+A voter session alone can therefore no longer delegate (and thereby zero) a
+ballot; the voting key is required, exactly as for casting the ballot.
+
 Important note:
 
-- the cryptography here hides the delegate choice
-- it does not, by itself, prove the delegator authorized that delegation
-
-Authorization for delegation creation/revocation depends on application/database controls, not on a cryptographic signature or proof attached to each delegation record.
+- the cryptography hides the delegate choice but does not prove the index is
+  in range; an undecodable delegation is handled at tally time (§11)
 
 ## 11. Tally Flow
 

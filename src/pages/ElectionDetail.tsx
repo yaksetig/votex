@@ -66,7 +66,7 @@ const ElectionDetail = () => {
   }, [id, userId]);
 
   const handleDelegate = async (participantIndex: number) => {
-    if (!id || !userId || !election) return;
+    if (!id || !userId || !election || !keypair) return;
     setIsDelegating(true);
     try {
       const { getElectionAuthorityForElection } = await import(
@@ -82,7 +82,7 @@ const ElectionDetail = () => {
         BigInt(authority.public_key_y)
       );
 
-      const success = await createDelegation(id, participantIndex, authorityPk);
+      const success = await createDelegation(id, participantIndex, authorityPk, keypair);
       if (!success) throw new Error("Failed to store delegation");
 
       setHasDelegated(true);
@@ -103,8 +103,8 @@ const ElectionDetail = () => {
   };
 
   const handleRevokeDelegation = async () => {
-    if (!id || !userId) return;
-    const success = await revokeDelegation(id);
+    if (!id || !userId || !keypair) return;
+    const success = await revokeDelegation(id, keypair);
     if (success) {
       setHasDelegated(false);
       toast({
