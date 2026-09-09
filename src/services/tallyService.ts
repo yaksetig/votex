@@ -7,7 +7,7 @@ import {
   getElectionAccumulators,
   accumulatorToCiphertext,
 } from "@/services/accumulatorService";
-import { resolveDelegations } from "@/services/delegationService";
+import { resolveDelegations, type InvalidDelegation } from "@/services/delegationService";
 import { getElectionParticipantsForTally } from "@/services/electionParticipantsService";
 import { logger } from "@/services/logger";
 import { deriveAuthorityKeyMaterial } from "@/services/eddsaService";
@@ -24,6 +24,8 @@ export interface ElectionTallyResult {
   results: TallyResult[];
   processedAt: string;
   processedBy?: string;
+  /** Delegations that did not decode to a valid delegate and were ignored. */
+  invalidDelegations: InvalidDelegation[];
 }
 
 async function getTrackedVoterIds(
@@ -77,12 +79,15 @@ async function getElectionAuthorityPublicKey(
 // Process the entire election tally using the authority's secret.
 // With XOR accumulators, each voter's accumulator decrypts to either
 // 0 (vote valid) or 1 (vote nullified). No count leakage.
+// Throws on any integrity failure (wrong key, unreadable state, undecodable
+// accumulator, persistence rejected) so the caller can show the reason; it
+// never returns a partial or empty tally.
 export async function processElectionTally(
   electionId: string,
   authoritySecret: string,
   processedBy?: string,
   replaceExisting = false
-): Promise<ElectionTallyResult | null> {
+): Promise<ElectionTallyResult> {
   try {
     logger.debug(`Processing election tally for election: ${electionId}`);
 
@@ -92,8 +97,7 @@ export async function processElectionTally(
     const minTableSize = Math.max(2, participants.length);
     const tableInitialized = await ensureDiscreteLogTable(minTableSize);
     if (!tableInitialized) {
-      logger.error("Failed to initialize discrete log table");
-      return null;
+      throw new Error("Failed to initialize the discrete-log lookup");
     }
 
     // --- Phase 1: Nullification processing ---
@@ -143,12 +147,12 @@ export async function processElectionTally(
     }
 
     // --- Phase 2: Delegation resolution ---
-    const { weightMap, delegatorIds } = await resolveDelegations(
+    const { weightMap, delegatorIds, invalidDelegations } = await resolveDelegations(
       electionId,
       privateKey
     );
     logger.debug(
-      `Resolved ${delegatorIds.size} delegations across ${weightMap.size} delegates`
+      `Resolved ${delegatorIds.size} delegations across ${weightMap.size} delegates; ${invalidDelegations.length} invalid`
     );
 
     // --- Phase 3: Build final results ---
@@ -198,8 +202,7 @@ export async function processElectionTally(
 
     const stored = await storeTallyResults(electionId, results, processedBy, replaceExisting);
     if (!stored) {
-      logger.error("Failed to persist tally results through the authority write path");
-      return null;
+      throw new Error("The authority write path rejected the tally results");
     }
 
     return {
@@ -207,10 +210,11 @@ export async function processElectionTally(
       results,
       processedAt: new Date().toISOString(),
       processedBy,
+      invalidDelegations,
     };
   } catch (error) {
     logger.error("Error processing election tally:", error);
-    return null;
+    throw error instanceof Error ? error : new Error("Failed to process election tally");
   }
 }
 

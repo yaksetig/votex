@@ -14,34 +14,25 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   EdwardsPoint,
   elgamalEncrypt,
-  ElGamalCiphertext,
 } from "@/services/elGamalService";
-import { decryptElGamalInExponent } from "@/services/elGamalTallyService";
 import { getElectionParticipantsForTally } from "@/services/electionParticipantsService";
 import { getStoredWorldIdSessionToken } from "@/services/worldIdSessionService";
 import { logger } from "@/services/logger";
+import {
+  decodeDelegations,
+  type DecodedDelegations,
+  type StoredDelegation,
+} from "@/services/delegationDecoding";
+
+export type {
+  DecodedDelegations,
+  DelegationResolution,
+  InvalidDelegation,
+  StoredDelegation,
+} from "@/services/delegationDecoding";
+export { decodeDelegations } from "@/services/delegationDecoding";
 import { signMessageWithStoredSeed } from "@/services/eddsaService";
 import type { StoredKeypair } from "@/types/keypair";
-import { parseCanonicalFieldElement } from "@/services/crypto/utils";
-
-interface StoredDelegation {
-  id: string;
-  election_id: string;
-  delegator_id: string;
-  delegate_ct_c1_x: string;
-  delegate_ct_c1_y: string;
-  delegate_ct_c2_x: string;
-  delegate_ct_c2_y: string;
-  status: string;
-  created_at: string;
-  revoked_at: string | null;
-}
-
-interface DelegationResolution {
-  delegatorId: string;
-  delegateIndex: number;
-  delegateParticipantId: string;
-}
 
 // -----------------------------------------------------------------------
 // Write operations
@@ -268,31 +259,6 @@ async function getElectionDelegations(
 // -----------------------------------------------------------------------
 
 /**
- * Reconstruct an ElGamalCiphertext from stored delegation coordinates.
- */
-function delegationToCiphertext(d: StoredDelegation): ElGamalCiphertext {
-  const c1 = new EdwardsPoint(
-    parseCanonicalFieldElement(d.delegate_ct_c1_x),
-    parseCanonicalFieldElement(d.delegate_ct_c1_y)
-  );
-  const c2 = new EdwardsPoint(
-    parseCanonicalFieldElement(d.delegate_ct_c2_x),
-    parseCanonicalFieldElement(d.delegate_ct_c2_y)
-  );
-  if (
-    c1.isIdentity() ||
-    c2.isIdentity() ||
-    !c1.isOnCurve() ||
-    !c1.isInPrimeSubgroup() ||
-    !c2.isOnCurve() ||
-    !c2.isInPrimeSubgroup()
-  ) {
-    throw new Error(`Delegation ${d.id} contains an invalid BabyJubJub ciphertext`);
-  }
-  return { c1, c2, r: 0n, ciphertext: [c1.x, c1.y, c2.x, c2.y] };
-}
-
-/**
  * Decrypt all delegations for an election and resolve delegate identities.
  *
  * Returns a list of resolved delegations and a weight map:
@@ -301,11 +267,7 @@ function delegationToCiphertext(d: StoredDelegation): ElGamalCiphertext {
 export async function resolveDelegations(
   electionId: string,
   authorityPrivateKey: bigint
-): Promise<{
-  resolved: DelegationResolution[];
-  weightMap: Map<string, number>;
-  delegatorIds: Set<string>;
-}> {
+): Promise<DecodedDelegations> {
   const delegations = await getElectionDelegations(electionId);
   const participants = await getElectionParticipantsForTally(electionId);
 
@@ -314,34 +276,5 @@ export async function resolveDelegations(
     (a, b) => new Date(a.joined_at).getTime() - new Date(b.joined_at).getTime()
   );
 
-  const resolved: DelegationResolution[] = [];
-  const weightMap = new Map<string, number>();
-  const delegatorIds = new Set<string>();
-
-  for (const d of delegations) {
-    const ct = delegationToCiphertext(d);
-    const index = await decryptElGamalInExponent(ct, authorityPrivateKey);
-
-    if (index === null || index < 0 || index >= sorted.length) {
-      throw new Error(
-        `Delegation from ${d.delegator_id} could not be decoded safely`
-      );
-    }
-
-    const delegate = sorted[index];
-    resolved.push({
-      delegatorId: d.delegator_id,
-      delegateIndex: index,
-      delegateParticipantId: delegate.participant_id,
-    });
-
-    delegatorIds.add(d.delegator_id);
-    const current = weightMap.get(delegate.participant_id) ?? 1;
-    weightMap.set(delegate.participant_id, current + 1);
-  }
-
-  // Ensure every voter who didn't receive delegation has weight 1
-  // (weightMap only contains delegates who received at least one delegation)
-
-  return { resolved, weightMap, delegatorIds };
+  return decodeDelegations(delegations, sorted, authorityPrivateKey);
 }

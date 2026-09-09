@@ -64,10 +64,6 @@ const ElectionAuthorityInterface: React.FC<ElectionAuthorityInterfaceProps> = ({
         replaceExisting
       );
 
-      if (!results) {
-        throw new Error("Failed to process election tally");
-      }
-
       setTallyResults(results);
       onTallyComplete(results);
       toast({
@@ -109,6 +105,31 @@ const ElectionAuthorityInterface: React.FC<ElectionAuthorityInterfaceProps> = ({
             </div>
           </div>
         </section>
+
+        {tallyResults.invalidDelegations.length > 0 && (
+          <section className="rounded-xl border border-tertiary-container/40 bg-surface-container p-6">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="mt-0.5 h-5 w-5 text-tertiary-container" />
+              <div>
+                <h3 className="font-headline text-lg font-bold text-primary">
+                  {tallyResults.invalidDelegations.length} delegation
+                  {tallyResults.invalidDelegations.length === 1 ? "" : "s"} could not be decoded and were ignored
+                </h3>
+                <p className="mt-2 text-sm text-on-surface-variant">
+                  The authority key was verified against the registered key before decryption, so these records are
+                  malformed input from the delegator. Each delegator below kept their own direct ballot.
+                </p>
+                <ul className="mt-3 space-y-1 font-mono text-xs text-on-surface-variant">
+                  {tallyResults.invalidDelegations.map((item) => (
+                    <li key={item.delegationId}>
+                      {item.delegationId} · delegator {item.delegatorId} · {item.reason}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </section>
+        )}
 
         <section className="grid gap-4 md:grid-cols-3">
           <div className="ledger-subpanel">
@@ -269,7 +290,7 @@ const ElectionAuthorityInterface: React.FC<ElectionAuthorityInterfaceProps> = ({
                   Step 3
                 </p>
                 <p className="mt-1 text-sm text-on-surface-variant">
-                  Persist signed tally results.
+                  Persist the tally results.
                 </p>
               </div>
             </div>

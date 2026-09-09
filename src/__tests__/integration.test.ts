@@ -21,6 +21,8 @@ import {
 } from "../services/elGamalService";
 import { randomScalar } from "../services/crypto/utils";
 import { deriveAuthorityKeyMaterial } from "../services/eddsaService";
+import { decodeDelegations, type StoredDelegation } from "../services/delegationDecoding";
+import { ensureDiscreteLogTable } from "../services/elGamalTallyService";
 
 const AUTHORITY_TEST_SECRET = `votex-auth-v1_${"1".repeat(64)}`;
 
@@ -290,5 +292,57 @@ describe("Delegation encryption", () => {
     expect(weightMap.get("alice")).toBe(2); // 1 (own) + 1 delegated
     expect(weightMap.get("bob")).toBeUndefined(); // no delegations → weight 1 (default)
     expect(delegatorIds.size).toBe(4);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 5. Undecodable delegations are reported, not fatal
+// ---------------------------------------------------------------------------
+describe("Delegation decoding at tally time", () => {
+  const sk = 424242n;
+  const authorityPk = EdwardsPoint.base().multiply(sk);
+  const participants = [{ participant_id: "alice" }, { participant_id: "bob" }, { participant_id: "carol" }];
+
+  function stored(id: string, delegator: string, index: number): StoredDelegation {
+    const ct = elgamalEncrypt(authorityPk, index);
+    return {
+      id,
+      election_id: "e",
+      delegator_id: delegator,
+      delegate_ct_c1_x: ct.c1.x.toString(),
+      delegate_ct_c1_y: ct.c1.y.toString(),
+      delegate_ct_c2_x: ct.c2.x.toString(),
+      delegate_ct_c2_y: ct.c2.y.toString(),
+      status: "active",
+      created_at: new Date().toISOString(),
+      revoked_at: null,
+    };
+  }
+
+  it("keeps valid delegations and isolates an out-of-range one", async () => {
+    await ensureDiscreteLogTable(participants.length);
+    const good = stored("d-good", "bob", 2);          // bob -> carol
+    const outOfRange = stored("d-bad", "alice", 10_000); // not in [0, 3)
+    const self = stored("d-self", "carol", 2);         // carol -> carol
+
+    const decoded = await decodeDelegations([good, outOfRange, self], participants, sk);
+
+    expect(decoded.resolved).toEqual([
+      { delegatorId: "bob", delegateIndex: 2, delegateParticipantId: "carol" },
+    ]);
+    expect(decoded.weightMap.get("carol")).toBe(2);
+    expect([...decoded.delegatorIds]).toEqual(["bob"]);
+    expect(decoded.invalidDelegations.map((d) => d.delegationId).sort()).toEqual(["d-bad", "d-self"]);
+    // The invalid delegators are NOT marked as delegators, so their own ballots still count.
+    expect(decoded.delegatorIds.has("alice")).toBe(false);
+    expect(decoded.delegatorIds.has("carol")).toBe(false);
+  });
+
+  it("reports a delegation whose ciphertext is off-curve instead of throwing", async () => {
+    const broken = { ...stored("d-broken", "alice", 1), delegate_ct_c2_x: "5" };
+    const decoded = await decodeDelegations([broken], participants, sk);
+    expect(decoded.resolved).toEqual([]);
+    expect(decoded.invalidDelegations).toHaveLength(1);
+    expect(decoded.invalidDelegations[0].delegatorId).toBe("alice");
   });
 });
