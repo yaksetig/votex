@@ -265,13 +265,25 @@ This is not a custom primitive, but it is a custom implementation of an upstream
 
 ## 5.3 Registration
 
-`supabase/functions/register-keypair/index.ts`:
+`supabase/functions/register-keypair/handler.ts` (wired by `index.ts`):
 
-1. receives the public key, signal, and World ID result
-2. verifies the World ID proof using the World ID verify endpoint
-3. recomputes the expected signal from the public key
-4. rejects mismatches
-5. stores the `nullifier_hash -> public key` binding
+1. receives the public key, signal, World ID result, session verifier, and a
+   key ownership proof
+2. validates locally first: canonical prime-subgroup public key, exactly one
+   IDKit response with `action = "registration"`, `signal_hash` committing to
+   the claimed signal, and the claimed signal equal to `SHA256(pk_x || pk_y)`
+3. verifies the World ID proof through the v4 verify endpoint with the action
+   and environment pinned server side; an HTTP 200 is accepted only when the
+   body reports `success: true` with exactly one successful result, and the
+   nullifier bound is the one the API returns
+4. verifies the ownership proof: an EdDSA-Poseidon signature by the submitted
+   key over `votex:register-keypair:v1:${nullifier}:${pk_x}:${pk_y}:${issuedAt}`
+   with a five-minute freshness window (`src/services/registrationOwnershipProofService.ts`)
+5. stores the `nullifier_hash -> public key` binding; the same public key can
+   be bound to only one nullifier (`uq_world_id_keypairs_public_key`)
+
+The legacy v3 proof path and the client-driven `recover` rebinding path were
+removed on 2026-09-09.
 
 Important distinction:
 
@@ -295,6 +307,11 @@ The repo also binds a World ID session to a passkey-derived verifier:
 - the same World ID nullifier can only restore a session with the same passkey-derived verifier
 - the verifier is registered only while processing a World ID proof that is bound to the same public key
 - later sessions must match the stored verifier
+
+The verifier is a static bearer credential, so the database stores only
+`SHA256(verifierHash)`; `register-keypair` writes it hashed and
+`worldid-session` compares hash-to-hash (migration `20260909000100` hashed
+legacy rows). A read of the verifier table therefore no longer mints sessions.
 
 Decision:
 

@@ -1,6 +1,7 @@
 // Deno test: deno test --allow-env supabase/functions/worldid-session/handler.test.ts
 import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { handleSessionRequest } from "./handler.ts";
+import { sha256Hex } from "../_shared/http.ts";
 
 // Fake supabase client returning canned rows per table. Each table maps to the
 // row maybeSingle() should resolve to (or null). insert/update are no-ops.
@@ -63,7 +64,7 @@ Deno.test("create: unknown identity binding is 404", async () => {
 Deno.test("create: verifier mismatch is rejected", async () => {
   const client = fakeClient({
     world_id_keypairs: { nullifier_hash: "0xabc" },
-    world_id_auth_verifiers: { verifier_hash: "real-verifier" },
+    world_id_auth_verifiers: { verifier_hash: await sha256Hex("real-verifier") },
   });
   const res = await handleSessionRequest(client, {
     action: "create",
@@ -78,7 +79,7 @@ Deno.test("create: verifier mismatch is rejected", async () => {
 Deno.test("create: matching verifier issues a session token", async () => {
   const client = fakeClient({
     world_id_keypairs: { nullifier_hash: "0xabc" },
-    world_id_auth_verifiers: { verifier_hash: "real-verifier" },
+    world_id_auth_verifiers: { verifier_hash: await sha256Hex("real-verifier") },
   });
   const res = await handleSessionRequest(client, {
     action: "create",
@@ -110,4 +111,17 @@ Deno.test("revoke: database update failure is not reported as success", async ()
 
   assertEquals(res.status, 500);
   assertEquals((await res.json()).error, "Failed to revoke session");
+});
+
+Deno.test("create: a stored plaintext verifier no longer mints a session (hash-at-rest regression)", async () => {
+  const client = fakeClient({
+    world_id_keypairs: { nullifier_hash: "0xabc" },
+    world_id_auth_verifiers: { verifier_hash: "real-verifier" },
+  });
+  const res = await handleSessionRequest(client, {
+    action: "create",
+    nullifierHash: "0xabc",
+    verifierHash: "real-verifier",
+  });
+  assertEquals(res.status, 401);
 });

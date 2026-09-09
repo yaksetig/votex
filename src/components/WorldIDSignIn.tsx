@@ -36,6 +36,7 @@ import {
   deriveSessionVerifierHash,
 } from "@/services/worldIdSessionService";
 import { logger } from "@/services/logger";
+import { createRegistrationOwnershipProof } from "@/services/registrationOwnershipProofService";
 import { readFunctionError, VotexApiError } from "@/types/api";
 
 type SignInStep =
@@ -215,17 +216,25 @@ const WorldIDSignIn: React.FC = () => {
     try {
       const { prfSecret, publicKey, signal, verifierHash } = preparedPasskey;
 
+      // Prove possession of the passkey-derived private key for this exact
+      // nullifier; register-keypair refuses bindings without it.
+      const ownershipProof = await createRegistrationOwnershipProof(
+        prfSecret,
+        getNullifier(result),
+        publicKey
+      );
+
       // verifierHash is registered here, under the verified World ID proof;
       // worldid-session refuses to issue sessions for identities without one.
       const { data, error: registerError } = await supabase.functions.invoke(
         "register-keypair",
         {
           body: {
-            action: WORLD_ID_ACTION,
             pk: publicKey,
             signal,
             idkitResult: result,
             verifierHash,
+            ownershipProof,
           },
         }
       );

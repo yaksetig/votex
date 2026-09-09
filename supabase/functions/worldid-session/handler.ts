@@ -84,7 +84,11 @@ export async function handleSessionRequest(
       });
     }
 
-    if (existingVerifier.verifier_hash !== body.verifierHash) {
+    // The verifier is a static bearer credential, so only its SHA-256 is
+    // stored (register-keypair writes it hashed; 20260909000100 backfilled
+    // legacy rows). Compare hash-to-hash so a database read never yields a
+    // value that can mint sessions.
+    if (existingVerifier.verifier_hash !== (await sha256Hex(body.verifierHash))) {
       return jsonResponse(401, { error: "Passkey verifier mismatch" });
     }
 
