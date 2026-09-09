@@ -7,7 +7,7 @@
  * the keccak signal-hash helper, and the service-role client.
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.3";
 import { keccak256 } from "https://esm.sh/viem@2.26.2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { jsonResponse } from "../_shared/http.ts";

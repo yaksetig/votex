@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
   existsSync,
   readFileSync,
@@ -71,6 +72,60 @@ function validateMigrations() {
   }
 }
 
+const REQUIRED_CIRCUIT_ARTIFACTS = [
+  "circuits/nullification_xor.circom",
+  "public/circuits/nullification_xor.wasm",
+  "public/circuits/nullification_xor_final.zkey",
+  "public/circuits/verification_key_xor.json",
+];
+
+function sha256File(relativePath) {
+  return createHash("sha256").update(readFileSync(join(root, relativePath))).digest("hex");
+}
+
+// The zkey/wasm/verification key are the soundness trust anchors of the
+// nullification path. Pin them here so a swapped artifact fails release:check
+// rather than being noticed only by a test someone may update alongside it,
+// and require the edge-function verifier to embed exactly the shipped key.
+function validateCircuitArtifacts() {
+  const pins = manifest.circuitArtifacts;
+  if (!pins || typeof pins !== "object") {
+    fail("release.config.json must pin circuitArtifacts");
+  }
+  const pinned = Object.keys(pins).sort();
+  if (!sameValues(pinned, [...REQUIRED_CIRCUIT_ARTIFACTS].sort())) {
+    fail(`circuitArtifacts must pin exactly: ${REQUIRED_CIRCUIT_ARTIFACTS.join(", ")}`);
+  }
+  for (const [relativePath, expected] of Object.entries(pins)) {
+    if (!/^[0-9a-f]{64}$/.test(expected)) {
+      fail(`circuitArtifacts pin for ${relativePath} is not a sha256 hex digest`);
+    }
+    const actual = sha256File(relativePath);
+    if (actual !== expected) {
+      fail(`${relativePath} sha256 ${actual} does not match the pinned ${expected}`);
+    }
+  }
+
+  const verificationKey = JSON.parse(
+    readFileSync(join(root, "public/circuits/verification_key_xor.json"), "utf8")
+  );
+  const module = readFileSync(
+    join(root, "supabase/functions/_shared/verificationKeyXor.ts"),
+    "utf8"
+  );
+  const embedded = JSON.parse(module.slice(module.indexOf("= ") + 2).replace(/;\s*$/, ""));
+  if (JSON.stringify(embedded) !== JSON.stringify(verificationKey)) {
+    fail("supabase/functions/_shared/verificationKeyXor.ts does not match public/circuits/verification_key_xor.json");
+  }
+  const copy = readFileSync(join(root, "circuits/verification_key_xor.json"), "utf8");
+  if (JSON.stringify(JSON.parse(copy)) !== JSON.stringify(verificationKey)) {
+    fail("circuits/verification_key_xor.json does not match public/circuits/verification_key_xor.json");
+  }
+  if (verificationKey.nPublic !== 17 || verificationKey.IC.length !== 18) {
+    fail("verification key does not have the 17 public signals of the election-bound circuit");
+  }
+}
+
 export function validateLocalRelease() {
   if (manifest.schema !== 1) {
     fail("Unsupported release manifest schema");
@@ -100,8 +155,9 @@ export function validateLocalRelease() {
   }
 
   validateMigrations();
+  validateCircuitArtifacts();
   process.stdout.write(
-    `Release manifest matches ${declared.length} Edge Functions and the local migration set.\n`
+    `Release manifest matches ${declared.length} Edge Functions, the local migration set, and the pinned circuit artifacts.\n`
   );
 }
 

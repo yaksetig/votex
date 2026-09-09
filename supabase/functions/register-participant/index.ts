@@ -5,7 +5,7 @@
 // world_id_keypairs binding, which prevents both key substitution and
 // registration on behalf of another voter.
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.3";
 import { corsHeaders } from "../_shared/cors.ts";
 import { jsonResponse } from "../_shared/http.ts";
 import { validateWorldIdSession } from "../_shared/session.ts";

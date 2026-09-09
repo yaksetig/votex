@@ -10,7 +10,7 @@
 // _shared/delegation.ts). A stolen session alone can no longer delegate a
 // voter's ballot away.
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.3";
 import { corsHeaders } from "../_shared/cors.ts";
 import { jsonResponse } from "../_shared/http.ts";
 import { validateWorldIdSession } from "../_shared/session.ts";

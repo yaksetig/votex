@@ -1,20 +1,25 @@
 # Pre-production dependency risk acceptance
 
-`circomlibjs@0.1.7` brings an old Ethers v5 dependency tree containing
-`elliptic` and `ws` advisories. `npm audit` currently proposes replacing it with
-the incompatible `circomlibjs@0.0.8`, which would change a cryptographic
-dependency and violate the hardening scope.
+Last reviewed: 2026-09-09.
 
-Accepted advisory identifiers for this pre-production release:
+`npm run audit:production` (`npm audit --omit=dev`) fails on any High or
+Critical advisory that is not listed in `scripts/check-production-audit.mjs`.
+That allowlist is currently **empty**: after the 2026-08-20 dependency
+upgrades (`ws` overridden to a fixed release, `elliptic` re-rated Low) no
+High/Critical production advisory remains, so nothing is accepted.
 
-- `GHSA-848j-6mx2-7j84` (`elliptic` risky primitive implementation)
-- `GHSA-58qx-3vcg-4xpx` (`ws` uninitialized-memory disclosure)
-- `GHSA-96hv-2xvq-fx4p` (`ws` fragmented-frame denial of service)
+Residual, documented but not gated:
 
-The application does not instantiate the transitive Ethers WebSocket provider;
-Votex uses `circomlibjs` for local BabyJubJub EdDSA construction. This narrows
-the reachable `ws` exposure but does not erase the supply-chain finding.
+- `circomlibjs@0.1.7 -> ethers@5 -> elliptic` carries Low advisories against
+  the ECDSA code path. Votex uses `circomlibjs` only for `buildEddsa` and
+  BabyJubJub arithmetic; the affected ECDSA routines are not reachable. npm's
+  suggested fix is a downgrade to the incompatible `circomlibjs@0.0.8`, which
+  would change a cryptographic dependency and is rejected.
+- Dev-only High advisories (`browserslist`, `js-yaml`, `@eslint/eslintrc`
+  chains) do not ship in the production bundle or the edge functions.
 
-`npm run audit:production` permits only the advisory identifiers above and
-fails for a new high/critical production advisory. Revisit this acceptance when
-the cryptography dependency can be upgraded with protocol vectors and review.
+Edge-function dependencies are resolved from `deno.lock` with `--frozen` in
+CI, so a changed upstream artifact fails the build instead of deploying.
+
+Any future acceptance must be added to the allowlist with the GHSA id, an
+owner, a rationale, and an expiry date, and recorded here.

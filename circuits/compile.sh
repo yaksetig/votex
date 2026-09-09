@@ -33,8 +33,12 @@ echo ""
 echo "[2/7] Compiling XOR nullification circuit..."
 circom nullification_xor.circom --r1cs --wasm --sym -o build
 
-# Step 3: Download Powers of Tau (if not present)
+# Step 3: Download Powers of Tau (if not present) and pin its provenance.
+# `snarkjs powersoftau verify` only proves the file is internally consistent;
+# the BLAKE2b digest below is the one published for
+# powersOfTau28_hez_final_16.ptau in the snarkjs README (Hermez ceremony).
 PTAU_FILE="pot16_final.ptau"
+PTAU_BLAKE2B="6a6277a2f74e1073601b4f9fed6e1e55226917efb0f0db8a07d98ab01df1ccf43eb0e8c3159432acd4960e2f29fe84a4198501fa54c8dad9e43297453efec125"
 if [ ! -f "$PTAU_FILE" ]; then
     echo ""
     echo "[3/7] Downloading Powers of Tau ceremony file..."
@@ -42,11 +46,17 @@ if [ ! -f "$PTAU_FILE" ]; then
     curl -fL \
       https://storage.googleapis.com/zkevm/ptau/powersOfTau28_hez_final_16.ptau \
       -o "$PTAU_FILE"
-    snarkjs powersoftau verify "$PTAU_FILE"
 else
     echo ""
     echo "[3/7] Powers of Tau file already exists ✓"
 fi
+ACTUAL_BLAKE2B="$(node -e 'const c=require("crypto");const h=c.createHash("blake2b512");require("fs").createReadStream(process.argv[1]).on("data",d=>h.update(d)).on("end",()=>console.log(h.digest("hex")))' "$PTAU_FILE")"
+if [ "$ACTUAL_BLAKE2B" != "$PTAU_BLAKE2B" ]; then
+    echo "Error: $PTAU_FILE BLAKE2b digest $ACTUAL_BLAKE2B does not match the published Hermez digest." >&2
+    exit 1
+fi
+echo "      Powers of Tau provenance verified (BLAKE2b) ✓"
+snarkjs powersoftau verify "$PTAU_FILE"
 
 # Step 4: Generate Groth16 proving key (Phase 2)
 echo ""
@@ -56,8 +66,12 @@ snarkjs groth16 setup build/nullification_xor.r1cs $PTAU_FILE nullification_xor_
 # Step 5: Contribute to the ceremony (required for Groth16)
 echo ""
 echo "[5/7] Contributing to Groth16 ceremony..."
-snarkjs zkey contribute nullification_xor_0000.zkey nullification_xor_final.zkey \
-  --name="Initial contribution" -v -e="$(head -c 64 /dev/urandom | xxd -p -c 256)"
+# Entropy is fed on stdin rather than as a -e argument so it never appears in
+# `ps` output or shell history. This remains a single-contributor dev setup;
+# see docs/TRUSTED_SETUP_RUNBOOK.md for the production ceremony.
+head -c 64 /dev/urandom | xxd -p -c 256 | snarkjs zkey contribute \
+  nullification_xor_0000.zkey nullification_xor_final.zkey \
+  --name="Initial contribution" -v
 
 # Step 6: Export verification key
 echo ""
