@@ -10,10 +10,11 @@ import { secp256k1 } from "https://esm.sh/@noble/curves@1.8.2/secp256k1";
 import { keccak_256 } from "https://esm.sh/@noble/hashes@1.8.0/sha3";
 import { bytesToHex, hexToBytes, concatBytes } from "https://esm.sh/@noble/hashes@1.8.0/utils";
 import { corsHeaders } from "../_shared/cors.ts";
+import { WORLD_ID_REGISTRATION_ACTION } from "../_shared/protocol.ts";
 
 // Only mint RP signatures for known actions; without this the function is a
 // general-purpose signing oracle for arbitrary World ID request contexts.
-const ALLOWED_ACTIONS = new Set(["registration"]);
+const ALLOWED_ACTIONS = new Set([WORLD_ID_REGISTRATION_ACTION]);
 
 const DEFAULT_TTL_SEC = 300;
 const RP_SIGNATURE_MSG_VERSION = 1;

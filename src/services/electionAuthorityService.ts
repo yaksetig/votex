@@ -13,33 +13,6 @@ export interface ElectionAuthority {
 }
 
 // Get all election authorities
-export async function getElectionAuthorities(): Promise<ElectionAuthority[]> {
-  try {
-    logger.debug("Fetching all election authorities");
-    
-    const { data, error } = await supabase
-      .from("public_election_authorities")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      logger.error("Error fetching election authorities:", error);
-      return [];
-    }
-
-    logger.debug(`Found ${data?.length || 0} election authorities:`, data);
-    return (data || []).filter(
-      (authority): authority is ElectionAuthority =>
-        Boolean(
-          authority.id && authority.name && authority.public_key_x &&
-          authority.public_key_y && authority.created_at && authority.updated_at
-        )
-    );
-  } catch (error) {
-    logger.error("Error in getElectionAuthorities:", error);
-    return [];
-  }
-}
 
 // Get election authority for a specific election
 export async function getElectionAuthorityForElection(electionId: string): Promise<ElectionAuthority | null> {

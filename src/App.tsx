@@ -1,6 +1,5 @@
 import React, { Suspense, lazy, useEffect } from 'react';
 import { Toaster } from "@/components/ui/toaster"
-import { Toaster as Sonner } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { BrowserRouter, Routes, Route } from "react-router-dom"
@@ -60,7 +59,6 @@ const App: React.FC = () => {
       <TooltipProvider>
         <WalletProvider>
           <Toaster />
-          <Sonner />
           {redirectUrl ? (
             <div className="flex min-h-screen items-center justify-center px-4 py-10">
               <div className="max-w-lg rounded-xl border border-outline-variant/15 bg-surface-container-lowest px-8 py-10 text-center shadow-ledger">

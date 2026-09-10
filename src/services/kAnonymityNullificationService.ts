@@ -25,16 +25,15 @@ import {
 } from "@/services/elGamalService";
 import { electionIdToField, randomScalar } from "@/services/crypto/utils";
 import { CURVE_ORDER } from "@/services/crypto/constants";
-import {
-  getOrCreateAccumulator,
-} from "@/services/accumulatorService";
+import { readAccumulatorsOrIdentity } from "@/services/accumulatorService";
 import {
   generateProofsInParallel,
   ProofInput,
 } from "@/services/parallelZkProofService";
 import { logger } from "@/services/logger";
 
-const DEFAULT_K = 6;
+/** Slots per batch: the submitter plus up to five decoys (see CRYPTOGRAPHY.md §9). */
+export const DEFAULT_K = 6;
 
 interface NullificationBatchItem {
   targetUserId: string;
@@ -71,7 +70,7 @@ export function secureShuffle<T>(items: T[]): T[] {
   return shuffled;
 }
 
-// Cryptographically secure random selection of participants
+// Pick `count` decoy slots uniformly at random from the other participants.
 function selectRandomParticipants(
   participants: ElectionParticipant[],
   count: number,
@@ -159,16 +158,15 @@ export async function generateKAnonymousNullifications(
   const nullificationItems: NullificationBatchItem[] = [];
   const proofInputs: ProofInput[] = [];
   const electionIdField = electionIdToField(electionId);
+  const accumulators = await readAccumulatorsOrIdentity(
+    electionId,
+    slotsToNullify.map((slot) => slot.participant.participant_id)
+  );
 
   for (let i = 0; i < slotsToNullify.length; i++) {
     const { participant, isReal } = slotsToNullify[i];
     const x = isReal ? 1 : 0;
-
-    // Fetch the current accumulator for this voter slot
-    const { accumulator, version } = await getOrCreateAccumulator(
-      electionId,
-      participant.participant_id
-    );
+    const { accumulator, version } = accumulators.get(participant.participant_id)!;
 
     // Generate random values for this nullification
     const r = randomScalar(CURVE_ORDER);
@@ -260,10 +258,9 @@ export async function generateKAnonymousNullifications(
   );
 
   // Step 5: Attach proofs to items
+  const itemsByTarget = new Map(nullificationItems.map((item) => [item.targetUserId, item]));
   for (const result of proofResults) {
-    const item = nullificationItems.find(
-      (n) => n.targetUserId === result.id
-    );
+    const item = itemsByTarget.get(result.id);
     if (item && result.success) {
       item.zkp = {
         proof: result.proof!,

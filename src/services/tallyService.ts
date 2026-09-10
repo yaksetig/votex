@@ -10,6 +10,7 @@ import {
 import { resolveDelegations, type InvalidDelegation } from "@/services/delegationService";
 import { getElectionParticipantsForTally } from "@/services/electionParticipantsService";
 import { logger } from "@/services/logger";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 import { deriveAuthorityKeyMaterial } from "@/services/eddsaService";
 
 export interface TallyResult {
@@ -32,20 +33,15 @@ async function getTrackedVoterIds(
   table: "yes_votes" | "no_votes",
   electionId: string
 ): Promise<string[]> {
-  const voterIds: string[] = [];
-  const pageSize = 1000;
-  for (let offset = 0; ; offset += pageSize) {
-    const { data, error } = await supabase
+  const rows = await fetchAllRows((from, to) =>
+    supabase
       .from(table)
       .select("voter_id")
       .eq("election_id", electionId)
       .order("voter_id", { ascending: true })
-      .range(offset, offset + pageSize - 1);
-    if (error) throw error;
-    voterIds.push(...(data || []).map((row) => row.voter_id));
-    if (!data || data.length < pageSize) break;
-  }
-  return voterIds;
+      .range(from, to)
+  );
+  return rows.map((row) => row.voter_id);
 }
 
 async function getElectionAuthorityPublicKey(
@@ -165,7 +161,8 @@ export async function processElectionTally(
       ...yesVoterIds,
       ...noVoterIds,
     ];
-    const uniqueVoters = [...new Set(allVoterIds)];
+    const uniqueVoterSet = new Set(allVoterIds);
+    const uniqueVoters = [...uniqueVoterSet];
 
     const results: TallyResult[] = [];
 
@@ -190,7 +187,7 @@ export async function processElectionTally(
     // Include delegators who didn't vote directly (they have no
     // yes_votes/no_votes row but should appear in the tally as delegated)
     for (const delegatorId of delegatorIds) {
-      if (!uniqueVoters.includes(delegatorId)) {
+      if (!uniqueVoterSet.has(delegatorId)) {
         results.push({
           userId: delegatorId,
           nullificationCount: 0,
@@ -273,17 +270,15 @@ export async function getElectionTallyResults(
 ): Promise<TallyResult[]> {
   try {
     logger.debug(`Fetching tally results for election: ${electionId}`);
-    const rows: Array<{ user_id: string; nullification_count: number; vote_nullified: boolean; vote_weight: number }> = [];
-    const pageSize = 1000;
-    for (let offset = 0; ; offset += pageSize) {
-      const { data, error } = await supabase
+    const pages = await fetchAllRows((from, to) =>
+      supabase
         .from("public_tallies")
         .select("voter_pseudonym, nullification_count, vote_nullified, vote_weight")
         .eq("election_id", electionId)
         .order("voter_pseudonym", { ascending: true })
-        .range(offset, offset + pageSize - 1);
-      if (error) throw error;
-      rows.push(...(data || []).flatMap((row) =>
+        .range(from, to)
+    );
+    const rows = pages.flatMap((row) =>
         row.voter_pseudonym !== null && row.nullification_count !== null &&
         row.vote_nullified !== null && row.vote_weight !== null
           ? [{
@@ -293,9 +288,7 @@ export async function getElectionTallyResults(
               vote_weight: row.vote_weight,
             }]
           : []
-      ));
-      if (!data || data.length < pageSize) break;
-    }
+    );
 
     return rows.map((item) => ({
       userId: item.user_id,

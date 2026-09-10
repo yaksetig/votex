@@ -11,6 +11,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.3";
 import { keccak256 } from "https://esm.sh/viem@2.26.2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { jsonResponse } from "../_shared/http.ts";
+import { WORLD_ID_DEFAULT_RP_ID } from "../_shared/protocol.ts";
 import {
   handleRegisterKeypair,
   interpretWorldIdVerifyResponse,
@@ -19,7 +20,7 @@ import {
   type WorldIdV4VerifyResponse,
 } from "./handler.ts";
 
-const WORLD_ID_RP_ID = Deno.env.get("WORLD_ID_RP_ID") ?? "rp_b3b4b36db636df22";
+const WORLD_ID_RP_ID = Deno.env.get("WORLD_ID_RP_ID") ?? WORLD_ID_DEFAULT_RP_ID;
 const WORLD_ID_VERIFY_BASE_URL =
   Deno.env.get("WORLD_ID_VERIFY_BASE_URL") ?? "https://developer.world.org";
 

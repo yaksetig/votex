@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { StoredKeypair } from "@/types/keypair";
 import { getStoredWorldIdSessionToken } from "@/services/worldIdSessionService";
 import { logger } from "@/services/logger";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 import { readFunctionError } from "@/types/api";
 
 export interface ElectionParticipant {
@@ -20,7 +21,6 @@ export interface ElectionParticipant {
 // direct client writes to election_participants are blocked by RLS.
 export async function registerElectionParticipant(
   electionId: string,
-  _participantId: string,
   keypair: StoredKeypair
 ): Promise<boolean> {
   try {
@@ -70,32 +70,27 @@ async function fetchElectionParticipants(
   electionId: string
 ): Promise<ElectionParticipant[]> {
   logger.debug("Fetching election participants");
-  const participants: ElectionParticipant[] = [];
-  const pageSize = 1000;
-  for (let offset = 0; ; offset += pageSize) {
-    const { data, error } = await supabase
+  const rows = await fetchAllRows((from, to) =>
+    supabase
       .from("public_participants")
       .select("*")
       .eq("election_id", electionId)
       .order("joined_at", { ascending: true })
-      .range(offset, offset + pageSize - 1);
-    if (error) throw error;
-    participants.push(...(data || []).flatMap((participant) =>
-      participant.id && participant.election_id && participant.voter_pseudonym &&
-      participant.public_key_x && participant.public_key_y && participant.joined_at
-        ? [{
-            id: participant.id,
-            election_id: participant.election_id,
-            participant_id: participant.voter_pseudonym,
-            public_key_x: participant.public_key_x,
-            public_key_y: participant.public_key_y,
-            joined_at: participant.joined_at,
-          }]
-        : []
-    ));
-    if (!data || data.length < pageSize) break;
-  }
-
+      .range(from, to)
+  );
+  const participants = rows.flatMap((participant) =>
+    participant.id && participant.election_id && participant.voter_pseudonym &&
+    participant.public_key_x && participant.public_key_y && participant.joined_at
+      ? [{
+          id: participant.id,
+          election_id: participant.election_id,
+          participant_id: participant.voter_pseudonym,
+          public_key_x: participant.public_key_x,
+          public_key_y: participant.public_key_y,
+          joined_at: participant.joined_at,
+        }]
+      : []
+  );
   logger.debug(`Fetched ${participants.length} election participants`);
   return participants;
 }

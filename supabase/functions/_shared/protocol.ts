@@ -109,6 +109,15 @@ export async function hashPublicKeyForSignal(pk: {
 }
 
 // ---------------------------------------------------------------------------
+// World ID relying-party configuration shared by the widget, the RP signer
+// and the registration verifier. The RP id can be overridden per deployment
+// (WORLD_ID_RP_ID / VITE_WORLD_ID_RP_ID) but every side must agree.
+// ---------------------------------------------------------------------------
+
+export const WORLD_ID_REGISTRATION_ACTION = "registration";
+export const WORLD_ID_DEFAULT_RP_ID = "rp_b3b4b36db636df22";
+
+// ---------------------------------------------------------------------------
 // Election id encoding for the nullification circuit
 // ---------------------------------------------------------------------------
 

@@ -65,9 +65,9 @@ npm run lint           # eslint
 npx tsc -b             # typecheck (strict; follows project references)
 npm run build          # production build
 
-# Edge functions (Deno):
-deno check --no-lock --node-modules-dir=none supabase/functions/*/index.ts
-deno test --no-lock --node-modules-dir=none --allow-env supabase/functions/
+# Edge functions (Deno, run from supabase/functions so deno.json/deno.lock apply):
+(cd supabase/functions && deno check --frozen */index.ts _shared/*.ts */handler.test.ts)
+(cd supabase/functions && deno test --frozen --allow-env .)
 
 # Circuit static analysis:
 npm run analyze:circuits

@@ -8,11 +8,6 @@ export interface Groth16Proof {
 }
 
 // A proof with its public signals
-export interface ProofWithSignals {
-  proof: Groth16Proof;
-  publicSignals: string[];
-}
-
 // Verification key structure
 export interface VerificationKey {
   protocol: string;

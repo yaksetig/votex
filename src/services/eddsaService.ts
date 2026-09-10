@@ -6,7 +6,6 @@ import { CURVE_ORDER } from "@/services/crypto/constants";
 import { bytesToHex } from "@/services/crypto/utils";
 
 export const KEYPAIR_VERSION = "eddsa-seed-v1";
-export const AUTHORITY_SECRET_PREFIX = "votex-auth-v1_";
 const AUTHORITY_SECRET_PATTERN = /^votex-auth-v1_[0-9a-f]{64}$/;
 
 const HKDF_SALT = new TextEncoder().encode("votex:eddsa:seed-derivation");
@@ -291,12 +290,3 @@ export function parseSignaturePayload(signature: string): EdDSASignatureObject {
   return parsed;
 }
 
-export function publicKeyFromStrings(publicKey: {
-  x: string;
-  y: string;
-}): EdDSAPublicKey {
-  return {
-    x: BigInt(publicKey.x),
-    y: BigInt(publicKey.y),
-  };
-}

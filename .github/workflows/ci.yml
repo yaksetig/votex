@@ -44,17 +44,15 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      # --frozen fails if any remote or npm dependency resolves differently
-      # from deno.lock, so the reviewed bytes are the deployed bytes.
+      # supabase/functions/deno.json pins the lockfile; --frozen fails if any
+      # remote or npm dependency resolves differently, so the reviewed bytes
+      # are the deployed bytes.
       - name: Type-check edge functions
-        run: |
-          for f in supabase/functions/*/index.ts supabase/functions/_shared/*.test.ts supabase/functions/*/handler.test.ts; do
-            [ -f "$f" ] || continue
-            echo "deno check $f"
-            deno check --lock=deno.lock --frozen --node-modules-dir=none "$f"
-          done
+        working-directory: supabase/functions
+        run: deno check --frozen */index.ts _shared/*.ts */handler.test.ts
       - name: Test edge functions
-        run: deno test --lock=deno.lock --frozen --node-modules-dir=none --allow-env supabase/functions/
+        working-directory: supabase/functions
+        run: deno test --frozen --allow-env .
 
   circuit-analysis:
     runs-on: ubuntu-latest

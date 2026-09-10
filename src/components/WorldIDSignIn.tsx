@@ -37,6 +37,7 @@ import {
 } from "@/services/worldIdSessionService";
 import { logger } from "@/services/logger";
 import { createRegistrationOwnershipProof } from "@/services/registrationOwnershipProofService";
+import { WORLD_ID_DEFAULT_RP_ID, WORLD_ID_REGISTRATION_ACTION } from "@protocol";
 import { readFunctionError, VotexApiError } from "@/types/api";
 
 type SignInStep =
@@ -58,8 +59,10 @@ interface PreparedPasskey {
 }
 
 const WORLD_ID_APP_ID = "app_e2fd2f8c99430ab200a093278e801c57";
-const WORLD_ID_RP_ID = "rp_b3b4b36db636df22";
-const WORLD_ID_ACTION = "registration";
+const WORLD_ID_RP_ID = import.meta.env.VITE_WORLD_ID_RP_ID ?? WORLD_ID_DEFAULT_RP_ID;
+const WORLD_ID_ACTION = WORLD_ID_REGISTRATION_ACTION;
+/** Lets the success toast render before leaving the sign-in page. */
+const POST_SIGN_IN_REDIRECT_DELAY_MS = 1200;
 
 type PasskeyPreparationMode = "existing" | "new";
 
@@ -124,17 +127,12 @@ const WorldIDSignIn: React.FC = () => {
     }
   };
 
-  /** Extract nullifier from v4 IDKit result */
+  /** The RP-scoped nullifier of the single v4 response register-keypair accepts. */
   const getNullifier = (result: IDKitResult): string => {
     const record = result as unknown as Record<string, unknown>;
-    const responses = record.responses as Array<{ nullifier?: string; nullifier_hash?: string }> | undefined;
+    const responses = record.responses as Array<{ nullifier?: string }> | undefined;
     if (responses?.[0]?.nullifier) {
       return responses[0].nullifier;
-    }
-    // Fallback for v3 legacy shape
-    const nullifierHash = record.nullifier_hash as string | undefined;
-    if (nullifierHash) {
-      return nullifierHash;
     }
     throw new Error("No nullifier found in IDKit result");
   };
@@ -265,7 +263,7 @@ const WorldIDSignIn: React.FC = () => {
 
       window.setTimeout(() => {
         navigate(returning ? "/elections" : "/success", { replace: true });
-      }, 1200);
+      }, POST_SIGN_IN_REDIRECT_DELAY_MS);
     } catch (err) {
       if (
         err instanceof VotexApiError &&

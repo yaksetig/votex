@@ -17,6 +17,7 @@ import {
 } from "@/services/elGamalService";
 import { parseCanonicalFieldElement } from "@/services/crypto/utils";
 import { logger } from "@/services/logger";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 
 interface StoredAccumulator {
   election_id: string;
@@ -28,7 +29,7 @@ interface StoredAccumulator {
   version: number;
 }
 
-/** Convert a stored accumulator row to an ElGamalCiphertext */
+/** Parse the four stored coordinates as canonical field elements (throws on aliases). */
 export function accumulatorToCiphertext(
   acc: StoredAccumulator
 ): ElGamalCiphertext {
@@ -48,37 +49,44 @@ export function accumulatorToCiphertext(
   };
 }
 
+function rowToStoredAccumulator(row: { voter_pseudonym: string | null } & Record<string, unknown>): StoredAccumulator {
+  return { ...row, voter_id: row.voter_pseudonym } as unknown as StoredAccumulator;
+}
+
 /**
- * Get the current accumulator for a voter in an election.
- * If none exists yet, treat it as the identity ciphertext locally and let the
- * trusted server-side write path create the row transactionally on submit.
+ * Read the current accumulators for a set of voters in one query. Voters with
+ * no row yet are reported at the identity ciphertext with version 0; the
+ * server-side write path creates their row transactionally on first submit.
  */
-export async function getOrCreateAccumulator(
+export async function readAccumulatorsOrIdentity(
   electionId: string,
-  voterId: string
-): Promise<{ accumulator: ElGamalCiphertext; version: number }> {
-  // Try to fetch existing accumulator
+  voterIds: string[]
+): Promise<Map<string, { accumulator: ElGamalCiphertext; version: number }>> {
   const { data, error } = await supabase
     .from("public_nullification_accumulators")
     .select("*")
     .eq("election_id", electionId)
-    .eq("voter_pseudonym", voterId)
-    .maybeSingle();
+    .in("voter_pseudonym", voterIds);
 
   if (error) {
-    logger.error("Error fetching accumulator:", error);
-    throw new Error(`Failed to fetch accumulator: ${error.message}`);
+    logger.error("Error fetching accumulators:", error);
+    throw new Error(`Failed to fetch accumulators: ${error.message}`);
   }
 
-  if (data) {
-    const stored = { ...data, voter_id: data.voter_pseudonym } as unknown as StoredAccumulator;
-    return {
+  const byVoter = new Map<string, { accumulator: ElGamalCiphertext; version: number }>();
+  for (const row of data ?? []) {
+    const stored = rowToStoredAccumulator(row);
+    byVoter.set(stored.voter_id, {
       accumulator: accumulatorToCiphertext(stored),
       version: stored.version,
-    };
+    });
   }
-
-  return { accumulator: identityCiphertext(), version: 0 };
+  for (const voterId of voterIds) {
+    if (!byVoter.has(voterId)) {
+      byVoter.set(voterId, { accumulator: identityCiphertext(), version: 0 });
+    }
+  }
+  return byVoter;
 }
 
 /**
@@ -87,24 +95,16 @@ export async function getOrCreateAccumulator(
 export async function getElectionAccumulators(
   electionId: string
 ): Promise<StoredAccumulator[]> {
-  const accumulators: StoredAccumulator[] = [];
-  const pageSize = 1000;
-  for (let offset = 0; ; offset += pageSize) {
-    const { data, error } = await supabase
+  const rows = await fetchAllRows((from, to) =>
+    supabase
       .from("public_nullification_accumulators")
       .select("*")
       .eq("election_id", electionId)
       .order("voter_pseudonym", { ascending: true })
-      .range(offset, offset + pageSize - 1);
-    if (error) {
-      logger.error("Error fetching election accumulators:", error);
-      throw new Error("Failed to load election accumulators");
-    }
-    accumulators.push(...(data || []).map((accumulator) => ({
-      ...accumulator,
-      voter_id: accumulator.voter_pseudonym,
-    }) as unknown as StoredAccumulator));
-    if (!data || data.length < pageSize) break;
-  }
-  return accumulators;
+      .range(from, to)
+  ).catch((error) => {
+    logger.error("Error fetching election accumulators:", error);
+    throw new Error("Failed to load election accumulators");
+  });
+  return rows.map(rowToStoredAccumulator);
 }

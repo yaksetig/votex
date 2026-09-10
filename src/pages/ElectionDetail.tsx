@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { formatDistanceToNow, isPast } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -21,10 +21,11 @@ import { StoredKeypair } from "@/types/keypair";
 import {
   ElectionParticipant,
   getElectionParticipants,
-  isUserParticipant,
   registerElectionParticipant,
 } from "@/services/electionParticipantsService";
 import { createDelegation, revokeDelegation, getActiveDelegation } from "@/services/delegationService";
+import { isElectionClosed } from "@/lib/electionStatus";
+import { DEFAULT_K } from "@/services/kAnonymityNullificationService";
 import { Election } from "@/types/election";
 import type { KAnonymityProgress } from "@/services/kAnonymityNullificationService";
 import { useDeriveKeypair } from "@/hooks/useDeriveKeypair";
@@ -51,7 +52,6 @@ const ElectionDetail = () => {
   const [keypair, setKeypair] = useState<StoredKeypair | null>(null);
   const [needsKeypair, setNeedsKeypair] = useState(false);
   const [participants, setParticipants] = useState<ElectionParticipant[]>([]);
-  const [, setIsParticipant] = useState(false);
   const [showNullificationDialog, setShowNullificationDialog] = useState(false);
   const [showProgressDialog, setShowProgressDialog] = useState(false);
   const [nullificationProgress, setNullificationProgress] = useState<KAnonymityProgress | null>(null);
@@ -114,22 +114,10 @@ const ElectionDetail = () => {
     }
   };
 
-  const electionClosed = useMemo(() => {
-    if (!election) return false;
-    return isPast(new Date(election.end_date)) || !!election.closed_manually_at;
-  }, [election]);
-
-
-  const checkParticipantStatus = useCallback(async () => {
-    if (!userId || !id) return;
-
-    try {
-      const participantStatus = await isUserParticipant(id, userId);
-      setIsParticipant(participantStatus);
-    } catch {
-      setIsParticipant(false);
-    }
-  }, [id, userId]);
+  const electionClosed = useMemo(
+    () => (election ? isElectionClosed(election) : false),
+    [election]
+  );
 
   const rederiveKeypair = async () => {
     const result = await deriveKeypair({ store: true });
@@ -305,18 +293,16 @@ const ElectionDetail = () => {
   useEffect(() => {
     if (userId && id) {
       void checkIfUserVoted();
-      void checkParticipantStatus();
       void checkDelegationStatus();
     }
-  }, [checkDelegationStatus, checkIfUserVoted, checkParticipantStatus, id, userId]);
+  }, [checkDelegationStatus, checkIfUserVoted, id, userId]);
 
   const ensureUserIsParticipant = async (): Promise<boolean> => {
     if (!userId || !election || !keypair) return false;
 
     try {
-      const participantRegistered = await registerElectionParticipant(election.id, userId, keypair);
+      const participantRegistered = await registerElectionParticipant(election.id, keypair);
       if (participantRegistered) {
-        setIsParticipant(true);
         const updatedParticipants = await getElectionParticipants(election.id);
         setParticipants(updatedParticipants);
       }
@@ -453,7 +439,7 @@ const ElectionDetail = () => {
           keypair,
           { x: authority.public_key_x, y: authority.public_key_y },
           isActual,
-          6,
+          DEFAULT_K,
           (progress) => setNullificationProgress(progress)
         );
         slotCount = nullificationBatch.length;

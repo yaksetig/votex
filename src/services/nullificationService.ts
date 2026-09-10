@@ -3,10 +3,11 @@ import type { Json } from "@/integrations/supabase/types";
 import { ElGamalCiphertext } from "@/services/elGamalService";
 import { Groth16Proof } from "@/types/proof";
 import { logger } from "@/services/logger";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 import { getStoredWorldIdSessionToken } from "@/services/worldIdSessionService";
 import { readFunctionError } from "@/types/api";
 
-export interface NullificationProof {
+interface NullificationProof {
   proof: Groth16Proof;
   publicSignals: string[];
 }
@@ -119,22 +120,17 @@ export async function getNullificationsForElection(
   try {
     logger.debug(`Fetching nullifications for election: ${electionId}`);
 
-    const rows: Nullification[] = [];
-    const pageSize = 1000;
-    for (let offset = 0; ; offset += pageSize) {
-      const { data, error } = await supabase
+    const rows = (await fetchAllRows((from, to) =>
+      supabase
         .from("public_nullifications")
         .select("*")
         .eq("election_id", electionId)
         .order("created_at", { ascending: false })
-        .range(offset, offset + pageSize - 1);
-      if (error) throw error;
-      rows.push(...(data || []).map((nullification) => ({
-        ...nullification,
-        user_id: nullification.submitter_pseudonym,
-      }) as Nullification));
-      if (!data || data.length < pageSize) break;
-    }
+        .range(from, to)
+    )).map((nullification) => ({
+      ...nullification,
+      user_id: nullification.submitter_pseudonym,
+    }) as Nullification);
 
     logger.debug(`Found ${rows.length} nullifications for election`);
     return rows;

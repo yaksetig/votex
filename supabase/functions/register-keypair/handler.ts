@@ -22,10 +22,11 @@ import {
   buildRegistrationOwnershipMessage,
   checkProofFreshness,
   hashPublicKeyForSignal,
+  WORLD_ID_REGISTRATION_ACTION,
 } from "../_shared/protocol.ts";
 
-export const WORLD_ID_ACTION = "registration";
-export const WORLD_ID_ENVIRONMENT = "production";
+export const WORLD_ID_ACTION = WORLD_ID_REGISTRATION_ACTION;
+const WORLD_ID_ENVIRONMENT = "production";
 
 const VERIFIER_HASH_PATTERN = /^[0-9a-f]{64}$/;
 const HEX32_PATTERN = /^0x[0-9a-fA-F]{64}$/;
@@ -130,7 +131,7 @@ export function interpretWorldIdVerifyResponse(
 }
 
 /** The claimed signal must be Hash(pk) for the submitted key. */
-export async function verifySignalBinding(
+async function verifySignalBinding(
   pk: { x: string; y: string },
   claimedSignal: string
 ): Promise<boolean> {

@@ -22,8 +22,7 @@ export async function updateElectionDetails(
     option1?: string;
     option2?: string;
     end_date?: string;
-  },
-  _performedBy: string = "Election Authority"
+  }
 ): Promise<boolean> {
   const { data, error } = await supabase.rpc("update_election_details_atomic", {
     p_election_id: electionId,

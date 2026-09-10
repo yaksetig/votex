@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Download, History } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 import type { Tables } from "@/integrations/supabase/types";
 
 type AuditEvent = Tables<"election_authority_audit_log">;
@@ -13,18 +14,13 @@ export default function AuthorityAuditLog() {
   useEffect(() => {
     let cancelled = false;
     const loadEvents = async () => {
-      const rows: AuditEvent[] = [];
-      const pageSize = 1000;
-      for (let offset = 0; ; offset += pageSize) {
-        const { data, error: queryError } = await supabase
+      const rows = await fetchAllRows((from, to) =>
+        supabase
           .from("election_authority_audit_log")
           .select("*")
           .order("performed_at", { ascending: false })
-          .range(offset, offset + pageSize - 1);
-        if (queryError) throw queryError;
-        rows.push(...(data ?? []));
-        if (!data || data.length < pageSize) break;
-      }
+          .range(from, to)
+      );
       if (!cancelled) setEvents(rows);
     };
 

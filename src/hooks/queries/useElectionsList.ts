@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 import { getElectionVoteData } from "@/services/voteTrackingService";
 import { countVotesByChoice } from "@/lib/voteCounts";
 import type { Tables } from "@/integrations/supabase/types";
@@ -23,18 +24,13 @@ export interface ElectionRecord {
 // Throws on any query error so the caller surfaces an error state instead of
 // silently rendering an empty list.
 async function fetchElectionsList(): Promise<ElectionRecord[]> {
-  const electionsData: Tables<"elections">[] = [];
-  const pageSize = 1000;
-  for (let offset = 0; ; offset += pageSize) {
-    const { data, error } = await supabase
+  const electionsData = (await fetchAllRows((from, to) =>
+    supabase
       .from("public_elections")
       .select("*")
       .order("created_at", { ascending: false })
-      .range(offset, offset + pageSize - 1);
-    if (error) throw error;
-    electionsData.push(...((data || []) as Tables<"elections">[]));
-    if (!data || data.length < pageSize) break;
-  }
+      .range(from, to)
+  )) as Tables<"elections">[];
 
   const authorityIds = [
     ...new Set(

@@ -18,6 +18,7 @@ import {
 import { getElectionParticipantsForTally } from "@/services/electionParticipantsService";
 import { getStoredWorldIdSessionToken } from "@/services/worldIdSessionService";
 import { logger } from "@/services/logger";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 import { buildDelegationMessage, type CiphertextStrings } from "@protocol";
 import {
   decodeDelegations,
@@ -211,26 +212,21 @@ export async function getActiveDelegation(
 async function getElectionDelegations(
   electionId: string
 ): Promise<StoredDelegation[]> {
-  const delegations: StoredDelegation[] = [];
-  const pageSize = 1000;
-  for (let offset = 0; ; offset += pageSize) {
-    const { data, error } = await supabase
+  const rows = await fetchAllRows((from, to) =>
+    supabase
       .from("public_delegations")
       .select("*")
       .eq("election_id", electionId)
       .eq("status", "active")
       .order("created_at", { ascending: true })
-      .range(offset, offset + pageSize - 1);
-    if (error) {
-      throw new Error("Failed to load active delegations");
-    }
-    delegations.push(...(data || []).map((delegation) => ({
-      ...delegation,
-      delegator_id: delegation.delegator_pseudonym,
-    }) as StoredDelegation));
-    if (!data || data.length < pageSize) break;
-  }
-  return delegations;
+      .range(from, to)
+  ).catch(() => {
+    throw new Error("Failed to load active delegations");
+  });
+  return rows.map((delegation) => ({
+    ...delegation,
+    delegator_id: delegation.delegator_pseudonym,
+  }) as StoredDelegation);
 }
 
 // -----------------------------------------------------------------------
