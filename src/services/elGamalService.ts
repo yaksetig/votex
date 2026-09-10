@@ -1,108 +1,74 @@
 import { StoredKeypair } from "@/types/keypair";
+import { CURVE_ORDER, BASE_POINT } from "@/services/crypto/constants";
+import { randomScalar } from "@/services/crypto/utils";
 import {
-  CURVE_ORDER,
-  FIELD_SIZE,
-  BABYJUBJUB_D as D,
-  BABYJUBJUB_A as A,
-  BASE_POINT,
-} from "@/services/crypto/constants";
-import {
+  addPoints,
+  type AffinePoint,
+  IDENTITY_POINT,
+  isIdentityPoint,
+  isInPrimeSubgroup,
+  isOnCurve,
   mod,
-  modInverse,
-  randomScalar,
-} from "@/services/crypto/utils";
+  multiplyPoint,
+  negatePoint as negateAffinePoint,
+} from "@protocol";
 
-// Edwards curve point operations for BabyJubJub
-export class EdwardsPoint {
-  x: bigint;
-  y: bigint;
+/**
+ * BabyJubJub point in affine coordinates. The arithmetic lives in the shared
+ * protocol module so the browser, the edge verifiers and the tests all run
+ * the same curve law; this class only adds the object-style API the
+ * ElGamal and accumulator code is written against.
+ */
+export class EdwardsPoint implements AffinePoint {
+  readonly x: bigint;
+  readonly y: bigint;
 
   constructor(x: bigint, y: bigint) {
-    this.x = mod(x, FIELD_SIZE);
-    this.y = mod(y, FIELD_SIZE);
+    this.x = mod(x);
+    this.y = mod(y);
+  }
+
+  static from(point: AffinePoint): EdwardsPoint {
+    return new EdwardsPoint(point.x, point.y);
   }
 
   static identity(): EdwardsPoint {
-    return new EdwardsPoint(0n, 1n);
+    return EdwardsPoint.from(IDENTITY_POINT);
   }
 
   static base(): EdwardsPoint {
-    return new EdwardsPoint(BASE_POINT.x, BASE_POINT.y);
+    return EdwardsPoint.from(BASE_POINT);
   }
 
   isOnCurve(): boolean {
-    const x2 = (this.x * this.x) % FIELD_SIZE;
-    const y2 = (this.y * this.y) % FIELD_SIZE;
-    const left = (A * x2 + y2) % FIELD_SIZE;
-    const right = (1n + D * x2 * y2) % FIELD_SIZE;
-    return left === right;
+    return isOnCurve(this);
   }
 
   isIdentity(): boolean {
-    return this.x === 0n && this.y === 1n;
+    return isIdentityPoint(this);
   }
 
   isInPrimeSubgroup(): boolean {
-    return this.isOnCurve() && this.multiply(CURVE_ORDER).isIdentity();
+    return isInPrimeSubgroup(this);
   }
 
-  add(other: EdwardsPoint): EdwardsPoint {
-    const x1 = this.x,
-      y1 = this.y;
-    const x2 = other.x,
-      y2 = other.y;
-
-    const x1y2 = (x1 * y2) % FIELD_SIZE;
-    const y1x2 = (y1 * x2) % FIELD_SIZE;
-    const y1y2 = (y1 * y2) % FIELD_SIZE;
-    const x1x2 = (x1 * x2) % FIELD_SIZE;
-
-    const dx1x2y1y2 = (D * x1x2 * y1y2) % FIELD_SIZE;
-
-    const x3_num = (x1y2 + y1x2) % FIELD_SIZE;
-    const x3_den = modInverse((1n + dx1x2y1y2) % FIELD_SIZE, FIELD_SIZE);
-
-    const y3_num = (y1y2 - A * x1x2) % FIELD_SIZE;
-    const y3_den = modInverse(
-      (1n - dx1x2y1y2 + FIELD_SIZE) % FIELD_SIZE,
-      FIELD_SIZE
-    );
-
-    if (x3_den === null || y3_den === null) {
-      throw new Error("Point addition failed - inverse doesn't exist");
-    }
-
-    const x3 = (x3_num * x3_den) % FIELD_SIZE;
-    const y3 = (y3_num * y3_den) % FIELD_SIZE;
-
-    return new EdwardsPoint(x3, y3);
+  add(other: AffinePoint): EdwardsPoint {
+    return EdwardsPoint.from(addPoints(this, other));
   }
 
   multiply(scalar: bigint): EdwardsPoint {
-    if (scalar < 0n) {
-      throw new Error("Point multiplication scalar cannot be negative");
-    }
+    return EdwardsPoint.from(multiplyPoint(this, scalar));
+  }
 
-    let result = EdwardsPoint.identity();
-    let addend = new EdwardsPoint(this.x, this.y);
-    let k = scalar;
-
-    while (k > 0n) {
-      if (k & 1n) {
-        result = result.add(addend);
-      }
-      addend = addend.add(addend);
-      k >>= 1n;
-    }
-
-    return result;
+  negate(): EdwardsPoint {
+    return EdwardsPoint.from(negatePoint(this));
   }
 
   toString(): string {
     return `(${this.x.toString()}, ${this.y.toString()})`;
   }
 
-  equals(other: EdwardsPoint): boolean {
+  equals(other: AffinePoint): boolean {
     return this.x === other.x && this.y === other.y;
   }
 }
@@ -186,9 +152,8 @@ export function elgamalEncrypt(
 
 // ===== XOR Accumulator Operations =====
 
-// Negate an Edwards point: -(x, y) = (-x, y)
 export function negatePoint(point: EdwardsPoint): EdwardsPoint {
-  return new EdwardsPoint(-point.x, point.y);
+  return EdwardsPoint.from(negateAffinePoint(point));
 }
 
 // Subtract two ciphertexts: [[a]] - [[b]] = ([[a]].c1 - [[b]].c1, [[a]].c2 - [[b]].c2)

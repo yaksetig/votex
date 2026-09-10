@@ -1,8 +1,11 @@
+// Canonical BabyJubJub point validation for edge-function inputs. The curve
+// arithmetic itself lives in ./protocol.ts.
+
 import {
-  BABYJUB_A as A,
-  BABYJUB_D as D,
   BABYJUB_FIELD,
   BABYJUB_SUBGROUP_ORDER,
+  isIdentityPoint,
+  isInPrimeSubgroup,
   parseCanonicalFieldElement,
 } from "./protocol.ts";
 
@@ -13,71 +16,11 @@ interface PointInput {
   y: string;
 }
 
-interface Point {
-  x: bigint;
-  y: bigint;
-}
-
-function mod(value: bigint): bigint {
-  const result = value % BABYJUB_FIELD;
-  return result >= 0n ? result : result + BABYJUB_FIELD;
-}
-
-function inverse(value: bigint): bigint | null {
-  let oldR = mod(value);
-  let r = BABYJUB_FIELD;
-  let oldS = 1n;
-  let s = 0n;
-
-  while (r !== 0n) {
-    const quotient = oldR / r;
-    [oldR, r] = [r, oldR - quotient * r];
-    [oldS, s] = [s, oldS - quotient * s];
-  }
-
-  return oldR === 1n ? mod(oldS) : null;
-}
-
-function add(left: Point, right: Point): Point {
-  const x1x2 = mod(left.x * right.x);
-  const y1y2 = mod(left.y * right.y);
-  const product = mod(D * x1x2 * y1y2);
-  const xDenominator = inverse(1n + product);
-  const yDenominator = inverse(1n - product);
-  if (xDenominator === null || yDenominator === null) {
-    throw new Error("Invalid BabyJubJub addition denominator");
-  }
-
-  return {
-    x: mod((left.x * right.y + left.y * right.x) * xDenominator),
-    y: mod((y1y2 - A * x1x2) * yDenominator),
-  };
-}
-
-function multiply(point: Point, scalar: bigint): Point {
-  let result: Point = { x: 0n, y: 1n };
-  let addend = point;
-  let remaining = scalar;
-  while (remaining > 0n) {
-    if ((remaining & 1n) === 1n) {
-      result = add(result, addend);
-    }
-    addend = add(addend, addend);
-    remaining >>= 1n;
-  }
-  return result;
-}
-
-function isOnCurve(point: Point): boolean {
-  const xSquared = mod(point.x * point.x);
-  const ySquared = mod(point.y * point.y);
-  return mod(A * xSquared + ySquared) === mod(1n + D * xSquared * ySquared);
-}
-
-function isIdentity(point: Point): boolean {
-  return point.x === 0n && point.y === 1n;
-}
-
+/**
+ * True only when both coordinates are canonical decimals in [0, p), the point
+ * is on the curve and in the prime-order subgroup, and (unless allowed) is
+ * not the identity. Never throws on malformed input.
+ */
 export function isCanonicalPrimeSubgroupPoint(
   input: PointInput,
   allowIdentity = true
@@ -88,9 +31,8 @@ export function isCanonicalPrimeSubgroupPoint(
     if (x === null || y === null) return false;
 
     const point = { x, y };
-    if (!allowIdentity && isIdentity(point)) return false;
-    if (!isOnCurve(point)) return false;
-    return isIdentity(multiply(point, BABYJUB_SUBGROUP_ORDER));
+    if (!allowIdentity && isIdentityPoint(point)) return false;
+    return isInPrimeSubgroup(point);
   } catch {
     return false;
   }

@@ -1,24 +1,7 @@
 import { CURVE_ORDER } from "./constants";
 import { parseCanonicalFieldElement as parseCanonicalFieldElementOrNull } from "@protocol";
 
-export function mod(a: bigint, m: bigint): bigint {
-  return ((a % m) + m) % m;
-}
-
-export function modInverse(a: bigint, m: bigint): bigint | null {
-  if (a < 0n) a = mod(a, m);
-
-  let [old_r, r] = [a, m];
-  let [old_s, s] = [1n, 0n];
-
-  while (r !== 0n) {
-    const quotient = old_r / r;
-    [old_r, r] = [r, old_r - quotient * r];
-    [old_s, s] = [s, old_s - quotient * s];
-  }
-
-  return old_r > 1n ? null : mod(old_s, m);
-}
+export { mod, modInverse } from "@protocol";
 
 export function toBytesBE(x: bigint): Uint8Array {
   const out = new Uint8Array(32);

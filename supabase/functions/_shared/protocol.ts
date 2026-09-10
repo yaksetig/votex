@@ -26,6 +26,94 @@ export const BABYJUB_BASE_POINT = {
 } as const;
 
 // ---------------------------------------------------------------------------
+// Twisted Edwards arithmetic on BabyJubJub (a·x² + y² = 1 + d·x²·y² over F_p)
+//
+// This is the single implementation used by the browser (through the
+// EdwardsPoint wrapper in src/services/elGamalService.ts), the edge-function
+// point validators and the server-side accumulator update. Points are plain
+// {x, y} bigints already reduced into [0, p).
+// ---------------------------------------------------------------------------
+
+export interface AffinePoint {
+  x: bigint;
+  y: bigint;
+}
+
+export const IDENTITY_POINT: AffinePoint = { x: 0n, y: 1n };
+
+/** Least non-negative residue of `value` modulo `modulus`. */
+export function mod(value: bigint, modulus: bigint = BABYJUB_FIELD): bigint {
+  const remainder = value % modulus;
+  return remainder >= 0n ? remainder : remainder + modulus;
+}
+
+/** Extended-Euclid modular inverse; null when `value` is not invertible. */
+export function modInverse(value: bigint, modulus: bigint = BABYJUB_FIELD): bigint | null {
+  let [oldR, r] = [mod(value, modulus), modulus];
+  let [oldS, s] = [1n, 0n];
+  while (r !== 0n) {
+    const quotient = oldR / r;
+    [oldR, r] = [r, oldR - quotient * r];
+    [oldS, s] = [s, oldS - quotient * s];
+  }
+  return oldR === 1n ? mod(oldS, modulus) : null;
+}
+
+export function isIdentityPoint(point: AffinePoint): boolean {
+  return point.x === 0n && point.y === 1n;
+}
+
+export function isOnCurve(point: AffinePoint): boolean {
+  const x2 = mod(point.x * point.x);
+  const y2 = mod(point.y * point.y);
+  return mod(BABYJUB_A * x2 + y2) === mod(1n + BABYJUB_D * x2 * y2);
+}
+
+/** Unified Edwards addition (also correct for doubling and for the identity). */
+export function addPoints(left: AffinePoint, right: AffinePoint): AffinePoint {
+  const x1x2 = mod(left.x * right.x);
+  const y1y2 = mod(left.y * right.y);
+  const product = mod(BABYJUB_D * x1x2 * y1y2);
+  const xDenominator = modInverse(1n + product);
+  const yDenominator = modInverse(1n - product);
+  if (xDenominator === null || yDenominator === null) {
+    throw new Error("Edwards addition failed: denominator is not invertible");
+  }
+  return {
+    x: mod((left.x * right.y + left.y * right.x) * xDenominator),
+    y: mod((y1y2 - BABYJUB_A * x1x2) * yDenominator),
+  };
+}
+
+/** -(x, y) = (-x, y) on a twisted Edwards curve. */
+export function negatePoint(point: AffinePoint): AffinePoint {
+  return { x: mod(-point.x), y: point.y };
+}
+
+/** Double-and-add scalar multiplication; rejects negative scalars. */
+export function multiplyPoint(point: AffinePoint, scalar: bigint): AffinePoint {
+  if (scalar < 0n) {
+    throw new Error("Point multiplication scalar cannot be negative");
+  }
+  let result: AffinePoint = IDENTITY_POINT;
+  let addend = point;
+  let remaining = scalar;
+  while (remaining > 0n) {
+    if ((remaining & 1n) === 1n) {
+      result = addPoints(result, addend);
+    }
+    addend = addPoints(addend, addend);
+    remaining >>= 1n;
+  }
+  return result;
+}
+
+/** On the curve and of order dividing the prime subgroup order. */
+export function isInPrimeSubgroup(point: AffinePoint): boolean {
+  return isOnCurve(point) && isIdentityPoint(multiplyPoint(point, BABYJUB_SUBGROUP_ORDER));
+}
+
+// ---------------------------------------------------------------------------
 // Canonical decimal encoding of field elements
 // ---------------------------------------------------------------------------
 

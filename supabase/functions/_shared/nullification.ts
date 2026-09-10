@@ -7,16 +7,14 @@ const snarkjs = snarkjsModule as any;
 
 import { verificationKeyXor } from "./verificationKeyXor.ts";
 import {
-  BABYJUB_A,
-  BABYJUB_D,
-  BABYJUB_FIELD,
+  addPoints,
+  type AffinePoint,
   electionIdToField,
   isCanonicalDecimal,
+  mod,
+  negatePoint,
 } from "./protocol.ts";
 
-const FIELD_SIZE = BABYJUB_FIELD;
-const BABYJUBJUB_D = BABYJUB_D;
-const BABYJUBJUB_A = BABYJUB_A;
 
 export interface Groth16Proof {
   pi_a: [string, string, string];
@@ -55,83 +53,18 @@ export const NULLIFICATION_PUBLIC_SIGNAL_COUNT = 17;
 
 export { electionIdToField };
 
-class EdwardsPoint {
-  x: bigint;
-  y: bigint;
-
-  constructor(x: bigint, y: bigint) {
-    this.x = mod(x, FIELD_SIZE);
-    this.y = mod(y, FIELD_SIZE);
-  }
-
-  add(other: EdwardsPoint): EdwardsPoint {
-    const x1 = this.x;
-    const y1 = this.y;
-    const x2 = other.x;
-    const y2 = other.y;
-
-    const x1y2 = (x1 * y2) % FIELD_SIZE;
-    const y1x2 = (y1 * x2) % FIELD_SIZE;
-    const y1y2 = (y1 * y2) % FIELD_SIZE;
-    const x1x2 = (x1 * x2) % FIELD_SIZE;
-    const dx1x2y1y2 = (BABYJUBJUB_D * x1x2 * y1y2) % FIELD_SIZE;
-
-    const x3Num = (x1y2 + y1x2) % FIELD_SIZE;
-    const x3Den = modInverse((1n + dx1x2y1y2) % FIELD_SIZE, FIELD_SIZE);
-    const y3Num = (y1y2 - BABYJUBJUB_A * x1x2) % FIELD_SIZE;
-    const y3Den = modInverse(
-      (1n - dx1x2y1y2 + FIELD_SIZE) % FIELD_SIZE,
-      FIELD_SIZE
-    );
-
-    if (x3Den === null || y3Den === null) {
-      throw new Error("Point addition failed");
-    }
-
-    return new EdwardsPoint((x3Num * x3Den) % FIELD_SIZE, (y3Num * y3Den) % FIELD_SIZE);
-  }
+function pointFromJson(point: JsonPoint): AffinePoint {
+  return { x: mod(BigInt(point.x)), y: mod(BigInt(point.y)) };
 }
 
-function mod(value: bigint, modulus: bigint): bigint {
-  const remainder = value % modulus;
-  return remainder >= 0n ? remainder : remainder + modulus;
-}
-
-function modInverse(value: bigint, modulus: bigint): bigint | null {
-  let a = mod(value, modulus);
-  let b = modulus;
-  let x = 1n;
-  let y = 0n;
-
-  while (b !== 0n) {
-    const quotient = a / b;
-    [a, b] = [b, a % b];
-    [x, y] = [y, x - quotient * y];
-  }
-
-  if (a !== 1n) {
-    return null;
-  }
-
-  return mod(x, modulus);
-}
-
-function negatePoint(point: EdwardsPoint): EdwardsPoint {
-  return new EdwardsPoint(-point.x, point.y);
-}
-
-function pointFromJson(point: JsonPoint): EdwardsPoint {
-  return new EdwardsPoint(BigInt(point.x), BigInt(point.y));
-}
-
-function pointToJson(point: EdwardsPoint): JsonPoint {
+function pointToJson(point: AffinePoint): JsonPoint {
   return {
     x: point.x.toString(),
     y: point.y.toString(),
   };
 }
 
-function ciphertextFromPoints(c1: EdwardsPoint, c2: EdwardsPoint): JsonCiphertext {
+function ciphertextFromPoints(c1: AffinePoint, c2: AffinePoint): JsonCiphertext {
   return {
     c1: pointToJson(c1),
     c2: pointToJson(c2),
@@ -230,8 +163,8 @@ export function computeAccumulatorUpdate(
   const gateC2 = pointFromJson(parsed.gateOutput.c2);
 
   return ciphertextFromPoints(
-    ciphertextC1.add(negatePoint(gateC1)),
-    ciphertextC2.add(negatePoint(gateC2))
+    addPoints(ciphertextC1, negatePoint(gateC1)),
+    addPoints(ciphertextC2, negatePoint(gateC2))
   );
 }
 
