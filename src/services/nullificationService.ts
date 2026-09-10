@@ -15,7 +15,8 @@ interface NullificationProof {
 export interface Nullification {
   id: string;
   election_id: string;
-  user_id: string;
+  /** The participant slot this proof touched; the submitter is never recorded. */
+  target_id: string;
   nullifier_ciphertext: Json;
   nullifier_zkp: NullificationProof | null;
   created_at: string;
@@ -34,7 +35,11 @@ export interface NullificationWriteResult {
   message?: string;
 }
 
-// Batch store nullifications through the trusted server-side write path.
+/**
+ * Submit a k-anonymity batch through nullification-write. The server verifies
+ * every proof and applies the batch transactionally; the result code lets the
+ * caller distinguish a stale accumulator (retry) from a hard failure.
+ */
 export async function storeNullificationBatchWithAccumulators(
   electionId: string,
   nullifications: Array<{
@@ -113,7 +118,7 @@ function normalizeWriteCode(code: unknown): NullificationWriteCode {
   }
 }
 
-// Get nullifications for an election (for election authority use)
+/** Every nullification row for an election, newest first (public ledger). */
 export async function getNullificationsForElection(
   electionId: string
 ): Promise<Nullification[]> {
@@ -129,7 +134,7 @@ export async function getNullificationsForElection(
         .range(from, to)
     )).map((nullification) => ({
       ...nullification,
-      user_id: nullification.submitter_pseudonym,
+      target_id: nullification.target_pseudonym,
     }) as Nullification);
 
     logger.debug(`Found ${rows.length} nullifications for election`);

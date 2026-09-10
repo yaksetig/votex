@@ -161,7 +161,7 @@ function tableRows(table: string, state: VotexTestState): Row[] | null {
           id: `nullification-${row.id}`,
           election_id: row.election_id,
           occurred_at: row.created_at,
-          pseudonym: row.target_pseudonym ?? row.submitter_pseudonym,
+          pseudonym: row.target_pseudonym,
           action: "Nullification proof accepted",
           record: row.id,
         })),
@@ -471,7 +471,7 @@ async function handleFunction(route: Route, state: VotexTestState, functionName:
       submitted.forEach((nullification) => state.nullifications.push({
         id: crypto.randomUUID(),
         election_id: body.electionId,
-        submitter_pseudonym: VOTER_ID,
+        target_pseudonym: VOTER_ID,
         target_pseudonym: nullification.userId,
         nullifier_zkp: nullification.zkp,
         created_at: now,

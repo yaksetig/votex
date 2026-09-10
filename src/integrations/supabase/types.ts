@@ -746,7 +746,7 @@ export type Database = {
           id: string | null
           nullifier_ciphertext: Json | null
           nullifier_zkp: Json | null
-          submitter_pseudonym: string | null
+          target_pseudonym: string | null
         }
         Relationships: []
       }
