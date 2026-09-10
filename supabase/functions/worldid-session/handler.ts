@@ -1,7 +1,7 @@
 // Request handling for the worldid-session function, extracted so it can be
 // unit-tested with a fake supabase client (no live database).
 
-import { jsonResponse, sha256Hex } from "../_shared/http.ts";
+import { errorResponse, jsonResponse, sha256Hex } from "../_shared/http.ts";
 
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -43,9 +43,7 @@ export async function handleSessionRequest(
 ): Promise<Response> {
   if (body.action === "create") {
     if (!body.nullifierHash || !body.verifierHash) {
-      return jsonResponse(400, {
-        error: "Missing nullifierHash or verifierHash",
-      });
+      return errorResponse(400, "VALIDATION_ERROR", "Missing nullifierHash or verifierHash");
     }
 
     const { data: binding, error: bindingError } = await supabase
@@ -55,11 +53,11 @@ export async function handleSessionRequest(
       .maybeSingle();
 
     if (bindingError) {
-      return jsonResponse(500, { error: "Failed to load identity binding" });
+      return errorResponse(500, "INTERNAL_ERROR", "Failed to load identity binding");
     }
 
     if (!binding) {
-      return jsonResponse(404, { error: "Identity binding not found" });
+      return errorResponse(404, "NOT_FOUND", "Identity binding not found");
     }
 
     const { data: existingVerifier, error: verifierError } = await supabase
@@ -69,7 +67,7 @@ export async function handleSessionRequest(
       .maybeSingle();
 
     if (verifierError) {
-      return jsonResponse(500, { error: "Failed to load verifier" });
+      return errorResponse(500, "INTERNAL_ERROR", "Failed to load verifier");
     }
 
     // Verifier registration happens exclusively in register-keypair under a
@@ -77,11 +75,11 @@ export async function handleSessionRequest(
     // verifier (the old trust-on-first-use bootstrap) would let anyone who
     // reads a public nullifier hash claim that identity.
     if (!existingVerifier) {
-      return jsonResponse(401, {
-        error:
-          "No verifier registered for this identity. Complete registration first.",
-        code: "VERIFIER_MISSING",
-      });
+      return errorResponse(
+        401,
+        "VERIFIER_MISSING",
+        "No verifier registered for this identity. Complete registration first."
+      );
     }
 
     // The verifier is a static bearer credential, so only its SHA-256 is
@@ -89,7 +87,7 @@ export async function handleSessionRequest(
     // legacy rows). Compare hash-to-hash so a database read never yields a
     // value that can mint sessions.
     if (existingVerifier.verifier_hash !== (await sha256Hex(body.verifierHash))) {
-      return jsonResponse(401, { error: "Passkey verifier mismatch" });
+      return errorResponse(401, "INVALID_SIGNATURE", "Passkey verifier mismatch");
     }
 
     const sessionToken = generateSessionToken();
@@ -105,7 +103,7 @@ export async function handleSessionRequest(
       });
 
     if (sessionError) {
-      return jsonResponse(500, { error: "Failed to create session" });
+      return errorResponse(500, "INTERNAL_ERROR", "Failed to create session");
     }
 
     return jsonResponse(200, {
@@ -124,7 +122,7 @@ export async function handleSessionRequest(
     .maybeSingle();
 
   if (sessionError) {
-    return jsonResponse(500, { error: "Failed to load session" });
+    return errorResponse(500, "INTERNAL_ERROR", "Failed to load session");
   }
 
   if (!session || session.revoked_at) {
@@ -166,11 +164,11 @@ export async function handleSessionRequest(
       .eq("token_hash", tokenHash);
 
     if (revokeError) {
-      return jsonResponse(500, { error: "Failed to revoke session" });
+      return errorResponse(500, "INTERNAL_ERROR", "Failed to revoke session");
     }
 
     return jsonResponse(200, { success: true });
   }
 
-  return jsonResponse(400, { error: "Unsupported action" });
+  return errorResponse(400, "VALIDATION_ERROR", "Unsupported action");
 }

@@ -10,6 +10,7 @@ import { secp256k1 } from "https://esm.sh/@noble/curves@1.8.2/secp256k1";
 import { keccak_256 } from "https://esm.sh/@noble/hashes@1.8.0/sha3";
 import { bytesToHex, hexToBytes, concatBytes } from "https://esm.sh/@noble/hashes@1.8.0/utils";
 import { corsHeaders } from "../_shared/cors.ts";
+import { errorResponse, jsonResponse } from "../_shared/http.ts";
 import { WORLD_ID_REGISTRATION_ACTION } from "../_shared/protocol.ts";
 
 // Only mint RP signatures for known actions; without this the function is a
@@ -91,17 +92,11 @@ Deno.serve(async (req) => {
 
     if (!signingKeyHex) {
       console.error("RP_SIGNING_KEY not set");
-      return new Response(
-        JSON.stringify({ error: "RP signing key not configured" }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return errorResponse(500, "INTERNAL_ERROR", "RP signing key not configured");
     }
 
     if (!action || typeof action !== "string" || !ALLOWED_ACTIONS.has(action)) {
-      return new Response(
-        JSON.stringify({ error: "Missing or unsupported action" }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return errorResponse(400, "VALIDATION_ERROR", "Missing or unsupported action");
     }
 
     const { sig, nonce, createdAt, expiresAt } = signRequest({
@@ -109,20 +104,14 @@ Deno.serve(async (req) => {
       action,
     });
 
-    return new Response(
-      JSON.stringify({
-        sig,
-        nonce,
-        created_at: createdAt,
-        expires_at: expiresAt,
-      }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return jsonResponse(200, {
+      sig,
+      nonce,
+      created_at: createdAt,
+      expires_at: expiresAt,
+    });
   } catch (error) {
     console.error("RP signature error:", error);
-    return new Response(
-      JSON.stringify({ error: "Failed to generate RP signature" }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return errorResponse(500, "INTERNAL_ERROR", "Failed to generate RP signature");
   }
 });

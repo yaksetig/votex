@@ -10,9 +10,9 @@
 // _shared/delegation.ts). A stolen session alone can no longer delegate a
 // voter's ballot away.
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.3";
 import { corsHeaders } from "../_shared/cors.ts";
-import { jsonResponse } from "../_shared/http.ts";
+import { createServiceRoleClient } from "../_shared/supabase.ts";
+import { errorResponse, jsonResponse } from "../_shared/http.ts";
 import { validateWorldIdSession } from "../_shared/session.ts";
 import { isCanonicalPrimeSubgroupPoint } from "../_shared/babyjub.ts";
 import {
@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
     const body = (await req.json()) as DelegationWriteRequest;
 
     if (body.action !== "create" && body.action !== "revoke") {
-      return jsonResponse(400, { error: "Unsupported action" });
+      return errorResponse(400, "VALIDATION_ERROR", "Unsupported action");
     }
 
     if (
@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
       typeof body.sessionToken !== "string" ||
       !body.sessionToken
     ) {
-      return jsonResponse(400, { error: "Missing electionId or sessionToken" });
+      return errorResponse(400, "VALIDATION_ERROR", "Missing electionId or sessionToken");
     }
 
     const ct = body.ciphertext;
@@ -57,21 +57,14 @@ Deno.serve(async (req) => {
       !isCanonicalPrimeSubgroupPoint(ct.c1, false) ||
       !isCanonicalPrimeSubgroupPoint(ct.c2, false)
     )) {
-      return jsonResponse(400, {
-        error: "Delegation ciphertext must contain canonical BabyJubJub prime-subgroup points",
-      });
+      return errorResponse(400, "VALIDATION_ERROR", "Delegation ciphertext must contain canonical BabyJubJub prime-subgroup points");
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    const supabase = createServiceRoleClient();
 
     const session = await validateWorldIdSession(supabase, body.sessionToken);
     if (!session.valid || !session.userId) {
-      return jsonResponse(401, {
-        error: session.detail || "Voter session validation failed",
-      });
+      return errorResponse(401, "SESSION_REQUIRED", session.detail || "Voter session validation failed");
     }
 
     const { data: participant, error: participantError } = await supabase
@@ -83,14 +76,11 @@ Deno.serve(async (req) => {
 
     if (participantError) {
       console.error("Participant lookup error:", participantError);
-      return jsonResponse(500, { error: "Failed to load participant key" });
+      return errorResponse(500, "INTERNAL_ERROR", "Failed to load participant key");
     }
 
     if (!participant) {
-      return jsonResponse(409, {
-        code: "PARTICIPANT_REQUIRED",
-        error: "Delegator is not a participant in this election",
-      });
+      return errorResponse(409, "PARTICIPANT_REQUIRED", "Delegator is not a participant in this election");
     }
 
     const failure = await verifyDelegationAuthorization(
@@ -101,14 +91,12 @@ Deno.serve(async (req) => {
       body.action === "create" ? ct : undefined
     );
     if (failure) {
-      return jsonResponse(failure === "MALFORMED" ? 400 : 401, {
-        code: "INVALID_SIGNATURE",
-        error: failure === "EXPIRED"
-          ? "Delegation authorization has expired"
-          : failure === "FUTURE"
-          ? "Delegation authorization timestamp is in the future"
-          : "Delegation authorization signature is invalid",
-      });
+      const message = failure === "EXPIRED"
+        ? "Delegation authorization has expired"
+        : failure === "FUTURE"
+        ? "Delegation authorization timestamp is in the future"
+        : "Delegation authorization signature is invalid";
+      return errorResponse(failure === "MALFORMED" ? 400 : 401, "INVALID_SIGNATURE", message);
     }
 
     const { data: delegationId, error: writeError } = await supabase.rpc(
@@ -127,24 +115,18 @@ Deno.serve(async (req) => {
 
     if (writeError) {
       console.error("Atomic delegation write failed", writeError.code);
-      const code = writeError.message === "ELECTION_CLOSED"
-        ? "ELECTION_CLOSED"
-        : writeError.message === "PARTICIPANT_REQUIRED"
-        ? "PARTICIPANT_REQUIRED"
-        : "CONFLICT";
-      return jsonResponse(code === "CONFLICT" ? 500 : 409, {
-        code,
-        error: writeError.message === "ELECTION_CLOSED"
-          ? "Election is closed"
-          : writeError.message === "PARTICIPANT_REQUIRED"
-          ? "Delegator is not a participant in this election"
-          : "Failed to update delegation",
-      });
+      if (writeError.message === "ELECTION_CLOSED") {
+        return errorResponse(409, "ELECTION_CLOSED", "Election is closed");
+      }
+      if (writeError.message === "PARTICIPANT_REQUIRED") {
+        return errorResponse(409, "PARTICIPANT_REQUIRED", "Delegator is not a participant in this election");
+      }
+      return errorResponse(500, "INTERNAL_ERROR", "Failed to update delegation");
     }
 
     return jsonResponse(200, { success: true, delegationId });
   } catch (error) {
     console.error("delegation-write error:", error);
-    return jsonResponse(500, { error: "Internal server error" });
+    return errorResponse(500, "INTERNAL_ERROR", "Internal server error");
   }
 });

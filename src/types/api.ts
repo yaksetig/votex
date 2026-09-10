@@ -1,23 +1,30 @@
 import type { Election } from "@/types/election";
 
+/** Mirrors ApiErrorCode in supabase/functions/_shared/http.ts. */
 export type ApiErrorCode =
+  | "VALIDATION_ERROR"
+  | "PAYLOAD_TOO_LARGE"
+  | "METHOD_NOT_ALLOWED"
   | "SESSION_REQUIRED"
   | "SESSION_EXPIRED"
+  | "VERIFIER_MISSING"
+  | "AUTHORITY_REQUIRED"
   | "FIXED_AUTHORITY_UNAVAILABLE"
+  | "NOT_FOUND"
   | "ELECTION_CLOSED"
+  | "ELECTION_STILL_ACTIVE"
   | "ELECTION_ALREADY_STARTED"
+  | "PARTICIPANT_REQUIRED"
   | "INVALID_CHOICE"
   | "INVALID_SIGNATURE"
-  | "ALREADY_VOTED"
-  | "PARTICIPANT_REQUIRED"
-  | "STALE_ACCUMULATOR"
-  | "AUTHORITY_REQUIRED"
+  | "INVALID_PROOF"
   | "KEYPAIR_ALREADY_BOUND"
+  | "PUBLIC_KEY_ALREADY_BOUND"
   | "ACCUMULATOR_CONFLICT"
   | "RATE_LIMITED"
-  | "UNKNOWN"
   | "CONFLICT"
-  | "VALIDATION_ERROR";
+  | "INTERNAL_ERROR"
+  | "UNKNOWN";
 
 export interface ApiErrorBody {
   code?: ApiErrorCode;

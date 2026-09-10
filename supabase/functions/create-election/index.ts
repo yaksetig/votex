@@ -2,9 +2,9 @@
 // it to the single configured Election Authority. The client cannot choose the
 // creator or authority identifiers.
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.3";
 import { corsHeaders } from "../_shared/cors.ts";
-import { jsonResponse } from "../_shared/http.ts";
+import { createServiceRoleClient } from "../_shared/supabase.ts";
+import { errorResponse, jsonResponse } from "../_shared/http.ts";
 import { validateWorldIdSession } from "../_shared/session.ts";
 import { isPlaceholderAuthorityKey, isUuid } from "../_shared/fixedAuthority.ts";
 
@@ -30,37 +30,25 @@ Deno.serve(async (req) => {
   }
 
   if (req.method !== "POST") {
-    return jsonResponse(405, {
-      code: "METHOD_NOT_ALLOWED",
-      error: "Only POST is supported",
-    });
+    return errorResponse(405, "METHOD_NOT_ALLOWED", "Only POST is supported");
   }
 
   const declaredLength = Number(req.headers.get("content-length") ?? "0");
   if (declaredLength > MAX_REQUEST_BYTES) {
-    return jsonResponse(413, {
-      code: "REQUEST_TOO_LARGE",
-      error: "Election request is too large",
-    });
+    return errorResponse(413, "PAYLOAD_TOO_LARGE", "Election request is too large");
   }
 
   try {
     const rawBody = await req.text();
     if (new TextEncoder().encode(rawBody).byteLength > MAX_REQUEST_BYTES) {
-      return jsonResponse(413, {
-        code: "REQUEST_TOO_LARGE",
-        error: "Election request is too large",
-      });
+      return errorResponse(413, "PAYLOAD_TOO_LARGE", "Election request is too large");
     }
 
     let body: Partial<CreateElectionRequest>;
     try {
       body = JSON.parse(rawBody) as Partial<CreateElectionRequest>;
     } catch {
-      return jsonResponse(400, {
-        code: "VALIDATION_ERROR",
-        error: "Request body must be valid JSON",
-      });
+      return errorResponse(400, "VALIDATION_ERROR", "Request body must be valid JSON");
     }
     const title = cleanText(body.title);
     const description = cleanText(body.description);
@@ -71,10 +59,7 @@ Deno.serve(async (req) => {
     const endDate = new Date(cleanText(body.endDate));
 
     if (!sessionToken) {
-      return jsonResponse(401, {
-        code: "SESSION_REQUIRED",
-        error: "A World ID session is required",
-      });
+      return errorResponse(401, "SESSION_REQUIRED", "A World ID session is required");
     }
 
     if (
@@ -86,24 +71,15 @@ Deno.serve(async (req) => {
       Number.isNaN(endDate.getTime()) || endDate.getTime() <= Date.now() ||
       !isUuid(idempotencyKey)
     ) {
-      return jsonResponse(400, {
-        code: "VALIDATION_ERROR",
-        error: "Election fields are invalid",
-      });
+      return errorResponse(400, "VALIDATION_ERROR", "Election fields are invalid");
     }
 
     const fixedAuthorityId = cleanText(Deno.env.get("FIXED_AUTHORITY_ID"));
     if (!isUuid(fixedAuthorityId)) {
-      return jsonResponse(503, {
-        code: "FIXED_AUTHORITY_UNAVAILABLE",
-        error: "The fixed Election Authority is not configured",
-      });
+      return errorResponse(503, "FIXED_AUTHORITY_UNAVAILABLE", "The fixed Election Authority is not configured");
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    const supabase = createServiceRoleClient();
 
     const session = await validateWorldIdSession(supabase, sessionToken, {
       touchLastUsed: true,
@@ -134,10 +110,7 @@ Deno.serve(async (req) => {
       if (authorityError) {
         console.error("Fixed authority lookup failed", authorityError.code);
       }
-      return jsonResponse(503, {
-        code: "FIXED_AUTHORITY_UNAVAILABLE",
-        error: "The fixed Election Authority is not ready",
-      });
+      return errorResponse(503, "FIXED_AUTHORITY_UNAVAILABLE", "The fixed Election Authority is not ready");
     }
 
     const { data: matchingAuthorities, error: duplicateError } = await supabase
@@ -146,10 +119,7 @@ Deno.serve(async (req) => {
       .eq("public_key_x", authority.public_key_x)
       .eq("public_key_y", authority.public_key_y);
     if (duplicateError || matchingAuthorities?.length !== 1) {
-      return jsonResponse(503, {
-        code: "FIXED_AUTHORITY_UNAVAILABLE",
-        error: "The fixed Election Authority configuration is ambiguous",
-      });
+      return errorResponse(503, "FIXED_AUTHORITY_UNAVAILABLE", "The fixed Election Authority configuration is ambiguous");
     }
 
     const { data: election, error: createError } = await supabase.rpc(
@@ -185,9 +155,6 @@ Deno.serve(async (req) => {
       "create-election error",
       error instanceof Error ? error.name : "UnknownError"
     );
-    return jsonResponse(500, {
-      code: "CONFLICT",
-      error: "The election could not be created",
-    });
+    return errorResponse(500, "INTERNAL_ERROR", "The election could not be created");
   }
 });

@@ -1,6 +1,6 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.3";
 import { corsHeaders } from "../_shared/cors.ts";
-import { jsonResponse } from "../_shared/http.ts";
+import { createServiceRoleClient, getAuthenticatedUser } from "../_shared/supabase.ts";
+import { errorResponse, jsonResponse } from "../_shared/http.ts";
 import { verifyPoseidonSignature } from "../_shared/eddsa.ts";
 import { isPlaceholderAuthorityKey, isUuid } from "../_shared/fixedAuthority.ts";
 import { buildAuthorityLinkMessage, checkProofFreshness } from "../_shared/protocol.ts";
@@ -38,12 +38,12 @@ Deno.serve(async (req) => {
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      return jsonResponse(401, { error: "Missing authorization header" });
+      return errorResponse(401, "AUTHORITY_REQUIRED", "Missing authorization header");
     }
 
     const body = (await req.json()) as AuthorityLinkRequest;
     if (body.action && body.action !== "link") {
-      return jsonResponse(400, { error: "Unsupported action" });
+      return errorResponse(400, "VALIDATION_ERROR", "Unsupported action");
     }
 
     if (
@@ -53,37 +53,20 @@ Deno.serve(async (req) => {
       !body.signature ||
       !Number.isFinite(body.issuedAt)
     ) {
-      return jsonResponse(400, { error: "Missing authority link proof fields" });
+      return errorResponse(400, "VALIDATION_ERROR", "Missing authority link proof fields");
     }
 
     const freshness = checkProofFreshness(body.issuedAt);
     if (freshness === "FUTURE") {
-      return jsonResponse(400, { error: "Authority proof timestamp is in the future" });
+      return errorResponse(400, "VALIDATION_ERROR", "Authority proof timestamp is in the future");
     }
     if (freshness) {
-      return jsonResponse(400, { error: "Authority proof has expired" });
+      return errorResponse(400, "VALIDATION_ERROR", "Authority proof has expired");
     }
 
-    const userClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      {
-        global: {
-          headers: {
-            Authorization: authHeader,
-          },
-        },
-      }
-    );
-
-    const {
-      data: { user },
-      error: userError,
-    } = await userClient.auth.getUser();
-
-    if (userError || !user) {
-      console.error("Authority auth lookup error:", userError);
-      return jsonResponse(401, { error: "Invalid authority session" });
+    const user = await getAuthenticatedUser(req);
+    if (!user) {
+      return errorResponse(401, "AUTHORITY_REQUIRED", "Invalid authority session");
     }
 
     const authorityName = body.authorityName.trim();
@@ -101,20 +84,14 @@ Deno.serve(async (req) => {
     );
 
     if (!proofValid) {
-      return jsonResponse(401, { error: "Authority key ownership proof is invalid" });
+      return errorResponse(401, "AUTHORITY_REQUIRED", "Authority key ownership proof is invalid");
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    const supabase = createServiceRoleClient();
 
     const fixedAuthorityId = Deno.env.get("FIXED_AUTHORITY_ID")?.trim() ?? "";
     if (!isUuid(fixedAuthorityId)) {
-      return jsonResponse(503, {
-        code: "FIXED_AUTHORITY_UNAVAILABLE",
-        error: "The fixed Election Authority is not configured",
-      });
+      return errorResponse(503, "FIXED_AUTHORITY_UNAVAILABLE", "The fixed Election Authority is not configured");
     }
 
     const { data: existing, error: existingError } = await supabase
@@ -125,7 +102,7 @@ Deno.serve(async (req) => {
 
     if (existingError) {
       console.error("Authority lookup error:", existingError);
-      return jsonResponse(500, { error: "Failed to load authority record" });
+      return errorResponse(500, "INTERNAL_ERROR", "Failed to load authority record");
     }
 
     if (
@@ -135,10 +112,7 @@ Deno.serve(async (req) => {
         y: existing.public_key_y,
       })
     ) {
-      return jsonResponse(503, {
-        code: "FIXED_AUTHORITY_UNAVAILABLE",
-        error: "The fixed Election Authority is not ready",
-      });
+      return errorResponse(503, "FIXED_AUTHORITY_UNAVAILABLE", "The fixed Election Authority is not ready");
     }
 
     if (
@@ -146,17 +120,11 @@ Deno.serve(async (req) => {
       existing.public_key_x !== publicKey.x ||
       existing.public_key_y !== publicKey.y
     ) {
-      return jsonResponse(403, {
-        code: "AUTHORITY_REQUIRED",
-        error: "The supplied key does not belong to the fixed Election Authority",
-      });
+      return errorResponse(403, "AUTHORITY_REQUIRED", "The supplied key does not belong to the fixed Election Authority");
     }
 
     if (existing.auth_user_id && existing.auth_user_id !== user.id) {
-      return jsonResponse(409, {
-        code: "CONFLICT",
-        error: "The fixed Election Authority is already linked",
-      });
+      return errorResponse(409, "CONFLICT", "The fixed Election Authority is already linked");
     }
 
     if (!existing.auth_user_id) {
@@ -169,19 +137,13 @@ Deno.serve(async (req) => {
 
       if (updateError) {
         console.error("Authority link update error:", updateError);
-        return jsonResponse(500, {
-          code: "CONFLICT",
-          error: "Failed to link the fixed Election Authority",
-        });
+        return errorResponse(500, "INTERNAL_ERROR", "Failed to link the fixed Election Authority");
       }
 
       // Zero rows means another account won the race between our read and
       // this guarded update; reporting success here would be a lie.
       if (!Array.isArray(linked) || linked.length !== 1) {
-        return jsonResponse(409, {
-          code: "CONFLICT",
-          error: "The fixed Election Authority was linked by another account",
-        });
+        return errorResponse(409, "CONFLICT", "The fixed Election Authority was linked by another account");
       }
     }
 
@@ -192,6 +154,6 @@ Deno.serve(async (req) => {
     });
   } catch (error) {
     console.error("authority-link error:", error);
-    return jsonResponse(500, { error: "Internal server error" });
+    return errorResponse(500, "INTERNAL_ERROR", "Internal server error");
   }
 });

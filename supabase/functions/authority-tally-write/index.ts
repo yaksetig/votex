@@ -2,9 +2,10 @@
 // fixed Election Authority. Tally computation and cryptographic formats remain
 // client-side and unchanged.
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.3";
 import { corsHeaders } from "../_shared/cors.ts";
-import { jsonResponse } from "../_shared/http.ts";
+import { isElectionOpen } from "../_shared/election.ts";
+import { createServiceRoleClient, getAuthenticatedUser } from "../_shared/supabase.ts";
+import { errorResponse, jsonResponse } from "../_shared/http.ts";
 
 interface TallyResultInput {
   userId: string;
@@ -27,49 +28,29 @@ Deno.serve(async (req) => {
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      return jsonResponse(401, {
-        code: "AUTHORITY_REQUIRED",
-        error: "Missing authorization header",
-      });
+      return errorResponse(401, "AUTHORITY_REQUIRED", "Missing authorization header");
     }
 
-    const userClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-    const { data: { user }, error: userError } = await userClient.auth.getUser();
-    if (userError || !user) {
-      return jsonResponse(401, {
-        code: "AUTHORITY_REQUIRED",
-        error: "Invalid authority session",
-      });
+    const user = await getAuthenticatedUser(req);
+    if (!user) {
+      return errorResponse(401, "AUTHORITY_REQUIRED", "Invalid authority session");
     }
 
     const body = (await req.json()) as StoreResultsRequest;
     const action = body.action ?? "store-results";
     if (action !== "store-results" && action !== "replace-results") {
-      return jsonResponse(400, { code: "VALIDATION_ERROR", error: "Unsupported action" });
+      return errorResponse(400, "VALIDATION_ERROR", "Unsupported action");
     }
     if (!body.electionId || !Array.isArray(body.results)) {
-      return jsonResponse(400, {
-        code: "VALIDATION_ERROR",
-        error: "Missing electionId or results payload",
-      });
+      return errorResponse(400, "VALIDATION_ERROR", "Missing electionId or results payload");
     }
 
     const fixedAuthorityId = Deno.env.get("FIXED_AUTHORITY_ID")?.trim();
     if (!fixedAuthorityId) {
-      return jsonResponse(503, {
-        code: "FIXED_AUTHORITY_UNAVAILABLE",
-        error: "The fixed Election Authority is not configured",
-      });
+      return errorResponse(503, "FIXED_AUTHORITY_UNAVAILABLE", "The fixed Election Authority is not configured");
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    const supabase = createServiceRoleClient();
     const { data: authority, error: authorityError } = await supabase
       .from("election_authorities")
       .select("id, name")
@@ -79,13 +60,10 @@ Deno.serve(async (req) => {
 
     if (authorityError) {
       console.error("Fixed authority lookup failed", authorityError.code);
-      return jsonResponse(500, { code: "CONFLICT", error: "Failed to load authority" });
+      return errorResponse(500, "INTERNAL_ERROR", "Failed to load authority");
     }
     if (!authority) {
-      return jsonResponse(403, {
-        code: "AUTHORITY_REQUIRED",
-        error: "The current account is not the fixed Election Authority",
-      });
+      return errorResponse(403, "AUTHORITY_REQUIRED", "The current account is not the fixed Election Authority");
     }
 
     const { data: election, error: electionError } = await supabase
@@ -97,19 +75,13 @@ Deno.serve(async (req) => {
 
     if (electionError) {
       console.error("Election ownership lookup failed", electionError.code);
-      return jsonResponse(500, { code: "CONFLICT", error: "Failed to load election" });
+      return errorResponse(500, "INTERNAL_ERROR", "Failed to load election");
     }
     if (!election) {
-      return jsonResponse(403, {
-        code: "AUTHORITY_REQUIRED",
-        error: "The fixed Election Authority does not own this election",
-      });
+      return errorResponse(403, "AUTHORITY_REQUIRED", "The fixed Election Authority does not own this election");
     }
-    if (!election.closed_manually_at && new Date(election.end_date).getTime() > Date.now()) {
-      return jsonResponse(409, {
-        code: "ELECTION_STILL_ACTIVE",
-        error: "Election is still active",
-      });
+    if (isElectionOpen(election)) {
+      return errorResponse(409, "ELECTION_STILL_ACTIVE", "Election is still active");
     }
 
     const normalizedResults = body.results.map((result) => ({
@@ -155,6 +127,6 @@ Deno.serve(async (req) => {
       "authority-tally-write error",
       error instanceof Error ? error.name : "UnknownError"
     );
-    return jsonResponse(500, { code: "CONFLICT", error: "Internal server error" });
+    return errorResponse(500, "INTERNAL_ERROR", "Internal server error");
   }
 });

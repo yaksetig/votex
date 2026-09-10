@@ -1,4 +1,3 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.3";
 
 import {
   computeAccumulatorUpdate,
@@ -12,7 +11,9 @@ import {
   verifyNullificationProofPayload,
 } from "../_shared/nullification.ts";
 import { corsHeaders } from "../_shared/cors.ts";
-import { jsonResponse } from "../_shared/http.ts";
+import { isElectionOpen } from "../_shared/election.ts";
+import { createServiceRoleClient } from "../_shared/supabase.ts";
+import { errorResponse, jsonResponse } from "../_shared/http.ts";
 import { validateWorldIdSession } from "../_shared/session.ts";
 
 const MAX_BATCH_SIZE = 16;
@@ -89,18 +90,15 @@ async function persistNullificationBatch(
   const message = error.message || "";
 
   if (message.includes("RATE_LIMITED")) {
-    return jsonResponse(429, {
-      code: "RATE_LIMITED",
-      error: "Only one nullification batch per minute is accepted. Please retry shortly.",
-    });
+    return errorResponse(429, "RATE_LIMITED", "Only one nullification batch per minute is accepted. Please retry shortly.");
   }
 
   if (message.includes("ELECTION_CLOSED")) {
-    return jsonResponse(409, { code: "ELECTION_CLOSED", error: "Election is closed" });
+    return errorResponse(409, "ELECTION_CLOSED", "Election is closed");
   }
 
   if (message.includes("mismatch")) {
-    return jsonResponse(409, { code: "ACCUMULATOR_CONFLICT", error: message });
+    return errorResponse(409, "ACCUMULATOR_CONFLICT", message);
   }
 
   if (
@@ -110,11 +108,11 @@ async function persistNullificationBatch(
     message.includes("non-empty array") ||
     message.includes("exceeds the maximum")
   ) {
-    return jsonResponse(400, { error: message });
+    return errorResponse(400, "VALIDATION_ERROR", message);
   }
 
   console.error("submit_nullification_batch RPC error:", error);
-  return jsonResponse(500, { error: "Failed to persist nullification batch" });
+  return errorResponse(500, "INTERNAL_ERROR", "Failed to persist nullification batch");
 }
 
 Deno.serve(async (req) => {
@@ -126,47 +124,34 @@ Deno.serve(async (req) => {
     const body = (await req.json()) as SubmitNullificationBatchRequest;
 
     if (body.action && body.action !== "submit-batch") {
-      return jsonResponse(400, { error: "Unsupported action" });
+      return errorResponse(400, "VALIDATION_ERROR", "Unsupported action");
     }
 
     if (!body.electionId || !body.sessionToken || !Array.isArray(body.nullifications)) {
-      return jsonResponse(400, {
-        error: "Missing electionId, sessionToken, or nullifications payload",
-      });
+      return errorResponse(400, "VALIDATION_ERROR", "Missing electionId, sessionToken, or nullifications payload");
     }
 
     if (body.nullifications.length === 0 || body.nullifications.length > MAX_BATCH_SIZE) {
-      return jsonResponse(400, {
-        error: `Nullification batches must contain between 1 and ${MAX_BATCH_SIZE} items`,
-      });
+      return errorResponse(400, "VALIDATION_ERROR", `Nullification batches must contain between 1 and ${MAX_BATCH_SIZE} items`);
     }
 
     const targetUserIds = body.nullifications.map((item) => item.userId);
     if (new Set(targetUserIds).size !== targetUserIds.length) {
-      return jsonResponse(400, {
-        error: "Nullification batches cannot target the same participant more than once",
-      });
+      return errorResponse(400, "VALIDATION_ERROR", "Nullification batches cannot target the same participant more than once");
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    const supabase = createServiceRoleClient();
 
     // Deliberately no last_used_at touch: a timestamp that coincides with the
     // batch's created_at would identify the submitter to anyone who can read
     // world_id_sessions.
     const session = await validateWorldIdSession(supabase, body.sessionToken);
     if (!session.valid || !session.userId) {
-      return jsonResponse(401, {
-        error: session.detail || "Voter session validation failed",
-      });
+      return errorResponse(401, "SESSION_REQUIRED", session.detail || "Voter session validation failed");
     }
 
     if (!targetUserIds.includes(session.userId)) {
-      return jsonResponse(400, {
-        error: "Nullification batch must include the submitter's participant slot",
-      });
+      return errorResponse(400, "VALIDATION_ERROR", "Nullification batch must include the submitter's participant slot");
     }
 
     const { data: election, error: electionError } = await supabase
@@ -177,21 +162,15 @@ Deno.serve(async (req) => {
 
     if (electionError) {
       console.error("Election lookup error:", electionError);
-      return jsonResponse(500, { error: "Failed to load election" });
+      return errorResponse(500, "INTERNAL_ERROR", "Failed to load election");
     }
 
     if (!election?.authority_id) {
-      return jsonResponse(404, { error: "Election not found or has no authority binding" });
+      return errorResponse(404, "NOT_FOUND", "Election not found or has no authority binding");
     }
 
-    if (
-      election.closed_manually_at ||
-      new Date(election.end_date).getTime() <= Date.now()
-    ) {
-      return jsonResponse(409, {
-        code: "ELECTION_CLOSED",
-        error: "Election is closed",
-      });
+    if (!isElectionOpen(election)) {
+      return errorResponse(409, "ELECTION_CLOSED", "Election is closed");
     }
 
     const { data: authority, error: authorityError } = await supabase
@@ -202,7 +181,7 @@ Deno.serve(async (req) => {
 
     if (authorityError || !authority) {
       console.error("Election authority lookup error:", authorityError);
-      return jsonResponse(500, { error: "Failed to resolve election authority" });
+      return errorResponse(500, "INTERNAL_ERROR", "Failed to resolve election authority");
     }
 
     const authorityPublicKey: JsonPoint = {
@@ -226,26 +205,22 @@ Deno.serve(async (req) => {
 
     if (participantsError) {
       console.error("Participant lookup error:", participantsError);
-      return jsonResponse(500, { error: "Failed to load election participants" });
+      return errorResponse(500, "INTERNAL_ERROR", "Failed to load election participants");
     }
 
     if (accumulatorsError) {
       console.error("Accumulator lookup error:", accumulatorsError);
-      return jsonResponse(500, { error: "Failed to load accumulator state" });
+      return errorResponse(500, "INTERNAL_ERROR", "Failed to load accumulator state");
     }
 
     const participantRows = (participants || []) as ParticipantRow[];
     const participantIds = new Set(participantRows.map((row) => row.participant_id));
     if (participantIds.size !== targetUserIds.length) {
-      return jsonResponse(400, {
-        error: "One or more nullification targets are not participants in this election",
-      });
+      return errorResponse(400, "VALIDATION_ERROR", "One or more nullification targets are not participants in this election");
     }
 
     if (!participantIds.has(session.userId)) {
-      return jsonResponse(400, {
-        error: "Submitter is not a participant in this election",
-      });
+      return errorResponse(400, "PARTICIPANT_REQUIRED", "Submitter is not a participant in this election");
     }
 
     const participantKeysByUserId = new Map(
@@ -258,47 +233,37 @@ Deno.serve(async (req) => {
       ])
     );
 
-    const accumulatorsByUserId = new Map(
-      (accumulators || []).map((row) => [row.voter_id, row as AccumulatorRow])
+    const accumulatorsByUserId = new Map<string, AccumulatorRow>(
+      ((accumulators || []) as AccumulatorRow[]).map((row) => [row.voter_id, row])
     );
 
     const expectedElectionField = electionIdToField(election.id);
     const preparedItems: PreparedNullificationItem[] = [];
     for (const item of body.nullifications) {
       if (!item.userId || typeof item.accumulatorVersion !== "number" || !item.zkp) {
-        return jsonResponse(400, { error: "Nullification batch contains an incomplete item" });
+        return errorResponse(400, "VALIDATION_ERROR", "Nullification batch contains an incomplete item");
       }
 
       const parsed = await verifyNullificationProofPayload(item.zkp);
       if (!parsed) {
-        return jsonResponse(400, {
-          error: `Nullification proof verification failed for participant ${item.userId}`,
-        });
+        return errorResponse(400, "INVALID_PROOF", `Nullification proof verification failed for participant ${item.userId}`);
       }
 
       if (parsed.electionId !== expectedElectionField) {
-        return jsonResponse(400, {
-          error: `Nullification proof is bound to a different election for participant ${item.userId}`,
-        });
+        return errorResponse(400, "VALIDATION_ERROR", `Nullification proof is bound to a different election for participant ${item.userId}`);
       }
 
       if (!equalPoints(parsed.authorityPublicKey, authorityPublicKey)) {
-        return jsonResponse(400, {
-          error: `Nullification proof authority key mismatch for participant ${item.userId}`,
-        });
+        return errorResponse(400, "VALIDATION_ERROR", `Nullification proof authority key mismatch for participant ${item.userId}`);
       }
 
       const targetParticipantKey = participantKeysByUserId.get(item.userId);
       if (!targetParticipantKey) {
-        return jsonResponse(400, {
-          error: `Nullification target ${item.userId} is missing a participant key`,
-        });
+        return errorResponse(400, "VALIDATION_ERROR", `Nullification target ${item.userId} is missing a participant key`);
       }
 
       if (!equalPoints(parsed.voterPublicKey, targetParticipantKey)) {
-        return jsonResponse(400, {
-          error: `Nullification proof participant key mismatch for participant ${item.userId}`,
-        });
+        return errorResponse(400, "VALIDATION_ERROR", `Nullification proof participant key mismatch for participant ${item.userId}`);
       }
 
       const currentAccumulator = accumulatorsByUserId.has(item.userId)
@@ -307,17 +272,11 @@ Deno.serve(async (req) => {
       const currentVersion = accumulatorsByUserId.get(item.userId)?.version ?? 0;
 
       if (currentVersion !== item.accumulatorVersion) {
-        return jsonResponse(409, {
-          code: "ACCUMULATOR_CONFLICT",
-          error: `Accumulator version mismatch for participant ${item.userId}`,
-        });
+        return errorResponse(409, "ACCUMULATOR_CONFLICT", `Accumulator version mismatch for participant ${item.userId}`);
       }
 
       if (!equalCiphertexts(parsed.accumulator, currentAccumulator)) {
-        return jsonResponse(409, {
-          code: "ACCUMULATOR_CONFLICT",
-          error: `Accumulator state mismatch for participant ${item.userId}`,
-        });
+        return errorResponse(409, "ACCUMULATOR_CONFLICT", `Accumulator state mismatch for participant ${item.userId}`);
       }
 
       preparedItems.push({
@@ -347,6 +306,6 @@ Deno.serve(async (req) => {
     });
   } catch (error) {
     console.error("nullification-write error:", error);
-    return jsonResponse(500, { error: "Internal server error" });
+    return errorResponse(500, "INTERNAL_ERROR", "Internal server error");
   }
 });

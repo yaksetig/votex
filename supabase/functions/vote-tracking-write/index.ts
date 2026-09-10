@@ -2,9 +2,10 @@
 // and public receipt atomically. Cryptographic message/signature formats are
 // intentionally unchanged.
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.3";
 import { corsHeaders } from "../_shared/cors.ts";
-import { jsonResponse } from "../_shared/http.ts";
+import { isElectionOpen } from "../_shared/election.ts";
+import { createServiceRoleClient } from "../_shared/supabase.ts";
+import { errorResponse, jsonResponse } from "../_shared/http.ts";
 import { validateWorldIdSession } from "../_shared/session.ts";
 import { verifyPoseidonSignature } from "../_shared/eddsa.ts";
 import { buildVoteMessage } from "../_shared/protocol.ts";
@@ -37,17 +38,11 @@ Deno.serve(async (req) => {
     const body = (await req.json()) as VoteWriteRequest;
 
     if (body.action && body.action !== "cast-vote") {
-      return jsonResponse(400, {
-        code: "UNSUPPORTED_ACTION",
-        error: "Unsupported action",
-      });
+      return errorResponse(400, "VALIDATION_ERROR", "Unsupported action");
     }
 
     if (!body.electionId || !body.sessionToken) {
-      return jsonResponse(401, {
-        code: "SESSION_REQUIRED",
-        error: "Election and voter session are required",
-      });
+      return errorResponse(401, "SESSION_REQUIRED", "Election and voter session are required");
     }
 
     if (
@@ -60,16 +55,10 @@ Deno.serve(async (req) => {
       !Number.isSafeInteger(body.timestamp) ||
       (body.idempotencyKey && !UUID_PATTERN.test(body.idempotencyKey))
     ) {
-      return jsonResponse(400, {
-        code: "VALIDATION_ERROR",
-        error: "Choice, signature, timestamp, or idempotency key is invalid",
-      });
+      return errorResponse(400, "VALIDATION_ERROR", "Choice, signature, timestamp, or idempotency key is invalid");
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    const supabase = createServiceRoleClient();
 
     const session = await validateWorldIdSession(supabase, body.sessionToken, {
       touchLastUsed: true,
@@ -90,37 +79,19 @@ Deno.serve(async (req) => {
 
     if (electionError) {
       console.error("Election lookup failed", electionError.code);
-      return jsonResponse(500, {
-        code: "CONFLICT",
-        error: "Failed to load election",
-      });
+      return errorResponse(500, "INTERNAL_ERROR", "Failed to load election");
     }
     if (!election) {
-      return jsonResponse(404, {
-        code: "ELECTION_NOT_FOUND",
-        error: "Election not found",
-      });
+      return errorResponse(404, "NOT_FOUND", "Election not found");
     }
-    if (
-      election.closed_manually_at ||
-      new Date(election.end_date).getTime() <= Date.now()
-    ) {
-      return jsonResponse(409, {
-        code: "ELECTION_CLOSED",
-        error: "Election is closed",
-      });
+    if (!isElectionOpen(election)) {
+      return errorResponse(409, "ELECTION_CLOSED", "Election is closed");
     }
     if (body.choice !== election.option1 && body.choice !== election.option2) {
-      return jsonResponse(400, {
-        code: "INVALID_CHOICE",
-        error: "Choice does not match this election's options",
-      });
+      return errorResponse(400, "INVALID_CHOICE", "Choice does not match this election's options");
     }
     if (Math.abs(Date.now() - body.timestamp) > VOTE_TIMESTAMP_SKEW_MS) {
-      return jsonResponse(400, {
-        code: "INVALID_SIGNATURE",
-        error: "Vote signature timestamp is stale",
-      });
+      return errorResponse(400, "INVALID_SIGNATURE", "Vote signature timestamp is stale");
     }
 
     const { data: participant, error: participantError } = await supabase
@@ -132,16 +103,10 @@ Deno.serve(async (req) => {
 
     if (participantError) {
       console.error("Participant lookup failed", participantError.code);
-      return jsonResponse(500, {
-        code: "CONFLICT",
-        error: "Failed to load participant",
-      });
+      return errorResponse(500, "INTERNAL_ERROR", "Failed to load participant");
     }
     if (!participant) {
-      return jsonResponse(409, {
-        code: "PARTICIPANT_REQUIRED",
-        error: "Voter is not registered for this election",
-      });
+      return errorResponse(409, "PARTICIPANT_REQUIRED", "Voter is not registered for this election");
     }
 
     const expectedMessage = buildVoteMessage(body.electionId, body.choice, body.timestamp);
@@ -157,10 +122,7 @@ Deno.serve(async (req) => {
     }
 
     if (!signatureValid) {
-      return jsonResponse(401, {
-        code: "INVALID_SIGNATURE",
-        error: "Vote signature verification failed",
-      });
+      return errorResponse(401, "INVALID_SIGNATURE", "Vote signature verification failed");
     }
 
     const { data: result, error: writeError } = await supabase.rpc(
@@ -208,9 +170,6 @@ Deno.serve(async (req) => {
       "vote-tracking-write error",
       error instanceof Error ? error.name : "UnknownError"
     );
-    return jsonResponse(500, {
-      code: "CONFLICT",
-      error: "Internal server error",
-    });
+    return errorResponse(500, "INTERNAL_ERROR", "Internal server error");
   }
 });

@@ -15,7 +15,7 @@
 //   4. The session verifier is stored hashed; the plaintext value is a bearer
 //      credential and never touches the database.
 
-import { jsonResponse, sha256Hex } from "../_shared/http.ts";
+import { errorResponse, jsonResponse, sha256Hex } from "../_shared/http.ts";
 import { isCanonicalPrimeSubgroupPoint } from "../_shared/babyjub.ts";
 import { verifyPoseidonSignature } from "../_shared/eddsa.ts";
 import {
@@ -151,23 +151,23 @@ export async function handleRegisterKeypair(
 
   // --- Local shape validation, before any database or network work ---
   if (!pk || !isString(pk.x) || !isString(pk.y)) {
-    return jsonResponse(400, { error: "Missing public key coordinates" });
+    return errorResponse(400, "VALIDATION_ERROR", "Missing public key coordinates");
   }
   if (!isCanonicalPrimeSubgroupPoint(pk, false)) {
-    return jsonResponse(400, { error: "Public key is not a canonical BabyJubJub subgroup point" });
+    return errorResponse(400, "VALIDATION_ERROR", "Public key is not a canonical BabyJubJub subgroup point");
   }
   if (!isString(signal) || !HEX32_PATTERN.test(signal)) {
-    return jsonResponse(400, { error: "Missing or malformed signal" });
+    return errorResponse(400, "VALIDATION_ERROR", "Missing or malformed signal");
   }
   if (!isString(verifierHash) || !VERIFIER_HASH_PATTERN.test(verifierHash)) {
-    return jsonResponse(400, { error: "Missing or malformed session verifier" });
+    return errorResponse(400, "VALIDATION_ERROR", "Missing or malformed session verifier");
   }
   if (
     !ownershipProof ||
     !isString(ownershipProof.signature) ||
     ownershipProof.signature.length > 2048
   ) {
-    return jsonResponse(400, { error: "Missing key ownership proof" });
+    return errorResponse(400, "VALIDATION_ERROR", "Missing key ownership proof");
   }
   if (
     !idkitResult ||
@@ -176,30 +176,28 @@ export async function handleRegisterKeypair(
     !isString(idkitResult.responses[0]?.nullifier) ||
     !isString(idkitResult.responses[0]?.signal_hash)
   ) {
-    return jsonResponse(400, { error: "IDKit result must contain exactly one response" });
+    return errorResponse(400, "VALIDATION_ERROR", "IDKit result must contain exactly one response");
   }
   if (idkitResult.action !== WORLD_ID_ACTION) {
-    return jsonResponse(400, { error: "Unsupported World ID action" });
+    return errorResponse(400, "VALIDATION_ERROR", "Unsupported World ID action");
   }
 
   const freshness = checkProofFreshness(ownershipProof.issuedAt, now());
   if (freshness) {
-    return jsonResponse(400, {
-      error: freshness === "EXPIRED"
+    return errorResponse(400, "VALIDATION_ERROR", freshness === "EXPIRED"
         ? "Key ownership proof has expired"
         : freshness === "FUTURE"
         ? "Key ownership proof timestamp is in the future"
-        : "Missing key ownership proof",
-    });
+        : "Missing key ownership proof");
   }
 
   // The proof's signal_hash must commit to the claimed signal, and the claimed
   // signal must be Hash(pk). Together they bind the World ID proof to this key.
   if (idkitResult.responses[0].signal_hash !== deps.computeSignalHash(signal)) {
-    return jsonResponse(400, { error: "Proof signal_hash does not match the claimed signal" });
+    return errorResponse(400, "VALIDATION_ERROR", "Proof signal_hash does not match the claimed signal");
   }
   if (!(await verifySignalBinding(pk, signal))) {
-    return jsonResponse(400, { error: "Signal does not match public key - proof binding invalid" });
+    return errorResponse(400, "VALIDATION_ERROR", "Signal does not match public key - proof binding invalid");
   }
 
   // --- World ID verification (server-pinned action/environment) ---
@@ -212,12 +210,12 @@ export async function handleRegisterKeypair(
   });
   if (!verification.valid || !verification.nullifier) {
     console.error("World ID v4 proof verification failed:", verification.detail);
-    return jsonResponse(400, { error: verification.detail || "World ID proof verification failed" });
+    return errorResponse(400, "INVALID_PROOF", verification.detail || "World ID proof verification failed");
   }
 
   const nullifier = verification.nullifier;
   if (nullifier.toLowerCase() !== idkitResult.responses[0].nullifier.toLowerCase()) {
-    return jsonResponse(400, { error: "World ID nullifier does not match the submitted proof" });
+    return errorResponse(400, "VALIDATION_ERROR", "World ID nullifier does not match the submitted proof");
   }
 
   // --- Proof of possession of the private key ---
@@ -229,7 +227,7 @@ export async function handleRegisterKeypair(
     ownershipValid = false;
   }
   if (!ownershipValid) {
-    return jsonResponse(400, { error: "Key ownership proof is invalid" });
+    return errorResponse(400, "INVALID_SIGNATURE", "Key ownership proof is invalid");
   }
 
   const hashedVerifier = await sha256Hex(verifierHash);
@@ -243,15 +241,12 @@ export async function handleRegisterKeypair(
 
   if (lookupError) {
     console.error("Database lookup error:", lookupError);
-    return jsonResponse(500, { error: "Database error during lookup" });
+    return errorResponse(500, "INTERNAL_ERROR", "Database error during lookup");
   }
 
   if (existing) {
     if (existing.public_key_x !== pk.x || existing.public_key_y !== pk.y) {
-      return jsonResponse(409, {
-        code: "KEYPAIR_ALREADY_BOUND",
-        error: "A different voting key is already bound to this World ID. Use the original Votex passkey.",
-      });
+      return errorResponse(409, "KEYPAIR_ALREADY_BOUND", "A different voting key is already bound to this World ID. Use the original Votex passkey.");
     }
 
     const { error: verifierUpsertError } = await supabase
@@ -259,7 +254,7 @@ export async function handleRegisterKeypair(
       .upsert({ nullifier_hash: nullifier, verifier_hash: hashedVerifier });
     if (verifierUpsertError) {
       console.error("Verifier upsert error:", verifierUpsertError);
-      return jsonResponse(500, { error: "Failed to store session verifier" });
+      return errorResponse(500, "INTERNAL_ERROR", "Failed to store session verifier");
     }
 
     return jsonResponse(200, {
@@ -278,13 +273,10 @@ export async function handleRegisterKeypair(
     // is already bound to a different World ID; possession was proven, so the
     // most likely cause is the same passkey being used by two identities.
     if (insertError.code === "23505") {
-      return jsonResponse(409, {
-        code: "PUBLIC_KEY_ALREADY_BOUND",
-        error: "This voting key is already bound to another World ID.",
-      });
+      return errorResponse(409, "PUBLIC_KEY_ALREADY_BOUND", "This voting key is already bound to another World ID.");
     }
     console.error("Database insert error:", insertError);
-    return jsonResponse(500, { error: "Failed to store keypair binding" });
+    return errorResponse(500, "INTERNAL_ERROR", "Failed to store keypair binding");
   }
 
   const { error: verifierInsertError } = await supabase
@@ -292,7 +284,7 @@ export async function handleRegisterKeypair(
     .upsert({ nullifier_hash: nullifier, verifier_hash: hashedVerifier });
   if (verifierInsertError) {
     console.error("Verifier insert error:", verifierInsertError);
-    return jsonResponse(500, { error: "Failed to store session verifier" });
+    return errorResponse(500, "INTERNAL_ERROR", "Failed to store session verifier");
   }
 
   return jsonResponse(200, {

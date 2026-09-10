@@ -5,9 +5,10 @@
 // world_id_keypairs binding, which prevents both key substitution and
 // registration on behalf of another voter.
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.3";
 import { corsHeaders } from "../_shared/cors.ts";
-import { jsonResponse } from "../_shared/http.ts";
+import { isElectionOpen } from "../_shared/election.ts";
+import { createServiceRoleClient } from "../_shared/supabase.ts";
+import { errorResponse, jsonResponse } from "../_shared/http.ts";
 import { validateWorldIdSession } from "../_shared/session.ts";
 import { isCanonicalPrimeSubgroupPoint } from "../_shared/babyjub.ts";
 
@@ -33,27 +34,18 @@ Deno.serve(async (req) => {
       typeof body.publicKey?.x !== "string" ||
       typeof body.publicKey?.y !== "string"
     ) {
-      return jsonResponse(400, {
-        error: "Missing electionId, sessionToken, or publicKey",
-      });
+      return errorResponse(400, "VALIDATION_ERROR", "Missing electionId, sessionToken, or publicKey");
     }
 
     if (!isCanonicalPrimeSubgroupPoint(body.publicKey, false)) {
-      return jsonResponse(400, {
-        error: "Public key is not a canonical BabyJubJub subgroup point",
-      });
+      return errorResponse(400, "VALIDATION_ERROR", "Public key is not a canonical BabyJubJub subgroup point");
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    const supabase = createServiceRoleClient();
 
     const session = await validateWorldIdSession(supabase, body.sessionToken);
     if (!session.valid || !session.userId) {
-      return jsonResponse(401, {
-        error: session.detail || "Voter session validation failed",
-      });
+      return errorResponse(401, "SESSION_REQUIRED", session.detail || "Voter session validation failed");
     }
 
     const { data: keypair, error: keypairError } = await supabase
@@ -64,23 +56,18 @@ Deno.serve(async (req) => {
 
     if (keypairError) {
       console.error("Keypair lookup error:", keypairError);
-      return jsonResponse(500, { error: "Failed to load registered keypair" });
+      return errorResponse(500, "INTERNAL_ERROR", "Failed to load registered keypair");
     }
 
     if (!keypair) {
-      return jsonResponse(409, {
-        error: "No registered keypair exists for this identity",
-      });
+      return errorResponse(409, "CONFLICT", "No registered keypair exists for this identity");
     }
 
     if (
       keypair.public_key_x !== body.publicKey.x ||
       keypair.public_key_y !== body.publicKey.y
     ) {
-      return jsonResponse(409, {
-        error:
-          "Submitted public key does not match the registered keypair for this identity",
-      });
+      return errorResponse(409, "CONFLICT", "Submitted public key does not match the registered keypair for this identity");
     }
 
     const { data: election, error: electionError } = await supabase
@@ -91,18 +78,15 @@ Deno.serve(async (req) => {
 
     if (electionError) {
       console.error("Election lookup error:", electionError);
-      return jsonResponse(500, { error: "Failed to load election" });
+      return errorResponse(500, "INTERNAL_ERROR", "Failed to load election");
     }
 
     if (!election) {
-      return jsonResponse(404, { error: "Election not found" });
+      return errorResponse(404, "NOT_FOUND", "Election not found");
     }
 
-    if (
-      election.closed_manually_at ||
-      new Date(election.end_date).getTime() <= Date.now()
-    ) {
-      return jsonResponse(409, { error: "Election is closed" });
+    if (!isElectionOpen(election)) {
+      return errorResponse(409, "ELECTION_CLOSED", "Election is closed");
     }
 
     const { data: existing, error: existingError } = await supabase
@@ -114,7 +98,7 @@ Deno.serve(async (req) => {
 
     if (existingError) {
       console.error("Participant lookup error:", existingError);
-      return jsonResponse(500, { error: "Failed to check existing registration" });
+      return errorResponse(500, "INTERNAL_ERROR", "Failed to check existing registration");
     }
 
     if (existing) {
@@ -125,12 +109,9 @@ Deno.serve(async (req) => {
         return jsonResponse(200, { success: true, alreadyRegistered: true });
       }
 
-      return jsonResponse(409, {
-        error:
-          "This election already has a different key bound to your participant slot. " +
+      return errorResponse(409, "CONFLICT", "This election already has a different key bound to your participant slot. " +
           "That looks like stale participant data from an older key flow. " +
-          "Do not auto-update it from the client; reset the participant data and retry.",
-      });
+          "Do not auto-update it from the client; reset the participant data and retry.");
     }
 
     const { error: insertError } = await supabase
@@ -144,12 +125,12 @@ Deno.serve(async (req) => {
 
     if (insertError) {
       console.error("Participant insert error:", insertError);
-      return jsonResponse(500, { error: "Failed to register participant" });
+      return errorResponse(500, "INTERNAL_ERROR", "Failed to register participant");
     }
 
     return jsonResponse(200, { success: true, alreadyRegistered: false });
   } catch (error) {
     console.error("register-participant error:", error);
-    return jsonResponse(500, { error: "Internal server error" });
+    return errorResponse(500, "INTERNAL_ERROR", "Internal server error");
   }
 });

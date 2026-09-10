@@ -7,10 +7,10 @@
  * the keccak signal-hash helper, and the service-role client.
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.105.3";
 import { keccak256 } from "https://esm.sh/viem@2.26.2";
 import { corsHeaders } from "../_shared/cors.ts";
-import { jsonResponse } from "../_shared/http.ts";
+import { createServiceRoleClient } from "../_shared/supabase.ts";
+import { errorResponse, jsonResponse } from "../_shared/http.ts";
 import { WORLD_ID_DEFAULT_RP_ID } from "../_shared/protocol.ts";
 import {
   handleRegisterKeypair,
@@ -66,10 +66,7 @@ Deno.serve(async (req) => {
 
   try {
     const body = (await req.json()) as RegisterKeypairRequest;
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    const supabase = createServiceRoleClient();
 
     return await handleRegisterKeypair(
       { supabase, verifyWorldIdProof: verifyWorldIdProofV4, computeSignalHash },
@@ -77,6 +74,6 @@ Deno.serve(async (req) => {
     );
   } catch (error) {
     console.error("register-keypair error:", error);
-    return jsonResponse(500, { error: "Internal server error" });
+    return errorResponse(500, "INTERNAL_ERROR", "Internal server error");
   }
 });
