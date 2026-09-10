@@ -18,11 +18,14 @@
 import { jsonResponse, sha256Hex } from "../_shared/http.ts";
 import { isCanonicalPrimeSubgroupPoint } from "../_shared/babyjub.ts";
 import { verifyPoseidonSignature } from "../_shared/eddsa.ts";
+import {
+  buildRegistrationOwnershipMessage,
+  checkProofFreshness,
+  hashPublicKeyForSignal,
+} from "../_shared/protocol.ts";
 
 export const WORLD_ID_ACTION = "registration";
 export const WORLD_ID_ENVIRONMENT = "production";
-export const OWNERSHIP_PROOF_MAX_AGE_MS = 5 * 60 * 1000;
-export const OWNERSHIP_PROOF_MAX_FUTURE_SKEW_MS = 60 * 1000;
 
 const VERIFIER_HASH_PATTERN = /^[0-9a-f]{64}$/;
 const HEX32_PATTERN = /^0x[0-9a-fA-F]{64}$/;
@@ -89,14 +92,6 @@ export interface RegisterKeypairDeps {
   now?: () => number;
 }
 
-export function buildOwnershipProofMessage(
-  nullifier: string,
-  pk: { x: string; y: string },
-  issuedAt: number
-): string {
-  return ["votex:register-keypair:v1", nullifier, pk.x, pk.y, issuedAt.toString()].join(":");
-}
-
 /**
  * Interpret a World ID v4 verify response strictly: HTTP 200 alone is not
  * success. Exactly one response must have been verified, and the nullifier
@@ -134,29 +129,12 @@ export function interpretWorldIdVerifyResponse(
   return { valid: true, nullifier };
 }
 
-/**
- * Hash(pk) = SHA-256(x || y) over 32-byte big-endian coordinates. The signal
- * string is the 0x-prefixed lowercase hex digest.
- */
+/** The claimed signal must be Hash(pk) for the submitted key. */
 export async function verifySignalBinding(
   pk: { x: string; y: string },
   claimedSignal: string
 ): Promise<boolean> {
-  const pkBytes = new Uint8Array(64);
-  let xTemp = BigInt(pk.x);
-  for (let i = 31; i >= 0; i--) {
-    pkBytes[i] = Number(xTemp & 0xffn);
-    xTemp >>= 8n;
-  }
-  let yTemp = BigInt(pk.y);
-  for (let i = 63; i >= 32; i--) {
-    pkBytes[i] = Number(yTemp & 0xffn);
-    yTemp >>= 8n;
-  }
-
-  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", pkBytes));
-  const expectedSignal = "0x" + Array.from(digest).map((b) => b.toString(16).padStart(2, "0")).join("");
-  return expectedSignal === claimedSignal.toLowerCase();
+  return (await hashPublicKeyForSignal(pk)) === claimedSignal.toLowerCase();
 }
 
 function isString(value: unknown): value is string {
@@ -185,7 +163,6 @@ export async function handleRegisterKeypair(
   }
   if (
     !ownershipProof ||
-    !Number.isSafeInteger(ownershipProof.issuedAt) ||
     !isString(ownershipProof.signature) ||
     ownershipProof.signature.length > 2048
   ) {
@@ -204,12 +181,15 @@ export async function handleRegisterKeypair(
     return jsonResponse(400, { error: "Unsupported World ID action" });
   }
 
-  const currentTime = now();
-  if (ownershipProof.issuedAt > currentTime + OWNERSHIP_PROOF_MAX_FUTURE_SKEW_MS) {
-    return jsonResponse(400, { error: "Key ownership proof timestamp is in the future" });
-  }
-  if (currentTime - ownershipProof.issuedAt > OWNERSHIP_PROOF_MAX_AGE_MS) {
-    return jsonResponse(400, { error: "Key ownership proof has expired" });
+  const freshness = checkProofFreshness(ownershipProof.issuedAt, now());
+  if (freshness) {
+    return jsonResponse(400, {
+      error: freshness === "EXPIRED"
+        ? "Key ownership proof has expired"
+        : freshness === "FUTURE"
+        ? "Key ownership proof timestamp is in the future"
+        : "Missing key ownership proof",
+    });
   }
 
   // The proof's signal_hash must commit to the claimed signal, and the claimed
@@ -240,7 +220,7 @@ export async function handleRegisterKeypair(
   }
 
   // --- Proof of possession of the private key ---
-  const expectedMessage = buildOwnershipProofMessage(nullifier, pk, ownershipProof.issuedAt);
+  const expectedMessage = buildRegistrationOwnershipMessage(nullifier, pk, ownershipProof.issuedAt);
   let ownershipValid = false;
   try {
     ownershipValid = await verifyPoseidonSignature(ownershipProof.signature, pk, expectedMessage);

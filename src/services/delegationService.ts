@@ -18,6 +18,7 @@ import {
 import { getElectionParticipantsForTally } from "@/services/electionParticipantsService";
 import { getStoredWorldIdSessionToken } from "@/services/worldIdSessionService";
 import { logger } from "@/services/logger";
+import { buildDelegationMessage, type CiphertextStrings } from "@protocol";
 import {
   decodeDelegations,
   type DecodedDelegations,
@@ -38,36 +39,14 @@ import type { StoredKeypair } from "@/types/keypair";
 // Write operations
 // -----------------------------------------------------------------------
 
-export interface DelegationCiphertextStrings {
-  c1: { x: string; y: string };
-  c2: { x: string; y: string };
-}
+export type DelegationCiphertextStrings = CiphertextStrings;
 
 export interface DelegationAuthorization {
   issuedAt: number;
   signature: string;
 }
 
-/**
- * Domain-separated message the delegator signs. Must match
- * supabase/functions/_shared/delegation.ts.
- */
-export function buildDelegationMessage(
-  action: "create" | "revoke",
-  electionId: string,
-  issuedAt: number,
-  ciphertext?: DelegationCiphertextStrings
-): string {
-  const parts = ["votex:delegation:v1", action, electionId];
-  if (action === "create") {
-    if (!ciphertext) {
-      throw new Error("create delegation message requires a ciphertext");
-    }
-    parts.push(ciphertext.c1.x, ciphertext.c1.y, ciphertext.c2.x, ciphertext.c2.y);
-  }
-  parts.push(issuedAt.toString());
-  return parts.join(":");
-}
+export { buildDelegationMessage };
 
 export async function createDelegationAuthorization(
   keypair: StoredKeypair,

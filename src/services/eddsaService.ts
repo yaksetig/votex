@@ -1,3 +1,4 @@
+import { hashMessageToField } from "@protocol";
 import { Buffer } from "buffer";
 import createBlakeHash from "blake-hash";
 import { buildEddsa } from "circomlibjs";
@@ -110,12 +111,6 @@ async function hkdfSha256(
   return new Uint8Array(derivedBits);
 }
 
-async function hashMessageToField(message: string): Promise<bigint> {
-  const bytes = new TextEncoder().encode(message);
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  const hex = bytesToHex(new Uint8Array(digest));
-  return BigInt(`0x${hex}`) % CURVE_ORDER;
-}
 
 export async function deriveSeedFromPasskeySecret(
   prfSecret: ArrayBuffer

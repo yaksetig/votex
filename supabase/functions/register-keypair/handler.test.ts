@@ -4,11 +4,13 @@
 // a fake supabase client, using a real circomlibjs keypair so the proof of
 // possession is genuinely checked.
 import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
-// @ts-expect-error: circomlibjs ships no accurate type definitions
-import { buildEddsa } from "npm:circomlibjs@0.1.7";
 import { sha256Hex } from "../_shared/http.ts";
 import {
-  buildOwnershipProofMessage,
+  buildRegistrationOwnershipMessage,
+  hashPublicKeyForSignal,
+} from "../_shared/protocol.ts";
+import { makeTestKeypair, signTestMessage, type TestKeypair } from "../_shared/testing.ts";
+import {
   handleRegisterKeypair,
   interpretWorldIdVerifyResponse,
   type IDKitResult,
@@ -16,65 +18,16 @@ import {
   type WorldIdVerification,
 } from "./handler.ts";
 
-const CURVE_ORDER =
-  2736030358979909402780800718157159386076813972158567259200215660948447373041n;
 const NULLIFIER = "0x" + "ab".repeat(32);
 const OTHER_NULLIFIER = "0x" + "cd".repeat(32);
 const VERIFIER = "11".repeat(32);
 
-async function hashMessageToField(message: string): Promise<bigint> {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(message));
-  const hex = Array.from(new Uint8Array(digest)).map((v) => v.toString(16).padStart(2, "0")).join("");
-  return BigInt(`0x${hex}`) % CURVE_ORDER;
-}
-
-async function hashPublicKeyForSignal(pk: { x: string; y: string }): Promise<string> {
-  const bytes = new Uint8Array(64);
-  let x = BigInt(pk.x);
-  for (let i = 31; i >= 0; i--) { bytes[i] = Number(x & 0xffn); x >>= 8n; }
-  let y = BigInt(pk.y);
-  for (let i = 63; i >= 32; i--) { bytes[i] = Number(y & 0xffn); y >>= 8n; }
-  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
-  return "0x" + Array.from(digest).map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-interface Keypair {
-  seed: Uint8Array;
-  pk: { x: string; y: string };
-}
-
-async function makeKeypair(fill: number): Promise<Keypair> {
-  const eddsa = await buildEddsa();
-  const seed = new Uint8Array(32).fill(fill);
-  const point = eddsa.prv2pub(seed);
-  return {
-    seed,
-    pk: {
-      x: BigInt(eddsa.F.toObject(point[0])).toString(),
-      y: BigInt(eddsa.F.toObject(point[1])).toString(),
-    },
-  };
-}
-
-async function sign(seed: Uint8Array, message: string): Promise<string> {
-  const eddsa = await buildEddsa();
-  const signature = eddsa.signPoseidon(seed, eddsa.F.e(await hashMessageToField(message)));
-  return JSON.stringify({
-    R8: {
-      x: BigInt(eddsa.F.toObject(signature.R8[0])).toString(),
-      y: BigInt(eddsa.F.toObject(signature.R8[1])).toString(),
-    },
-    S: signature.S.toString(),
-    message,
-  });
-}
-
 const fakeSignalHash = (signal: string) => `sh:${signal}`;
 
 async function buildRequest(
-  keypair: Keypair,
+  keypair: TestKeypair,
   overrides: Partial<RegisterKeypairRequest> = {},
-  proofOverrides: { nullifier?: string; issuedAt?: number; signer?: Keypair } = {}
+  proofOverrides: { nullifier?: string; issuedAt?: number; signer?: TestKeypair } = {}
 ): Promise<RegisterKeypairRequest> {
   const signal = await hashPublicKeyForSignal(keypair.pk);
   const issuedAt = proofOverrides.issuedAt ?? Date.now();
@@ -94,7 +47,7 @@ async function buildRequest(
     idkitResult,
     ownershipProof: {
       issuedAt,
-      signature: await sign(signer.seed, buildOwnershipProofMessage(nullifier, keypair.pk, issuedAt)),
+      signature: await signTestMessage(signer.seed, buildRegistrationOwnershipMessage(nullifier, keypair.pk, issuedAt)),
     },
     ...overrides,
   };
@@ -163,7 +116,7 @@ Deno.test("interpret: a single successful result yields the API nullifier", () =
 });
 
 Deno.test("register: happy path stores the key, a hashed verifier, and pins action/environment", async () => {
-  const keypair = await makeKeypair(7);
+  const keypair = await makeTestKeypair(7);
   const db: FakeDb = { existing: null, inserts: [], upserts: [] };
   const { deps: d, calls } = deps(db);
 
@@ -177,7 +130,7 @@ Deno.test("register: happy path stores the key, a hashed verifier, and pins acti
 });
 
 Deno.test("register: caller-supplied action/environment are not forwarded", async () => {
-  const keypair = await makeKeypair(7);
+  const keypair = await makeTestKeypair(7);
   const db: FakeDb = { existing: null, inserts: [], upserts: [] };
   const { deps: d, calls } = deps(db);
   const req = await buildRequest(keypair);
@@ -191,7 +144,7 @@ Deno.test("register: caller-supplied action/environment are not forwarded", asyn
 });
 
 Deno.test("register: API nullifier mismatch and failed verification are rejected", async () => {
-  const keypair = await makeKeypair(7);
+  const keypair = await makeTestKeypair(7);
   const db: FakeDb = { existing: null, inserts: [], upserts: [] };
   const mismatch = deps(db, { valid: true, nullifier: OTHER_NULLIFIER });
   assertEquals((await handleRegisterKeypair(mismatch.deps, await buildRequest(keypair))).status, 400);
@@ -201,7 +154,7 @@ Deno.test("register: API nullifier mismatch and failed verification are rejected
 });
 
 Deno.test("register: two IDKit responses are rejected before any network call", async () => {
-  const keypair = await makeKeypair(7);
+  const keypair = await makeTestKeypair(7);
   const db: FakeDb = { existing: null, inserts: [], upserts: [] };
   const { deps: d, calls } = deps(db);
   const req = await buildRequest(keypair);
@@ -211,8 +164,8 @@ Deno.test("register: two IDKit responses are rejected before any network call", 
 });
 
 Deno.test("register: ownership proof must be signed by the submitted key for this nullifier", async () => {
-  const victim = await makeKeypair(7);
-  const attacker = await makeKeypair(9);
+  const victim = await makeTestKeypair(7);
+  const attacker = await makeTestKeypair(9);
   const db: FakeDb = { existing: null, inserts: [], upserts: [] };
   const { deps: d } = deps(db);
 
@@ -236,7 +189,7 @@ Deno.test("register: ownership proof must be signed by the submitted key for thi
 });
 
 Deno.test("register: non-canonical public key and malformed verifier are rejected", async () => {
-  const keypair = await makeKeypair(7);
+  const keypair = await makeTestKeypair(7);
   const db: FakeDb = { existing: null, inserts: [], upserts: [] };
   const { deps: d } = deps(db);
   const p = 21888242871839275222246405745257275088548364400416034343698204186575808495617n;
@@ -246,14 +199,14 @@ Deno.test("register: non-canonical public key and malformed verifier are rejecte
 });
 
 Deno.test("register: same key re-registration refreshes the hashed verifier; different key is 409", async () => {
-  const keypair = await makeKeypair(7);
+  const keypair = await makeTestKeypair(7);
   const same: FakeDb = { existing: { id: "1", public_key_x: keypair.pk.x, public_key_y: keypair.pk.y }, inserts: [], upserts: [] };
   const res = await handleRegisterKeypair(deps(same).deps, await buildRequest(keypair));
   assertEquals(res.status, 200);
   assertEquals((await res.json()).alreadyExists, true);
   assertEquals(same.upserts[0].verifier_hash, await sha256Hex(VERIFIER));
 
-  const other = await makeKeypair(9);
+  const other = await makeTestKeypair(9);
   const diff: FakeDb = { existing: { id: "1", public_key_x: other.pk.x, public_key_y: other.pk.y }, inserts: [], upserts: [] };
   const conflict = await handleRegisterKeypair(deps(diff).deps, await buildRequest(keypair));
   assertEquals(conflict.status, 409);
@@ -261,7 +214,7 @@ Deno.test("register: same key re-registration refreshes the hashed verifier; dif
 });
 
 Deno.test("register: unique-violation on the public key surfaces as 409", async () => {
-  const keypair = await makeKeypair(7);
+  const keypair = await makeTestKeypair(7);
   const db: FakeDb = { existing: null, inserts: [], upserts: [], insertError: { code: "23505" } };
   const res = await handleRegisterKeypair(deps(db).deps, await buildRequest(keypair));
   assertEquals(res.status, 409);

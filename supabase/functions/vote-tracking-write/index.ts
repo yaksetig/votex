@@ -7,6 +7,7 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { jsonResponse } from "../_shared/http.ts";
 import { validateWorldIdSession } from "../_shared/session.ts";
 import { verifyPoseidonSignature } from "../_shared/eddsa.ts";
+import { buildVoteMessage } from "../_shared/protocol.ts";
 
 const VOTE_TIMESTAMP_SKEW_MS = 10 * 60 * 1000;
 // A serialised EdDSA-Poseidon payload (two coordinates, S, message) is well
@@ -143,7 +144,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const expectedMessage = `${body.electionId}:${body.choice}:${body.timestamp}`;
+    const expectedMessage = buildVoteMessage(body.electionId, body.choice, body.timestamp);
     let signatureValid = false;
     try {
       signatureValid = await verifyPoseidonSignature(

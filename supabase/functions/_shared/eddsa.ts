@@ -4,25 +4,11 @@
 // @ts-expect-error: circomlibjs ships no accurate type definitions
 import { buildEddsa } from "npm:circomlibjs@0.1.7";
 
-const CURVE_ORDER =
-  2736030358979909402780800718157159386076813972158567259200215660948447373041n;
-const FIELD_SIZE =
-  21888242871839275222246405745257275088548364400416034343698204186575808495617n;
-const CANONICAL_DECIMAL = /^(0|[1-9][0-9]*)$/;
-const MAX_DECIMAL_DIGITS = FIELD_SIZE.toString().length;
-
-/**
- * Parse a coordinate or scalar as a canonical decimal string in [0, p).
- * Rejects aliases such as x + p, hex, signs, whitespace and oversized input
- * so the same point has exactly one accepted encoding.
- */
-function parseCanonicalFieldElement(value: unknown): bigint | null {
-  if (typeof value !== "string" || value.length > MAX_DECIMAL_DIGITS || !CANONICAL_DECIMAL.test(value)) {
-    return null;
-  }
-  const parsed = BigInt(value);
-  return parsed < FIELD_SIZE ? parsed : null;
-}
+import {
+  BABYJUB_SUBGROUP_ORDER as CURVE_ORDER,
+  hashMessageToField,
+  parseCanonicalFieldElement,
+} from "./protocol.ts";
 
 // deno-lint-ignore no-explicit-any
 type EddsaInstance = any;
@@ -56,16 +42,6 @@ function toLibPoint(
 
 function isIdentityPoint(point: { x: bigint; y: bigint }): boolean {
   return point.x === 0n && point.y === 1n;
-}
-
-async function hashMessageToField(message: string): Promise<bigint> {
-  const bytes = new TextEncoder().encode(message);
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  const hashBytes = new Uint8Array(digest);
-  const hex = Array.from(hashBytes)
-    .map((value) => value.toString(16).padStart(2, "0"))
-    .join("");
-  return BigInt(`0x${hex}`) % CURVE_ORDER;
 }
 
 async function validatePoint(point: { x: bigint; y: bigint }): Promise<boolean> {

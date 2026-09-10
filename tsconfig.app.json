@@ -22,7 +22,8 @@
 
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@protocol": ["./supabase/functions/_shared/protocol.ts"]
     }
   },
   "include": ["src"]

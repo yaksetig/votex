@@ -1,14 +1,16 @@
-// BabyJubJub curve parameters
-// These constants MUST match the circomlib standard BabyJubJub generator
-// (node_modules/circomlib/circuits/babyjub.circom)
+// BabyJubJub curve parameters, re-exported under the names the browser code
+// has always used. The single source of truth is the shared protocol module
+// (supabase/functions/_shared/protocol.ts), which must match circomlib.
+import {
+  BABYJUB_A,
+  BABYJUB_BASE_POINT,
+  BABYJUB_D,
+  BABYJUB_FIELD,
+  BABYJUB_SUBGROUP_ORDER,
+} from "@protocol";
 
-export const CURVE_ORDER = 2736030358979909402780800718157159386076813972158567259200215660948447373041n;
-export const FIELD_SIZE = 21888242871839275222246405745257275088548364400416034343698204186575808495617n;
-export const BABYJUBJUB_D = 168696n;
-export const BABYJUBJUB_A = 168700n;
-
-// Standard generator point (must match circomlib)
-export const BASE_POINT = {
-  x: 5299619240641551281634865583518297030282874472190772894086521144482721001553n,
-  y: 16950150798460657717958625567821834550301663161624707787222815936182638968203n,
-};
+export const CURVE_ORDER = BABYJUB_SUBGROUP_ORDER;
+export const FIELD_SIZE = BABYJUB_FIELD;
+export const BABYJUBJUB_D = BABYJUB_D;
+export const BABYJUBJUB_A = BABYJUB_A;
+export const BASE_POINT = BABYJUB_BASE_POINT;

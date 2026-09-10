@@ -1,11 +1,12 @@
-export const BABYJUB_FIELD =
-  21888242871839275222246405745257275088548364400416034343698204186575808495617n;
-export const BABYJUB_SUBGROUP_ORDER =
-  2736030358979909402780800718157159386076813972158567259200215660948447373041n;
+import {
+  BABYJUB_A as A,
+  BABYJUB_D as D,
+  BABYJUB_FIELD,
+  BABYJUB_SUBGROUP_ORDER,
+  parseCanonicalFieldElement,
+} from "./protocol.ts";
 
-const A = 168700n;
-const D = 168696n;
-const MAX_COORDINATE_DIGITS = BABYJUB_FIELD.toString().length;
+export { BABYJUB_FIELD, BABYJUB_SUBGROUP_ORDER };
 
 interface PointInput {
   x: string;
@@ -67,20 +68,6 @@ function multiply(point: Point, scalar: bigint): Point {
   return result;
 }
 
-function parseCoordinate(value: string): bigint | null {
-  if (
-    typeof value !== "string" ||
-    value.length === 0 ||
-    value.length > MAX_COORDINATE_DIGITS ||
-    !/^(0|[1-9][0-9]*)$/.test(value)
-  ) {
-    return null;
-  }
-
-  const coordinate = BigInt(value);
-  return coordinate < BABYJUB_FIELD ? coordinate : null;
-}
-
 function isOnCurve(point: Point): boolean {
   const xSquared = mod(point.x * point.x);
   const ySquared = mod(point.y * point.y);
@@ -96,8 +83,8 @@ export function isCanonicalPrimeSubgroupPoint(
   allowIdentity = true
 ): boolean {
   try {
-    const x = parseCoordinate(input.x);
-    const y = parseCoordinate(input.y);
+    const x = parseCanonicalFieldElement(input.x);
+    const y = parseCanonicalFieldElement(input.y);
     if (x === null || y === null) return false;
 
     const point = { x, y };

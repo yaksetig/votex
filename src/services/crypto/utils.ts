@@ -1,4 +1,5 @@
-import { CURVE_ORDER, FIELD_SIZE } from "./constants";
+import { CURVE_ORDER } from "./constants";
+import { parseCanonicalFieldElement as parseCanonicalFieldElementOrNull } from "@protocol";
 
 export function mod(a: bigint, m: bigint): bigint {
   return ((a % m) + m) % m;
@@ -61,28 +62,17 @@ export function randomScalar(order: bigint = CURVE_ORDER): bigint {
   }
 }
 
+/**
+ * Parse a canonical decimal field element, throwing on any alias. The
+ * null-returning primitive lives in @protocol; this wrapper keeps the
+ * throwing contract the tally and accumulator code rely on.
+ */
 export function parseCanonicalFieldElement(value: string): bigint {
-  if (!/^(0|[1-9][0-9]*)$/.test(value)) {
-    throw new Error("Field element must use canonical unsigned decimal encoding");
+  const parsed = parseCanonicalFieldElementOrNull(value);
+  if (parsed === null) {
+    throw new Error("Field element must use canonical unsigned decimal encoding in [0, p)");
   }
-
-  const parsed = BigInt(value);
-  if (parsed >= FIELD_SIZE) {
-    throw new Error("Field element is outside the BabyJubJub base field");
-  }
-
   return parsed;
 }
 
-/**
- * Encode an election UUID as the 128-bit field element the nullification
- * circuit binds proofs to. Must match `electionIdToField` in
- * supabase/functions/_shared/nullification.ts.
- */
-export function electionIdToField(electionId: string): string {
-  const hex = electionId.replace(/-/g, "").toLowerCase();
-  if (!/^[0-9a-f]{32}$/.test(hex)) {
-    throw new Error("Election id must be a UUID");
-  }
-  return BigInt(`0x${hex}`).toString();
-}
+export { electionIdToField } from "@protocol";

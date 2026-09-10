@@ -8,6 +8,7 @@
  * nullifier, the key, and a timestamp the server checks for freshness.
  */
 
+import { buildRegistrationOwnershipMessage } from "@protocol";
 import { deriveKeypairFromSecret } from "@/services/deterministicKeyService";
 import { signMessageWithSeed } from "@/services/eddsaService";
 
@@ -16,19 +17,7 @@ export interface RegistrationOwnershipProof {
   signature: string;
 }
 
-export function buildRegistrationOwnershipMessage(
-  nullifier: string,
-  publicKey: { x: string; y: string },
-  issuedAt: number
-): string {
-  return [
-    "votex:register-keypair:v1",
-    nullifier,
-    publicKey.x,
-    publicKey.y,
-    issuedAt.toString(),
-  ].join(":");
-}
+export { buildRegistrationOwnershipMessage };
 
 export async function createRegistrationOwnershipProof(
   prfSecret: ArrayBuffer,

@@ -6,11 +6,17 @@ import * as snarkjsModule from "https://esm.sh/snarkjs@0.7.5?bundle";
 const snarkjs = snarkjsModule as any;
 
 import { verificationKeyXor } from "./verificationKeyXor.ts";
+import {
+  BABYJUB_A,
+  BABYJUB_D,
+  BABYJUB_FIELD,
+  electionIdToField,
+  isCanonicalDecimal,
+} from "./protocol.ts";
 
-const FIELD_SIZE =
-  21888242871839275222246405745257275088548364400416034343698204186575808495617n;
-const BABYJUBJUB_D = 168696n;
-const BABYJUBJUB_A = 168700n;
+const FIELD_SIZE = BABYJUB_FIELD;
+const BABYJUBJUB_D = BABYJUB_D;
+const BABYJUBJUB_A = BABYJUB_A;
 
 export interface Groth16Proof {
   pi_a: [string, string, string];
@@ -47,17 +53,7 @@ export interface ParsedNullificationSignals {
 
 export const NULLIFICATION_PUBLIC_SIGNAL_COUNT = 17;
 
-/**
- * Encode an election UUID as the 128-bit field element the circuit binds
- * proofs to. Must match `electionIdToField` in src/services/crypto/utils.ts.
- */
-export function electionIdToField(electionId: string): string {
-  const hex = electionId.replace(/-/g, "").toLowerCase();
-  if (!/^[0-9a-f]{32}$/.test(hex)) {
-    throw new Error("Election id must be a UUID");
-  }
-  return BigInt(`0x${hex}`).toString();
-}
+export { electionIdToField };
 
 class EdwardsPoint {
   x: bigint;
@@ -178,17 +174,6 @@ export function parseNullificationSignals(
     authorityPublicKey: signalPoint(publicSignals, 14),
     electionId: BigInt(publicSignals[16]).toString(),
   };
-}
-
-const CANONICAL_DECIMAL = /^(0|[1-9][0-9]*)$/;
-const MAX_DECIMAL_DIGITS = FIELD_SIZE.toString().length;
-
-function isCanonicalDecimal(value: unknown): value is string {
-  return (
-    typeof value === "string" &&
-    value.length <= MAX_DECIMAL_DIGITS &&
-    CANONICAL_DECIMAL.test(value)
-  );
 }
 
 /**

@@ -3,9 +3,7 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { jsonResponse } from "../_shared/http.ts";
 import { verifyPoseidonSignature } from "../_shared/eddsa.ts";
 import { isPlaceholderAuthorityKey, isUuid } from "../_shared/fixedAuthority.ts";
-
-const MAX_PROOF_AGE_MS = 5 * 60 * 1000;
-const MAX_FUTURE_SKEW_MS = 60 * 1000;
+import { buildAuthorityLinkMessage, checkProofFreshness } from "../_shared/protocol.ts";
 
 interface AuthorityLinkRequest {
   action?: "link";
@@ -14,22 +12,6 @@ interface AuthorityLinkRequest {
   publicKeyX: string;
   publicKeyY: string;
   signature: string;
-}
-
-function buildAuthorityLinkMessage(
-  authUserId: string,
-  publicKey: { x: string; y: string },
-  authorityName: string,
-  issuedAt: number
-): string {
-  return [
-    "votex:authority-link:v1",
-    authUserId,
-    publicKey.x,
-    publicKey.y,
-    authorityName,
-    issuedAt.toString(),
-  ].join(":");
 }
 
 async function verifyAuthorityOwnershipProof(
@@ -74,12 +56,11 @@ Deno.serve(async (req) => {
       return jsonResponse(400, { error: "Missing authority link proof fields" });
     }
 
-    const now = Date.now();
-    if (body.issuedAt > now + MAX_FUTURE_SKEW_MS) {
+    const freshness = checkProofFreshness(body.issuedAt);
+    if (freshness === "FUTURE") {
       return jsonResponse(400, { error: "Authority proof timestamp is in the future" });
     }
-
-    if (now - body.issuedAt > MAX_PROOF_AGE_MS) {
+    if (freshness) {
       return jsonResponse(400, { error: "Authority proof has expired" });
     }
 

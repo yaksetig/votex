@@ -159,6 +159,11 @@ export default defineConfig(({ mode, command }) => {
           },
         ]
       : []),
+    // Wire-protocol definitions shared with the Deno edge functions.
+    {
+      find: "@protocol",
+      replacement: path.resolve(__dirname, "./supabase/functions/_shared/protocol.ts"),
+    },
     { find: "@", replacement: path.resolve(__dirname, "./src") },
     { find: "assert", replacement: require.resolve("assert/") },
     { find: "events", replacement: require.resolve("events/") },

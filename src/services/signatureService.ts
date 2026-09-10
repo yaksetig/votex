@@ -1,3 +1,4 @@
+import { buildVoteMessage } from "@protocol";
 import { StoredKeypair } from "@/types/keypair";
 import {
   parseSignaturePayload,
@@ -5,13 +6,6 @@ import {
   verifySignatureObject,
 } from "@/services/eddsaService";
 
-function buildVoteMessage(
-  electionId: string,
-  choice: string,
-  timestamp: number
-): string {
-  return `${electionId}:${choice}:${timestamp}`;
-}
 
 /**
  * Sign a vote using EdDSA-Poseidon over BabyJubJub.

@@ -5,6 +5,7 @@
  * BabyJubJub authority secret for authority linking.
  */
 
+import { buildAuthorityLinkMessage } from "@protocol";
 import {
   deriveAuthorityKeyMaterial,
   signMessageWithSeed,
@@ -29,21 +30,7 @@ export async function deriveAuthorityPublicKey(authoritySecret: string): Promise
   };
 }
 
-export function buildAuthorityLinkMessage(
-  authUserId: string,
-  publicKey: { x: string; y: string },
-  authorityName: string,
-  issuedAt: number
-): string {
-  return [
-    "votex:authority-link:v1",
-    authUserId,
-    publicKey.x,
-    publicKey.y,
-    authorityName,
-    issuedAt.toString(),
-  ].join(":");
-}
+export { buildAuthorityLinkMessage };
 
 export async function createAuthorityOwnershipProof(
   authUserId: string,

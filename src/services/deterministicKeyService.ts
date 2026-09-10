@@ -16,7 +16,6 @@
  */
 
 import { EdwardsPoint } from "@/services/elGamalService";
-import { toBytesBE, bytesToHex } from "@/services/crypto/utils";
 import { logger } from "@/services/logger";
 import {
   deriveKeyMaterialFromSeed,
@@ -55,24 +54,10 @@ export async function deriveKeypairFromSecret(
 }
 
 /**
- * Hash the public key to create a signal for World ID binding
+ * Hash the public key to create a signal for World ID binding. The format is
+ * defined once in @protocol and shared with register-keypair.
  */
-export async function hashPublicKeyForSignal(pk: {
-  x: bigint;
-  y: bigint;
-}): Promise<string> {
-  const pkBytes = new Uint8Array(64);
-  const xBytes = toBytesBE(pk.x);
-  const yBytes = toBytesBE(pk.y);
-  pkBytes.set(xBytes, 0);
-  pkBytes.set(yBytes, 32);
-
-  const hashBuffer = await crypto.subtle.digest("SHA-256", pkBytes);
-  const hashBytes = new Uint8Array(hashBuffer);
-  const hashHex = bytesToHex(hashBytes);
-
-  return "0x" + hashHex;
-}
+export { hashPublicKeyForSignal } from "@protocol";
 
 /**
  * Verify that a keypair is consistent (pk = sk * G)

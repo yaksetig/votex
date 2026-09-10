@@ -4,6 +4,7 @@ import path from "path";
 export default defineConfig({
   resolve: {
     alias: {
+      "@protocol": path.resolve(__dirname, "./supabase/functions/_shared/protocol.ts"),
       "@": path.resolve(__dirname, "./src"),
     },
   },
