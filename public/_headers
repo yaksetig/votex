@@ -1,0 +1,17 @@
+# Cloudflare Pages response headers (public/ is copied into dist/ by Vite).
+#
+# The Content-Security-Policy starts in report-only mode so the World ID
+# widget, the Groth16 worker and the Supabase client can be exercised against
+# it in the browser console before it is enforced. Once the sign-in, vote,
+# delegate, nullify and tally flows show no violations, rename the header to
+# Content-Security-Policy.
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
+  Cross-Origin-Opener-Policy: same-origin-allow-popups
+  Content-Security-Policy-Report-Only: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://uficgolgcwvgxqlubpso.supabase.co wss://uficgolgcwvgxqlubpso.supabase.co https://*.worldcoin.org https://*.world.org https://developer.world.org; frame-src https://*.worldcoin.org https://*.world.org; worker-src 'self' blob:; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'
+
+/circuits/*
+  Cache-Control: public, max-age=31536000, immutable

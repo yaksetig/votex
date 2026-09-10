@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 
-const SESSION_STORAGE_KEY = "votex:worldid:session";
+export const SESSION_STORAGE_KEY = "votex:worldid:session";
 const SESSION_VERIFIER_DOMAIN = new TextEncoder().encode("votex:session:v1");
 
 interface StoredSession {

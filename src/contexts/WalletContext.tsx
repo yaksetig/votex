@@ -2,7 +2,7 @@
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { clearStoredCredential } from '@/services/passkeyService';
-import { revokeStoredWorldIdSession, validateStoredWorldIdSession } from '@/services/worldIdSessionService';
+import { revokeStoredWorldIdSession, SESSION_STORAGE_KEY, validateStoredWorldIdSession } from '@/services/worldIdSessionService';
 import { clearStoredKeypair } from '@/services/keypairService';
 
 interface WalletContextType {
@@ -89,6 +89,23 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     };
   }, [toast]);
   
+  // A logout in one tab must not leave the seed and a verified state alive in
+  // another. sessionStorage is per-tab, so react to the shared localStorage
+  // session key disappearing.
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === SESSION_STORAGE_KEY && event.newValue === null) {
+        clearStoredKeypair();
+        setUserId(null);
+        setIsWorldIDVerified(false);
+        setJustVerified(false);
+        setDerivedPublicKey(null);
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
   // Function to reset identity (for logout)
   const resetIdentity = async () => {
     const serverRevoked = await revokeStoredWorldIdSession();

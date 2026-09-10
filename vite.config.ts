@@ -132,7 +132,14 @@ function manualChunks(id: string): string | undefined {
   return undefined;
 }
 
-export default defineConfig(() => {
+export default defineConfig(({ mode, command }) => {
+  // The e2e stubs replace the World ID widget and the Groth16 prover with
+  // fakes. They must never reach a production bundle, whatever the CI
+  // environment happens to export. Playwright only runs the dev server.
+  if (process.env.VOTEX_E2E_MODE === "true" && (mode === "production" || command === "build")) {
+    throw new Error("VOTEX_E2E_MODE must not be set for a production build");
+  }
+
   const aliases = [
     ...(process.env.VOTEX_E2E_MODE === "true"
       ? [

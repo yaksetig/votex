@@ -193,7 +193,7 @@ const ElectionAuthorityLogin: React.FC<ElectionAuthorityLoginProps> = ({ onLogin
                 </div>
                 <div>
                   <Label htmlFor="authoritySecret" className="civic-label">Authority secret</Label>
-                  <Input id="authoritySecret" type="password" value={authoritySecret} onChange={(event) => setAuthoritySecret(event.target.value)} disabled={isSubmitting} className="mt-2 font-mono" placeholder="votex-auth-v1_… recovery key" />
+                  <Input id="authoritySecret" type="password" autoComplete="off" spellCheck={false} value={authoritySecret} onChange={(event) => setAuthoritySecret(event.target.value)} disabled={isSubmitting} className="mt-2 font-mono" placeholder="votex-auth-v1_… recovery key" />
                 </div>
               </div>
             )}

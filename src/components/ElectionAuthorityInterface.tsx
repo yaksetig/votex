@@ -222,6 +222,8 @@ const ElectionAuthorityInterface: React.FC<ElectionAuthorityInterfaceProps> = ({
           <Input
             id="authoritySecret"
             type="password"
+            autoComplete="off"
+            spellCheck={false}
             value={authoritySecret}
             onChange={(event) => setAuthoritySecret(event.target.value)}
             placeholder="Enter the votex-auth-v1_… recovery key"

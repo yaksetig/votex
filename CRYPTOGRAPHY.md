@@ -769,7 +769,20 @@ The zkLean modeling path is documented in `circuits/ZKLEAN_MODELING.md`.
    edge-function behavior. The full schema is now codified under
    `supabase/migrations/` (including the previously dashboard-only base tables),
    and the lockdown migrations route every sensitive write through a
-   session-validating or ownership-checking edge function.
+   session-validating or ownership-checking edge function. Since
+   `20260909000000` the public projections and base tables carry no client
+   write privileges at all, and new relations are deny-by-default, so RLS is
+   no longer the only barrier.
+
+5. Deferred after the 2026-09-09 review (documented, not yet implemented):
+   - session creation is still verifier-based (hashed at rest since
+     `20260909000100`) rather than challenge-response signed by the voting key;
+   - the Groth16 phase-2 setup remains single-contributor (§9.6);
+   - Supabase Auth settings (sign-up, confirmations) are not codified in
+     `supabase/config.toml`;
+   - GitHub Actions are tag-pinned, not SHA-pinned;
+   - the Content-Security-Policy ships in report-only mode (`public/_headers`)
+     until the browser flows have been exercised against it.
 
 ## 16. Bottom Line
 

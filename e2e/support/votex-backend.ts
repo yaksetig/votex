@@ -38,7 +38,8 @@ const authority: Row = {
 };
 
 const corsHeaders = {
-  "access-control-allow-origin": "http://localhost:4173",
+  // Must match playwright.config.ts baseURL.
+  "access-control-allow-origin": "http://localhost:41730",
   "access-control-allow-headers": "authorization, apikey, content-type, x-client-info",
   "access-control-allow-methods": "GET, POST, PATCH, DELETE, OPTIONS",
   "access-control-expose-headers": "content-range",

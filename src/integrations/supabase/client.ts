@@ -15,6 +15,14 @@ export const supabase = createClient<Database>(
   supabaseUrl,
   supabaseAnonKey,
   {
+    auth: {
+      // The app never completes OAuth or magic-link flows in the browser, so
+      // never adopt a session from the URL fragment (#access_token=...): that
+      // would let a crafted link log the authority portal into an
+      // attacker-controlled Supabase account.
+      detectSessionInUrl: false,
+      flowType: "pkce",
+    },
     realtime: {
       params: {
         eventsPerSecond: 10,
