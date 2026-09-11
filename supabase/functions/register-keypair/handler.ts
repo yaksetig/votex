@@ -22,6 +22,7 @@ import {
   buildRegistrationOwnershipMessage,
   checkProofFreshness,
   hashPublicKeyForSignal,
+  MAX_SIGNATURE_PAYLOAD_LENGTH,
   WORLD_ID_REGISTRATION_ACTION,
 } from "../_shared/protocol.ts";
 
@@ -165,7 +166,7 @@ export async function handleRegisterKeypair(
   if (
     !ownershipProof ||
     !isString(ownershipProof.signature) ||
-    ownershipProof.signature.length > 2048
+    ownershipProof.signature.length > MAX_SIGNATURE_PAYLOAD_LENGTH
   ) {
     return errorResponse(400, "VALIDATION_ERROR", "Missing key ownership proof");
   }

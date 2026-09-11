@@ -299,6 +299,13 @@ export const PROOF_MAX_FUTURE_SKEW_MS = 60 * 1000;
 
 export type FreshnessFailure = "MALFORMED" | "FUTURE" | "EXPIRED";
 
+/**
+ * Upper bound on a serialised EdDSA-Poseidon signature payload (two
+ * coordinates, S, message: well under 1 KB). Caps what any signed request
+ * may carry so oversized blobs are refused before parsing or storage.
+ */
+export const MAX_SIGNATURE_PAYLOAD_LENGTH = 2048;
+
 /** Returns null when issuedAt is a safe integer inside the accepted window. */
 export function checkProofFreshness(issuedAt: unknown, now: number = Date.now()): FreshnessFailure | null {
   if (typeof issuedAt !== "number" || !Number.isSafeInteger(issuedAt)) {

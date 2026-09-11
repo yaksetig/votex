@@ -572,7 +572,7 @@ Nullifications are written exclusively through the `nullification-write` edge
 function, which **verifies every Groth16 proof before any state changes** and
 binds the proof's public signals to the real protocol state:
 
-- `supabase/functions/nullification-write/index.ts` calls
+- `supabase/functions/nullification-write/handler.ts` calls
   `verifyNullificationProofPayload` (`_shared/nullification.ts`) against a
   verification key hard-coded in `_shared/verificationKeyXor.ts` — it is not
   read from the database or any client-supplied file, so it cannot be swapped at

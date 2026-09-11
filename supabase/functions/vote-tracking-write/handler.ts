@@ -12,17 +12,14 @@ import { isElectionOpen } from "../_shared/election.ts";
 import { errorResponse, jsonResponse } from "../_shared/http.ts";
 import { validateWorldIdSession } from "../_shared/session.ts";
 import { verifyPoseidonSignature } from "../_shared/eddsa.ts";
-import { buildVoteMessage } from "../_shared/protocol.ts";
+import { buildVoteMessage, MAX_SIGNATURE_PAYLOAD_LENGTH } from "../_shared/protocol.ts";
+import { isUuid } from "../_shared/fixedAuthority.ts";
 import type { SupabaseClient } from "../_shared/supabase.ts";
 
 export const VOTE_TIMESTAMP_SKEW_MS = 10 * 60 * 1000;
-// A serialised EdDSA-Poseidon payload (two coordinates, S, message) is well
-// under 1 KB; the cap stops multi-megabyte blobs from being stored in
-// votes.signature and served to every client through public_votes.
-export const MAX_SIGNATURE_LENGTH = 2048;
+/** The signature is stored in votes.signature and served through public_votes. */
+export const MAX_SIGNATURE_LENGTH = MAX_SIGNATURE_PAYLOAD_LENGTH;
 export const MAX_CHOICE_LENGTH = 512;
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export interface VoteWriteRequest {
   action?: "cast-vote";
@@ -66,7 +63,7 @@ export async function handleVoteWrite(deps: VoteWriteDeps, body: VoteWriteReques
     !body.signature ||
     body.signature.length > MAX_SIGNATURE_LENGTH ||
     !Number.isSafeInteger(body.timestamp) ||
-    (body.idempotencyKey && !UUID_PATTERN.test(body.idempotencyKey))
+    (body.idempotencyKey && !isUuid(body.idempotencyKey))
   ) {
     return errorResponse(400, "VALIDATION_ERROR", "Choice, signature, timestamp, or idempotency key is invalid");
   }

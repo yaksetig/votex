@@ -8,6 +8,7 @@ import {
   type CiphertextStrings,
   type DelegationAction,
   type FreshnessFailure,
+  MAX_SIGNATURE_PAYLOAD_LENGTH,
 } from "./protocol.ts";
 
 export type DelegationCiphertext = CiphertextStrings;
@@ -18,8 +19,6 @@ export interface DelegationAuthorization {
 }
 
 export type DelegationAuthorizationFailure = FreshnessFailure | "INVALID_SIGNATURE";
-
-const MAX_SIGNATURE_LENGTH = 2048;
 
 /**
  * Verify that the session holder's registered voting key signed this exact
@@ -37,7 +36,7 @@ export async function verifyDelegationAuthorization(
     !authorization ||
     typeof authorization.signature !== "string" ||
     authorization.signature.length === 0 ||
-    authorization.signature.length > MAX_SIGNATURE_LENGTH
+    authorization.signature.length > MAX_SIGNATURE_PAYLOAD_LENGTH
   ) {
     return "MALFORMED";
   }
