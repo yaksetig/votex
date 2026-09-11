@@ -8,7 +8,6 @@ cd "$(dirname "$0")"
 
 CIRCUITS=(
   "nullification_xor.circom"
-  "nullification.circom"
 )
 
 command -v circomspect >/dev/null 2>&1 || {

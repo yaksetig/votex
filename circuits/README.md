@@ -8,10 +8,6 @@ This directory contains the Circom circuits for anonymous vote nullification usi
 
 XOR-based accumulator circuit. Each nullification XORs the voter's bit into an encrypted running accumulator, so the Election Authority only ever sees 0 or 1 at tally time (no count leakage).
 
-### `nullification.circom` (legacy)
-
-Original additive-homomorphic circuit. Kept for reference.
-
 ## Prerequisites
 
 - [circom](https://docs.circom.io/getting-started/installation/) (v2.1.6+)
@@ -30,15 +26,13 @@ npm run analyze:circuits
 This runs `circomspect` against both checked-in Circom files:
 
 - `nullification_xor.circom` (active)
-- `nullification.circom` (legacy)
 
 When the `circom` compiler is installed, the same script also runs `circom --inspect` for both circuits. CI installs and enforces `circomspect`; the compiler `--inspect` pass is kept in the local script because the Rust Circom compiler is not an npm dependency.
 
-Current status as of 2026-05-19:
+Current status as of 2026-09-09:
 
 - `circomspect nullification_xor.circom`: no warning- or error-level issues found.
-- `circomspect nullification.circom`: no warning- or error-level issues found.
-- `circom --inspect` completes for both circuits. It reports only `CA02` warnings from imported `circomlib` templates (`CompConstant`, `EscalarMulFix`, `EscalarMulAny`), not from the Votex circuit templates themselves.
+- `circom --inspect` completes. It reports `CA02` notes from imported `circomlib` templates and one for the intentionally unused output bits of the `election_id` range check (see `STATIC_ANALYSIS.md`).
 
 The captured output and `INFO`-level notes are checked in at [`STATIC_ANALYSIS.md`](./STATIC_ANALYSIS.md).
 
@@ -62,7 +56,11 @@ This will:
 4. Generate the Groth16 proving key (Phase 2 setup)
 5. Contribute to the ceremony
 6. Export the verification key
-7. Copy artifacts to `../public/circuits/`
+7. Copy artifacts to `../public/circuits/` and regenerate `supabase/functions/_shared/verificationKeyXor.ts`
+
+The artifacts are SHA-256 pinned in `release.config.json` (`circuitArtifacts`),
+checked by `npm run release:check` and `preproductionBoundaries.test.ts`. After
+a rebuild, update those pins in the same commit, or CI fails on purpose.
 
 ## Output Artifacts
 
@@ -72,7 +70,7 @@ After compilation, the following files are placed in `public/circuits/`:
 |------|---------|
 | `nullification_xor.wasm` | Circuit witness generator |
 | `nullification_xor_final.zkey` | Groth16 proving key |
-| `verification_key_xor.json` | Verification key (used client-side) |
+| `verification_key_xor.json` | Verification key export; the edge verifier embeds it via `_shared/verificationKeyXor.ts` (no client-side verification) |
 
 ## Hosting on Supabase Storage
 

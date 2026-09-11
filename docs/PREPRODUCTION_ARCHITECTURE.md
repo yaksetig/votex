@@ -8,7 +8,10 @@ protocol details in `CRYPTOGRAPHY.md`.
 1. The browser creates or unlocks a PRF-capable passkey.
 2. The passkey secret deterministically derives the existing BabyJubJub key.
 3. The public key hash is included as the World ID signal.
-4. `register-keypair` verifies the World ID proof and signal binding.
+4. `register-keypair` verifies the World ID proof (requiring `success` and
+   exactly one successful result from the API), the signal binding, and an
+   EdDSA proof of possession of the submitted key; the session verifier is
+   stored hashed.
 5. `worldid-session` verifies continuity with the passkey-derived verifier and
    issues a random bearer token whose hash is stored server-side.
 
@@ -46,19 +49,29 @@ inserts are denied. Idempotency is scoped to creator plus request UUID.
 
 ## Ballot casting
 
-The existing `${electionId}:${choice}:${timestamp}` message and EdDSA signature
-format are unchanged. `vote-tracking-write` validates the session, participant
-key, election, timestamp, choice, and signature before calling
+Ballots are signed over `${electionId}:${choice}:${timestamp}` with the voting
+key. `vote-tracking-write` validates the session, participant key, election,
+timestamp, choice, signature and input sizes before calling
 `cast_vote_atomic`. The canonical ballot, yes/no tracking row, and receipt share
 one transaction. The public `public_votes` view exposes the pseudonym, choice,
 signature, times, and receipt UUID.
 
 ## Delegation and nullification
 
-Delegation ciphertext formats and decryption are unchanged. Creation,
-replacement, and revocation use one atomic database function, with the
-delegator derived from the World ID session. Nullification continues through
-the existing server-verified proof path and transactional accumulator RPC.
+Delegation creation, replacement and revocation use one atomic database
+function. The delegator is derived from the World ID session and must also
+sign the exact action with the voting key (`votex:delegation:v1:…`), so a
+session alone cannot move a ballot. Ciphertext coordinates are validated as
+canonical prime-subgroup points.
+
+Nullification batches go through `nullification-write`, which verifies every
+Groth16 proof, binds its public signals to the election id, the authority key,
+the target's registered key and the stored accumulator version, recomputes the
+new accumulator itself, and persists through a transactional RPC that
+processes items in a client-independent order and rate-limits each submitter
+to one batch per election per minute. The browser shuffles slot order and
+retries on accumulator conflicts. All message formats and encodings shared by
+both runtimes live in `supabase/functions/_shared/protocol.ts`.
 
 ## Closure and tally
 

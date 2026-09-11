@@ -152,6 +152,7 @@ export function elgamalEncrypt(
 
 // ===== XOR Accumulator Operations =====
 
+/** -(x, y) = (-x, y); used to subtract ciphertexts and for the x=0 gate branch. */
 export function negatePoint(point: EdwardsPoint): EdwardsPoint {
   return EdwardsPoint.from(negateAffinePoint(point));
 }

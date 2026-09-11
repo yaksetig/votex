@@ -44,6 +44,7 @@ function getStoredSession(): StoredSession | null {
   }
 }
 
+/** Bearer token of the current voter session, or null when none is stored. */
 export function getStoredWorldIdSessionToken(): string | null {
   return getStoredSession()?.token ?? null;
 }
@@ -56,6 +57,10 @@ function clearStoredWorldIdSession(): void {
   localStorage.removeItem(SESSION_STORAGE_KEY);
 }
 
+/**
+ * SHA-256(prfSecret || "votex:session:v1"): the passkey-continuity credential
+ * presented when re-opening a session. Stored hashed server side (§5.4).
+ */
 export async function deriveSessionVerifierHash(
   prfSecret: ArrayBuffer
 ): Promise<string> {
@@ -71,6 +76,7 @@ export async function deriveSessionVerifierHash(
   return bufferToHex(digest);
 }
 
+/** Open a server-issued voter session for a verified nullifier and persist its token locally. */
 export async function createWorldIdSession(
   nullifierHash: string,
   prfSecret: ArrayBuffer
@@ -105,6 +111,7 @@ export async function createWorldIdSession(
   };
 }
 
+/** Ask the server whether the stored token is still valid; clears it locally when it is not. */
 export async function validateStoredWorldIdSession(): Promise<ActiveWorldIdSession | null> {
   const storedSession = getStoredSession();
   if (!storedSession?.token) {
@@ -140,6 +147,7 @@ export async function validateStoredWorldIdSession(): Promise<ActiveWorldIdSessi
   };
 }
 
+/** Revoke the stored session server side; returns whether the server confirmed the revocation. */
 export async function revokeStoredWorldIdSession(): Promise<boolean> {
   const storedSession = getStoredSession();
   let serverRevoked = true;

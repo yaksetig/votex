@@ -37,36 +37,42 @@ The system is intentionally hybrid:
 | Dependency | Role | Active usage |
 |---|---|---|
 | `circomlibjs` | BabyJubJub EdDSA implementation and subgroup checks | `src/services/eddsaService.ts` |
-| `snarkjs` | Groth16 proof generation and verification | `src/services/zkProofService.ts`, `src/workers/zkProofWorker.ts` |
+| `snarkjs` | Groth16 proof generation (browser worker) | `src/services/parallelZkProofService.ts`, `src/workers/zkProofWorker.ts` |
 | `blake-hash` | BLAKE-512 used in EdDSA-compatible scalar derivation from seed | `src/services/eddsaService.ts` |
-| `@worldcoin/idkit` | World ID request widget and result types | `src/components/WorldIDSignIn.tsx`, `src/components/WorldIdRequestWidget.tsx` |
+| `@worldcoin/idkit` | World ID request widget and result types | `src/components/WorldIDSignIn.tsx` |
 
 ### Edge-function URL imports
 
 | Dependency | Role | Active usage |
 |---|---|---|
-| `https://esm.sh/circomlibjs@0.1.7?bundle` | Edge-side EdDSA verification | `supabase/functions/_shared/eddsa.ts` |
+| `npm:circomlibjs@0.1.7` | Edge-side EdDSA verification | `supabase/functions/_shared/eddsa.ts` |
+| `https://esm.sh/snarkjs@0.7.5?bundle` | Edge-side Groth16 verification | `supabase/functions/_shared/nullification.ts` |
 | `https://esm.sh/@noble/curves@1.8.2/secp256k1` | RP request signing | `supabase/functions/rp-signature/index.ts` |
 | `https://esm.sh/@noble/hashes@1.8.0/sha3` | Keccak-256 for RP request signing | `supabase/functions/rp-signature/index.ts` |
 | `https://esm.sh/@noble/hashes@1.8.0/utils` | byte/hex helpers for RP request signing | `supabase/functions/rp-signature/index.ts` |
 | `https://esm.sh/viem@2.26.2` | `keccak256` helper for World ID signal hash compatibility | `supabase/functions/register-keypair/index.ts` |
 
+Edge dependencies are pinned by `supabase/functions/deno.lock` and checked with
+`--frozen` in CI.
+
 ### Local crypto/protocol code
 
 These are not third-party libraries, but they are cryptography-relevant and should be treated as part of the security surface:
 
+- `supabase/functions/_shared/protocol.ts` (shared by browser and edge: curve
+  arithmetic, canonical encodings, signed-message formats, freshness window)
 - `src/services/eddsaService.ts`
 - `src/services/deterministicKeyService.ts`
 - `src/services/elGamalService.ts`
-- `src/services/discreteLogService.ts`
 - `src/services/elGamalTallyService.ts`
 - `src/services/kAnonymityNullificationService.ts`
-- `src/services/zkProofService.ts`
 - `src/services/parallelZkProofService.ts`
 - `src/services/passkeyService.ts`
 - `supabase/functions/_shared/eddsa.ts`
-- `supabase/functions/register-keypair/index.ts`
-- `supabase/functions/worldid-session/index.ts`
+- `supabase/functions/_shared/babyjub.ts`
+- `supabase/functions/_shared/nullification.ts`
+- `supabase/functions/register-keypair/handler.ts`
+- `supabase/functions/worldid-session/handler.ts`
 - `supabase/functions/rp-signature/index.ts`
 
 ## 3. Primitives and Groups
@@ -106,11 +112,11 @@ The active hash/KDF usage is:
 - Keccak-256:
   - used for World ID API signal-hash compatibility and RP request signing
 
-Random scalar generation for ElGamal and nullification randomness uses:
-
-- `crypto.getRandomValues(32 bytes) % q`
-
-That is simple and practical, but it is reduction-based sampling rather than rejection sampling, so it is not a perfectly uniform scalar sampler in the strictest sense.
+Random scalar generation for ElGamal and nullification randomness
+(`randomScalar` in `src/services/crypto/utils.ts`) draws `ceil(log2 q)` bits
+from `crypto.getRandomValues`, masks the unused high bits, and rejects any
+candidate that is zero or not below `q`. The result is uniform on `(0, q)`;
+the circuit additionally constrains `r` and `s` to that range.
 
 ### 3.3 Signature primitives
 
@@ -227,7 +233,10 @@ This is a deliberate UX/security tradeoff:
 - it avoids long-term `localStorage` persistence
 - but it still means private key material is serialized in browser-managed storage for the session lifetime
 
-That is unusual enough to document explicitly. The comments say "never store" for the scalar in an abstract sense, but the active implementation does cache it for the session.
+The voter *session token* (a random bearer secret, not key material) does
+live in `localStorage` so a returning voter is recognised across tabs; a logout
+in one tab clears the seed and verified state in every other tab through the
+`storage` event. The token is hashed server side and expires after 24 hours.
 
 ## 5. World ID Binding
 
@@ -643,7 +652,7 @@ At tally time:
 
 1. the authority derives key material from the generated 256-bit recovery key
 2. the scalar is used as the BabyJub/ElGamal private key
-3. all accumulators are decrypted through the discrete-log lookup table
+3. all accumulators are decrypted with a local bounded discrete-log walk (§8)
 4. all delegations are decrypted to participant indices
 5. delegation weights are resolved
 6. final per-voter results are written through `authority-tally-write`
@@ -668,7 +677,6 @@ Notable custom or unusual decisions:
 - decryption relies on small-bounded discrete-log recovery (computed locally at tally time)
 - the World ID RP-signature logic is reimplemented locally in an edge function
 - nullification proving is browser-side and artifact-driven, but verification is mandatory server-side
-- ElGamal/nullification randomness is generated by modular reduction of 32 random bytes instead of rejection sampling
 - the Groth16 trusted setup is a single-contributor ceremony (documented limitation, see §9.6)
 
 These are not all bugs, but they are all design decisions that materially affect the security model.
@@ -689,8 +697,9 @@ These are not all bugs, but they are all design decisions that materially affect
 
 - `src/components/WorldIDSignIn.tsx`
 - `src/services/worldIdSessionService.ts`
+- `src/services/registrationOwnershipProofService.ts`
 - `supabase/functions/rp-signature/index.ts`
-- `supabase/functions/register-keypair/index.ts`
+- `supabase/functions/register-keypair/handler.ts`
 - `supabase/functions/worldid-session/index.ts` (+ `handler.ts`)
 - `supabase/functions/register-participant/index.ts`
 
@@ -703,8 +712,12 @@ These are not all bugs, but they are all design decisions that materially affect
 - `src/services/kAnonymityNullificationService.ts`
 - `src/services/delegationService.ts`
 - `src/services/tallyService.ts`
-- `supabase/functions/nullification-write/index.ts` (authoritative proof verification)
+- `src/services/delegationDecoding.ts`
+- `src/services/nullificationFlow.ts`
+- `supabase/functions/nullification-write/handler.ts` (authoritative proof verification)
+- `supabase/functions/_shared/delegation.ts`
 - `supabase/functions/delegation-write/index.ts`
+- `supabase/functions/vote-tracking-write/handler.ts`
 
 ### ZK artifacts
 
@@ -721,10 +734,11 @@ These are not all bugs, but they are all design decisions that materially affect
 - `public/circuits/nullification_xor_final.zkey`
 - `public/circuits/verification_key_xor.json`
 
-### Legacy or non-active crypto-adjacent helpers
+### Retired artifacts
 
-- `circuits/nullification.circom`
-  - legacy additive circuit kept for reference
+- `circuits/legacy/verification_key_xor_v1.json`
+  - verification key of the 16-signal circuit; verifies proofs recorded before
+    migration `20260909000000`
 
 ## 14. Circuit Static Analysis
 
@@ -734,18 +748,14 @@ The repository now includes an explicit Circom static-analysis entrypoint:
 npm run analyze:circuits
 ```
 
-That script runs Trail of Bits `circomspect` over both Circom files in `circuits/`:
-
-- `circuits/nullification_xor.circom` (active XOR accumulator circuit)
-- `circuits/nullification.circom` (legacy additive circuit kept for reference)
+That script runs Trail of Bits `circomspect` over `circuits/nullification_xor.circom`.
 
 CI installs `circomspect` and fails the `circuit-analysis` job if the analyzer reports issues. When the Rust `circom` compiler is also installed locally, the same script runs `circom --inspect` for both circuits.
 
-Latest local run on 2026-05-19:
+Latest local run on 2026-09-09:
 
 - `circomspect circuits/nullification_xor.circom`: no warning- or error-level issues found.
-- `circomspect circuits/nullification.circom`: no warning- or error-level issues found.
-- `circom --inspect` completed for both circuits. The only warnings were `CA02` warnings inside imported `circomlib` templates (`CompConstant`, `EscalarMulFix`, `EscalarMulAny`), not Votex-owned templates.
+- `circom --inspect` completed. It reports `CA02` notes inside imported `circomlib` templates and one for the intentionally unused output bits of the `election_id` range check.
 
 The captured tool output and `INFO`-level `circomspect` notes are checked in at `circuits/STATIC_ANALYSIS.md`.
 

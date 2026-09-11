@@ -416,10 +416,12 @@ const ElectionDetail = () => {
         { getElectionAuthorityForElection },
         { generateKAnonymousNullifications },
         { storeNullificationBatchWithAccumulators },
+        { submitNullificationWithRetry },
       ] = await Promise.all([
         import("@/services/electionAuthorityService"),
         import("@/services/kAnonymityNullificationService"),
         import("@/services/nullificationService"),
+        import("@/services/nullificationFlow"),
       ]);
 
       const authority = await getElectionAuthorityForElection(id);
@@ -427,58 +429,29 @@ const ElectionDetail = () => {
         throw new Error("Failed to resolve the election authority");
       }
 
-      // Proof generation takes seconds, and any participant may touch any
-      // slot in the meantime (decoys need no secret). On an accumulator
-      // conflict, regenerate against the fresh state and resubmit.
-      const MAX_ATTEMPTS = 3;
-      let slotCount = 0;
-      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-        const nullificationBatch = await generateKAnonymousNullifications(
-          id,
-          userId,
-          keypair,
-          { x: authority.public_key_x, y: authority.public_key_y },
-          isActual,
-          DEFAULT_K,
-          (progress) => setNullificationProgress(progress)
-        );
-        slotCount = nullificationBatch.length;
-
-        const batchItems = nullificationBatch.map((item) => ({
-          userId: item.targetUserId,
-          ciphertext: item.ciphertext,
-          newAccumulator: item.newAccumulator,
-          accumulatorVersion: item.accumulatorVersion,
-          zkp: item.zkp!,
-        }));
-
-        const result = await storeNullificationBatchWithAccumulators(id, batchItems);
-        if (result.ok) {
-          break;
-        }
-
-        if (result.code === "ACCUMULATOR_CONFLICT" && attempt < MAX_ATTEMPTS) {
-          setNullificationProgress({
-            step: "preparing",
-            completed: 0,
-            total: 0,
-            message: "Another participant updated a slot; regenerating proofs...",
-          });
-          continue;
-        }
-
-        if (result.code === "RATE_LIMITED") {
-          throw new Error(
-            "Only one nullification batch per minute is accepted. Please wait and try again."
-          );
-        }
-
-        if (result.code === "ELECTION_CLOSED") {
-          throw new Error("Nullifications are no longer being accepted for this election.");
-        }
-
-        throw new Error(result.message || "Failed to store nullifications");
-      }
+      const { slotCount } = await submitNullificationWithRetry({
+        generate: (onProgress) =>
+          generateKAnonymousNullifications(
+            id,
+            userId,
+            keypair,
+            { x: authority.public_key_x, y: authority.public_key_y },
+            isActual,
+            DEFAULT_K,
+            onProgress
+          ).then((batch) => ({
+            slotCount: batch.length,
+            items: batch.map((item) => ({
+              userId: item.targetUserId,
+              ciphertext: item.ciphertext,
+              newAccumulator: item.newAccumulator,
+              accumulatorVersion: item.accumulatorVersion,
+              zkp: item.zkp!,
+            })),
+          })),
+        submit: (batch) => storeNullificationBatchWithAccumulators(id, batch.items),
+        onProgress: setNullificationProgress,
+      });
 
       // Deliberately neutral: the UI must not disclose whether the request
       // was a real or a dummy nullification to anyone watching the screen.

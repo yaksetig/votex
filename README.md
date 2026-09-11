@@ -60,10 +60,12 @@ optionally `circom` + `snarkjs` (for circuit work).
 ```sh
 npm install            # install dependencies
 npm run dev            # start the Vite dev server (http://localhost:8080)
-npm test               # run the browser/node test suite (vitest)
+npm test               # browser/node unit tests (vitest, includes real Groth16 proving)
+npm run test:e2e       # Playwright lifecycle tests against stubbed backends
 npm run lint           # eslint
 npx tsc -b             # typecheck (strict; follows project references)
 npm run build          # production build
+npm run release:check  # manifest, migrations and circuit-artifact pins
 
 # Edge functions (Deno, run from supabase/functions so deno.json/deno.lock apply):
 (cd supabase/functions && deno check --frozen */index.ts _shared/*.ts */handler.test.ts)
@@ -72,6 +74,9 @@ npm run build          # production build
 # Circuit static analysis:
 npm run analyze:circuits
 ```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for what each suite covers, how to replay
+migrations locally, and how to rebuild circuit artifacts.
 
 ### Configuration
 
@@ -93,6 +98,16 @@ project with `supabase db push`; edge functions deploy with
 `docs/TRUSTED_SETUP_RUNBOOK.md` for the ZK trusted-setup procedure.
 
 ## Additional Docs
+
+Repository documentation is indexed in [docs/README.md](docs/README.md):
+[CRYPTOGRAPHY.md](CRYPTOGRAPHY.md) (protocol design),
+[docs/PREPRODUCTION_ARCHITECTURE.md](docs/PREPRODUCTION_ARCHITECTURE.md)
+(application boundaries), [docs/RELEASE_RUNBOOK.md](docs/RELEASE_RUNBOOK.md),
+[docs/TRUSTED_SETUP_RUNBOOK.md](docs/TRUSTED_SETUP_RUNBOOK.md),
+[docs/DEPENDENCY_RISK_ACCEPTANCE.md](docs/DEPENDENCY_RISK_ACCEPTANCE.md),
+[circuits/README.md](circuits/README.md) and [e2e/README.md](e2e/README.md).
+
+Papers:
 * 2022 Short Paper - https://eprint.iacr.org/2022/1212.pdf
 * 2024 Main Paper - https://eprint.iacr.org/2024/1354.pdf
 

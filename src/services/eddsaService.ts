@@ -111,6 +111,7 @@ async function hkdfSha256(
 }
 
 
+/** HKDF-SHA256 the passkey PRF output into the versioned 32-byte EdDSA seed (§4.2). */
 export async function deriveSeedFromPasskeySecret(
   prfSecret: ArrayBuffer
 ): Promise<Uint8Array> {
@@ -150,6 +151,10 @@ async function deriveSigningScalarFromSeed(
   return scalar;
 }
 
+/**
+ * From one seed derive both the circomlibjs EdDSA public key (for signing) and
+ * the BabyJubJub scalar used by the ElGamal/circuit code path (§4.3, §4.4).
+ */
 export async function deriveKeyMaterialFromSeed(seed: Uint8Array): Promise<{
   seed: Uint8Array;
   seedHex: string;
@@ -180,6 +185,7 @@ export async function deriveKeyMaterialFromSeed(seed: Uint8Array): Promise<{
   };
 }
 
+/** Key material for the fixed authority; accepts only the generated `votex-auth-v1_` recovery-key format. */
 export async function deriveAuthorityKeyMaterial(
   authoritySecret: string
 ): Promise<{
@@ -192,6 +198,7 @@ export async function deriveAuthorityKeyMaterial(
   return deriveKeyMaterialFromSeed(seed);
 }
 
+/** On-curve, prime-subgroup and non-identity check via circomlibjs. */
 export async function validatePublicPoint(
   point: EdDSAPublicKey
 ): Promise<boolean> {
@@ -221,6 +228,7 @@ function buildSignaturePayload(
   };
 }
 
+/** EdDSA-Poseidon over `SHA256(message) mod q`; returns the serialisable payload the edge verifier expects (§6.2). */
 export async function signMessageWithSeed(
   seed: Uint8Array,
   message: string
@@ -232,6 +240,7 @@ export async function signMessageWithSeed(
   return buildSignaturePayload(signature, message, eddsa);
 }
 
+/** signMessageWithSeed for the hex seed kept in sessionStorage. */
 export async function signMessageWithStoredSeed(
   seedHex: string,
   message: string
@@ -239,6 +248,7 @@ export async function signMessageWithStoredSeed(
   return signMessageWithSeed(hexToBytes(seedHex), message);
 }
 
+/** Browser-side counterpart of the edge verifier (used for receipt display, not for authorisation). */
 export async function verifySignatureObject(
   signature: EdDSASignatureObject,
   publicKey: EdDSAPublicKey,
@@ -280,6 +290,7 @@ export async function verifySignatureObject(
   );
 }
 
+/** Parse a serialised signature, rejecting payloads missing any field. */
 export function parseSignaturePayload(signature: string): EdDSASignatureObject {
   const parsed = JSON.parse(signature) as EdDSASignatureObject;
 
