@@ -134,13 +134,13 @@ describe("compiled nullification_xor circuit", () => {
   it("rejects an election id wider than 128 bits", async () => {
     const input = buildValidInput();
     input.election_id = (1n << 128n).toString();
-    await expect(calculateWitness(input)).rejects.toThrow();
+    await expect(calculateWitness(input)).rejects.toThrow(/Assert Failed|Error in template/);
   });
 
   it("rejects a non-binary nullification bit (x=2)", async () => {
     const input = buildValidInput();
     input.x = "2";
-    await expect(calculateWitness(input)).rejects.toBeDefined();
+    await expect(calculateWitness(input)).rejects.toThrow(/Assert Failed|Error in template/);
   });
 
   it("rejects a real nullification with the wrong voter secret key", async () => {
@@ -148,7 +148,7 @@ describe("compiled nullification_xor circuit", () => {
     // For x=1 the circuit forces sk_voter * G == pk_voter; a mismatched key
     // must fail the constraint system.
     input.sk_voter = ((BigInt(input.sk_voter) + 1n) % CURVE_ORDER).toString();
-    await expect(calculateWitness(input)).rejects.toBeDefined();
+    await expect(calculateWitness(input)).rejects.toThrow(/Assert Failed|Error in template/);
   });
 
   it("rejects zero encryption randomness", async () => {
@@ -156,14 +156,14 @@ describe("compiled nullification_xor circuit", () => {
     const base = EdwardsPoint.base();
     input.r = "0";
     input.ciphertext = ["0", "1", base.x.toString(), base.y.toString()];
-    await expect(calculateWitness(input)).rejects.toBeDefined();
+    await expect(calculateWitness(input)).rejects.toThrow(/Assert Failed|Error in template/);
   });
 
   it("rejects zero gate randomness", async () => {
     const input = buildValidInput();
     input.s = "0";
     input.gate_output = ["0", "1", "0", "1"];
-    await expect(calculateWitness(input)).rejects.toBeDefined();
+    await expect(calculateWitness(input)).rejects.toThrow(/Assert Failed|Error in template/);
   });
 
   it("rejects subgroup-order aliases for encryption randomness", async () => {
@@ -171,13 +171,13 @@ describe("compiled nullification_xor circuit", () => {
     const base = EdwardsPoint.base();
     input.r = CURVE_ORDER.toString();
     input.ciphertext = ["0", "1", base.x.toString(), base.y.toString()];
-    await expect(calculateWitness(input)).rejects.toBeDefined();
+    await expect(calculateWitness(input)).rejects.toThrow(/Assert Failed|Error in template/);
   });
 
   it("rejects subgroup-order aliases for gate randomness", async () => {
     const input = buildValidInput();
     input.s = CURVE_ORDER.toString();
     input.gate_output = ["0", "1", "0", "1"];
-    await expect(calculateWitness(input)).rejects.toBeDefined();
+    await expect(calculateWitness(input)).rejects.toThrow(/Assert Failed|Error in template/);
   });
 });

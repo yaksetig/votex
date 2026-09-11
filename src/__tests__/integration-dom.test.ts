@@ -3,12 +3,13 @@
  */
 
 /**
- * VTX-013 / VTX-010: Keypair session-storage boundary tests.
- * Requires a DOM environment (jsdom) for localStorage/sessionStorage.
+ * Keypair session-storage boundary: the private seed must live in the
+ * per-tab sessionStorage, never in localStorage. Requires jsdom.
  */
 
 import { describe, it, expect, beforeAll, beforeEach, afterEach } from "vitest";
 import { KEYPAIR_VERSION } from "../services/eddsaService";
+import { MemoryStorage } from "./helpers/memoryStorage";
 
 const KEYPAIR_KEY = "babyJubKeypair";
 const testKeypair = {
@@ -18,17 +19,6 @@ const testKeypair = {
   Ax: "456",
   Ay: "789",
 };
-
-class MemoryStorage implements Storage {
-  private values = new Map<string, string>();
-
-  get length() { return this.values.size; }
-  clear() { this.values.clear(); }
-  getItem(key: string) { return this.values.get(key) ?? null; }
-  key(index: number) { return [...this.values.keys()][index] ?? null; }
-  removeItem(key: string) { this.values.delete(key); }
-  setItem(key: string, value: string) { this.values.set(key, value); }
-}
 
 beforeAll(() => {
   // Node 22+ exposes an unavailable localStorage global that can mask jsdom's

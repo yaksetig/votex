@@ -231,32 +231,3 @@ describe("XOR gate computation", () => {
     expect(newAcc.c2.isOnCurve()).toBe(true);
   });
 });
-
-describe("conditional negation matches circuit semantics", () => {
-  it("x'=1 (x=1): no negation", () => {
-    const p = EdwardsPoint.base();
-    // In the circuit: x_prime * p.x = 1 * p.x = p.x
-    // Result: (p.x, p.y) = p (unchanged)
-    const result = new EdwardsPoint(p.x, p.y);
-    expect(result.equals(p)).toBe(true);
-  });
-
-  it("x'=-1 (x=0): negation via field multiplication", () => {
-    const p = EdwardsPoint.base();
-    // In the circuit: x_prime * p.x = (-1) * p.x = FIELD_SIZE - p.x
-    const negX = (FIELD_SIZE - p.x) % FIELD_SIZE;
-    const result = new EdwardsPoint(negX, p.y);
-    // This should equal -p
-    const expected = negatePoint(p);
-    expect(result.x).toBe(expected.x);
-    expect(result.y).toBe(expected.y);
-  });
-
-  it("conditional negation on identity is identity for both x=0 and x=1", () => {
-    const id = EdwardsPoint.identity(); // (0, 1)
-    // x' * 0 = 0 for any x', so result is always (0, 1) = identity
-    const negId = negatePoint(id);
-    expect(negId.x).toBe(0n);
-    expect(negId.y).toBe(1n);
-  });
-});

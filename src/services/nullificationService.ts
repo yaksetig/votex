@@ -6,6 +6,7 @@ import { logger } from "@/services/logger";
 import { fetchAllRows } from "@/lib/fetchAllRows";
 import { getStoredWorldIdSessionToken } from "@/services/worldIdSessionService";
 import { readFunctionError } from "@/types/api";
+import { normalizeWriteCode, type NullificationWriteResult } from "@/lib/nullificationWriteResult";
 
 interface NullificationProof {
   proof: Groth16Proof;
@@ -22,18 +23,7 @@ export interface Nullification {
   created_at: string;
 }
 
-export type NullificationWriteCode =
-  | "ACCUMULATOR_CONFLICT"
-  | "RATE_LIMITED"
-  | "ELECTION_CLOSED"
-  | "NO_SESSION"
-  | "UNKNOWN";
-
-export interface NullificationWriteResult {
-  ok: boolean;
-  code?: NullificationWriteCode;
-  message?: string;
-}
+export type { NullificationWriteCode, NullificationWriteResult } from "@/lib/nullificationWriteResult";
 
 /**
  * Submit a k-anonymity batch through nullification-write. The server verifies
@@ -107,16 +97,6 @@ export async function storeNullificationBatchWithAccumulators(
   }
 }
 
-function normalizeWriteCode(code: unknown): NullificationWriteCode {
-  switch (code) {
-    case "ACCUMULATOR_CONFLICT":
-    case "RATE_LIMITED":
-    case "ELECTION_CLOSED":
-      return code;
-    default:
-      return "UNKNOWN";
-  }
-}
 
 /** Every nullification row for an election, newest first (public ledger). */
 export async function getNullificationsForElection(

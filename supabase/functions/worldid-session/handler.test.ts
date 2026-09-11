@@ -59,6 +59,7 @@ Deno.test("create: unknown identity binding is 404", async () => {
     verifierHash: "v",
   });
   assertEquals(res.status, 404);
+  assertEquals((await res.json()).code, "NOT_FOUND");
 });
 
 Deno.test("create: verifier mismatch is rejected", async () => {

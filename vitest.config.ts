@@ -11,6 +11,8 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "node",
+    // circuitNegative runs real witness generation against the shipped wasm.
+    testTimeout: 30_000,
     // Only run the browser/node test suite. Edge-function tests under
     // supabase/functions use Deno + https: imports and run via `deno test`.
     include: ["src/**/*.{test,spec}.{ts,tsx}"],

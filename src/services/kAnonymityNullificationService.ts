@@ -31,6 +31,7 @@ import {
   ProofInput,
 } from "@/services/parallelZkProofService";
 import { logger } from "@/services/logger";
+import { secureShuffle } from "@/lib/secureShuffle";
 
 /** Slots per batch: the submitter plus up to five decoys (see CRYPTOGRAPHY.md §9). */
 export const DEFAULT_K = 6;
@@ -50,24 +51,6 @@ export interface KAnonymityProgress {
   completed: number;
   total: number;
   message: string;
-}
-
-// Unbiased CSPRNG Fisher-Yates shuffle (rejection-sampled indices).
-export function secureShuffle<T>(items: T[]): T[] {
-  const shuffled = [...items];
-  const buffer = new Uint32Array(1);
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const range = i + 1;
-    const limit = Math.floor(0x100000000 / range) * range;
-    let candidate: number;
-    do {
-      crypto.getRandomValues(buffer);
-      candidate = buffer[0];
-    } while (candidate >= limit);
-    const j = candidate % range;
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  return shuffled;
 }
 
 // Pick `count` decoy slots uniformly at random from the other participants.

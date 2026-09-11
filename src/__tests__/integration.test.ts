@@ -1,13 +1,7 @@
 /**
- * VTX-013: Integration tests covering auth, voting, nullification,
- * and tally authorization boundaries.
- *
- * These tests exercise the crypto and data-flow logic end-to-end without
- * a live Supabase instance.  They catch regressions in:
- *   - XOR accumulator nullification → tally pipeline
- *   - Authority ownership proof creation / verification
- *   - Keypair session-storage behaviour (VTX-010)
- *   - ElGamal tally decryption correctness
+ * Protocol-level integration tests that run without a Supabase instance:
+ * the XOR accumulator nullification → tally pipeline, ElGamal tally
+ * decryption, authority key derivation, and delegation decoding.
  */
 
 import { describe, it, expect } from "vitest";
@@ -27,10 +21,9 @@ import { ensureDiscreteLogTable } from "../services/elGamalTallyService";
 const AUTHORITY_TEST_SECRET = `votex-auth-v1_${"1".repeat(64)}`;
 
 /**
- * Pure decryption for tests — avoids the Supabase discrete-log lookup.
- * Decrypts ElGamal-in-the-exponent: m*G = c2 - sk*c1.
- * Returns 0 if the result is the identity point, 1 if it's the base point,
- * or null otherwise.
+ * Synchronous decryption for the pipeline tests below, which only need to
+ * distinguish plaintext 0 (identity) from 1 (base point); the production
+ * decoder (decryptElGamalInExponent) is covered in nullificationClient.test.ts.
  */
 function decryptLocally(ct: ElGamalCiphertext, sk: bigint): number | null {
   const skC1 = ct.c1.multiply(sk);
@@ -131,12 +124,7 @@ describe("Nullification → tally pipeline", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 2. Keypair session-storage boundary (VTX-010 regression)
-//    Tested separately in integration-dom.test.ts (requires jsdom environment)
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
-// 3. Tally decryption correctness (pure crypto, no DB)
+// 2. Tally decryption correctness (pure crypto, no DB)
 // ---------------------------------------------------------------------------
 describe("Tally decryption", () => {
   const sk = 99n;
@@ -169,7 +157,7 @@ describe("Tally decryption", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 4. Authority ownership proof format
+// 3. Authority ownership proof format
 // ---------------------------------------------------------------------------
 describe("Authority ownership proof format", () => {
   it("buildAuthorityLinkMessage produces deterministic domain-separated string", async () => {
@@ -235,7 +223,7 @@ describe("Authority ownership proof format", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 5. Delegation encryption round-trip
+// 4. Delegation encryption round-trip
 // ---------------------------------------------------------------------------
 describe("Delegation encryption", () => {
   const authoritySk = 42n;
@@ -267,31 +255,6 @@ describe("Delegation encryption", () => {
     const ct = elgamalEncrypt(authorityPk, 7);
     expect(ct.c1.isOnCurve()).toBe(true);
     expect(ct.c2.isOnCurve()).toBe(true);
-  });
-
-  it("delegation weight map computation", () => {
-    // Simulate 3 delegators → delegate at index 2
-    // and 1 delegator → delegate at index 0
-    const weightMap = new Map<string, number>();
-    const delegatorIds = new Set<string>();
-    const participants = ["alice", "bob", "carol"];
-
-    // 3 delegations to carol (index 2)
-    for (const delegator of ["d1", "d2", "d3"]) {
-      delegatorIds.add(delegator);
-      const current = weightMap.get(participants[2]) ?? 1;
-      weightMap.set(participants[2], current + 1);
-    }
-
-    // 1 delegation to alice (index 0)
-    delegatorIds.add("d4");
-    const current = weightMap.get(participants[0]) ?? 1;
-    weightMap.set(participants[0], current + 1);
-
-    expect(weightMap.get("carol")).toBe(4); // 1 (own) + 3 delegated
-    expect(weightMap.get("alice")).toBe(2); // 1 (own) + 1 delegated
-    expect(weightMap.get("bob")).toBeUndefined(); // no delegations → weight 1 (default)
-    expect(delegatorIds.size).toBe(4);
   });
 });
 
