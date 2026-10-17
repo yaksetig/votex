@@ -43,3 +43,6 @@ supabase/.temp/
 *.njsproj
 *.sln
 *.sw?
+
+# Ad-hoc UI audit harness (local only)
+.ui-tour/

@@ -37,8 +37,9 @@ const authority: Row = {
   updated_at: "2026-07-13T12:00:00.000Z",
 };
 
+// Echo the dev-server origin so the stubs work on whatever port the suite
+// (or an ad-hoc harness) started Vite on.
 const corsHeaders = {
-  // Must match playwright.config.ts baseURL.
   "access-control-allow-origin": "http://localhost:41730",
   "access-control-allow-headers": "authorization, apikey, content-type, x-client-info",
   "access-control-allow-methods": "GET, POST, PATCH, DELETE, OPTIONS",
@@ -83,11 +84,16 @@ async function requestJson(route: Route): Promise<Row> {
   return JSON.parse(body) as Row;
 }
 
+function corsFor(route: Route): Record<string, string> {
+  const origin = route.request().headers()["origin"];
+  return origin ? { ...corsHeaders, "access-control-allow-origin": origin } : corsHeaders;
+}
+
 async function fulfillJson(route: Route, body: unknown, status = 200, headers: Row = {}) {
   await route.fulfill({
     status,
     contentType: "application/json",
-    headers: { ...corsHeaders, ...headers } as Record<string, string>,
+    headers: { ...corsFor(route), ...headers } as Record<string, string>,
     body: JSON.stringify(body),
   });
 }
@@ -264,7 +270,7 @@ async function handleRest(route: Route, state: VotexTestState, url: URL) {
   const selected = filteredRows(rows, url);
   const countHeader = selected.length === 0 ? "*/0" : `0-${selected.length - 1}/${selected.length}`;
   if (route.request().method() === "HEAD") {
-    await route.fulfill({ status: 200, headers: { ...corsHeaders, "content-range": countHeader } });
+    await route.fulfill({ status: 200, headers: { ...corsFor(route), "content-range": countHeader } });
     return;
   }
 
@@ -487,7 +493,7 @@ async function handleFunction(route: Route, state: VotexTestState, functionName:
 
 async function handleAuth(route: Route, url: URL) {
   if (url.pathname.endsWith("/logout")) {
-    await route.fulfill({ status: 204, headers: corsHeaders });
+    await route.fulfill({ status: 204, headers: corsFor(route) });
     return;
   }
 
@@ -528,7 +534,7 @@ export async function installVotexBackend(page: Page): Promise<VotexTestState> {
     const request = route.request();
     const url = new URL(request.url());
     if (request.method() === "OPTIONS") {
-      await route.fulfill({ status: 200, headers: corsHeaders });
+      await route.fulfill({ status: 200, headers: corsFor(route) });
       return;
     }
     if (url.pathname.startsWith("/functions/v1/")) {
