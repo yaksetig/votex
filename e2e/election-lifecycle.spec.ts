@@ -28,17 +28,19 @@ test("verified voter creates, delegates, signs, audits, nullifies, closes, and t
   await expect(page.getByRole("heading", { name: "Cast your ballot" })).toBeVisible();
   await page.getByRole("button", { name: "Unlock passkey" }).click();
   await expect(page.getByRole("button", { name: "Unlock passkey" })).toBeHidden();
-  await page.getByRole("button", { name: "Delegate Vote" }).click();
-  await page.getByLabel(/Participant #1/).click();
+  await page.getByRole("button", { name: "Delegate ballot" }).click();
+  await page.getByLabel(/e2e-delegate-pseudonym/).click();
   await page.getByRole("button", { name: "Delegate", exact: true }).click();
-  await expect(page.getByText("Vote delegated", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Revoke Delegation" }).click();
-  await expect(page.getByText("Delegation revoked", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: /Option A\s+Approve/ }).click();
+  await expect(page.getByText("You have delegated your ballot", { exact: false })).toBeVisible();
+  await page.getByRole("button", { name: "Revoke delegation" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Revoke delegation" }).click();
+  await expect(page.getByRole("button", { name: "Delegate ballot" })).toBeVisible();
+  await page.getByRole("radio", { name: /Option A\s+Approve/ }).click();
   await page.getByRole("button", { name: "Cast vote" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Publish ballot" }).click();
 
   await expect(page.getByRole("heading", { name: "Public ballot receipt" })).toBeVisible();
-  await expect(page.getByText("Vote cast successfully", { exact: true })).toBeVisible();
+  await expect(page.getByText("Ballot recorded", { exact: true })).toBeVisible();
   await page.getByRole("link", { name: "Verify" }).click();
   await expect(page.getByRole("heading", { name: "Verify ballot receipt" })).toBeVisible();
   await expect(page.getByText("Verified", { exact: true })).toBeVisible();

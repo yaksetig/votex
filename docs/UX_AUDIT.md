@@ -39,18 +39,21 @@ _What the voter is told about what their action does and who can see it._
 - **Where:** src/pages/ElectionDetail.tsx:702-710 (Cast vote button); sidebar card :813-818
 - **Evidence:** The only on-page statement that the ballot is public sits in a sidebar card that renders below the ballot on phones. Nothing next to the button names the pseudonym the choice will be published under.
 - **Change:** Add one line directly above the button: "This publishes “{option}” under your pseudonym {abc…xyz}, visible to anyone, permanently." Link to the privacy page from it.
+- **Status:** Resolved in Phase E (election detail, voting, delegation)
 
 ### UX-002 · Critical · “Final Results” and a “Winner” badge appear the moment an election closes, before any tally
 
 - **Where:** ElectionDetail.tsx:588-637 (screenshot 50)
 - **Evidence:** Observed with one ballot: the closed view shows “Final Results”, “100%” and “Winner” computed from raw ballots. Nullifications and delegation weights are only resolved by the authority tally, which has not run.
 - **Change:** Label the panel “Preliminary results, pending Election Authority tally” until a tally run exists, then show the tallied result and the tally timestamp.
+- **Status:** Resolved in Phase E (election detail, voting, delegation)
 
 ### UX-003 · High · Tally status is never shown to voters
 
 - **Where:** ElectionDetail.tsx (no tally banner); public_tallies is read only by the authority view
 - **Evidence:** A voter cannot tell whether the result they see is pre- or post-tally.
 - **Change:** Show “Tally processed on ” (or “Tally pending”) on the closed-election page and surface tallied counts there.
+- **Status:** Resolved in Phase E (election detail, voting, delegation)
 
 ### UX-004 · High · Security claims contradict each other across pages
 
@@ -82,6 +85,7 @@ _What the voter is told about what their action does and who can see it._
 - **Where:** Dashboard.tsx:88-90 shows public key X/Y, not the pseudonym used in the ledger; VoteReceiptCard.tsx:66-67
 - **Evidence:** Voters cannot find their own rows in the public ledger before they have a receipt.
 - **Change:** Show the pseudonym on the profile with “This is how you appear in public records”, and highlight the viewer's own rows in the ledger tables.
+- **Status:** Resolved in Phase E (election detail, voting, delegation)
 
 ### UX-009 · Medium · Delegation and nullification requests are not auditable from the UI
 
@@ -101,6 +105,7 @@ _What the voter is told about what their action does and who can see it._
 - **Where:** ElectionDetail.tsx:795-797 (progress bar fixed at w-11/12); Dashboard.tsx:72-73 (“Passkey: Active” hard-coded); ElectionAuthorityDashboard.tsx:234 (constant “2 Voting options” tile); Index.tsx:87 (fake receipt id)
 - **Evidence:** Each of these looks like a measurement and is not.
 - **Change:** Remove them or bind them to real state.
+- **Status:** Resolved in Phase E (election detail, voting, delegation)
 
 ### UX-012 · Medium · Exported receipt JSON asserts its own verification
 
@@ -196,36 +201,42 @@ _The ballot panel, option selection, delegation dialog and their states._
 - **Where:** ElectionDetail.tsx:651-679
 - **Evidence:** Toggle buttons whose selected state is colour-only; no aria-pressed or radio roles; an h3 inside each button makes its accessible name “Option A Approve… Current support 0% 0 verified votes”.
 - **Change:** Use the existing RadioGroup (radiogroup/radio/aria-checked) with a visible check mark; move the heading out of the button.
+- **Status:** Resolved in Phase E (election detail, voting, delegation)
 
 ### UX-026 · High · Casting a public, irreversible ballot happens on a single click
 
 - **Where:** ElectionDetail.tsx:704
 - **Evidence:** No confirmation names the choice before it is signed and published.
 - **Change:** Confirm step: “Publish ‘Approve the irrigation project’ under your pseudonym? This cannot be undone.”
+- **Status:** Resolved in Phase E (election detail, voting, delegation)
 
 ### UX-027 · High · Registration happens invisibly inside the vote and delegate actions
 
 - **Where:** ElectionDetail.tsx:352; DelegationDialog.tsx:63-70 then speaks of “registered participants”
 - **Evidence:** Voters never asked to register and then see a term they do not recognise. Participants count jumps from 1 to 6 after a vote with no explanation (screenshot 29).
 - **Change:** Explain once: “Casting or delegating registers your voting key for this election.”
+- **Status:** Resolved in Phase E (election detail, voting, delegation)
 
 ### UX-028 · High · Delegation target is an unstable, anonymous “Participant #N”
 
 - **Where:** DelegationDialog.tsx:42-47,94-95
 - **Evidence:** N is a position in a joined_at-sorted list that shifts as people join, and only prior voters appear. The dialog also offered the voter themself as the only option (screenshot 24).
 - **Change:** Delegate by pasted pseudonym (shown on the delegate's profile), exclude self, and show the stable pseudonym instead of an index.
+- **Status:** Resolved in Phase E (election detail, voting, delegation)
 
 ### UX-029 · High · Revoke delegation fails silently and can double-fire
 
 - **Where:** ElectionDetail.tsx:105-115; delegationService.ts revokeDelegation returns false with no message
 - **Evidence:** No toast, no busy state, no confirm.
 - **Change:** Busy state, failure toast, and a confirm since it changes how the ballot counts.
+- **Status:** Resolved in Phase E (election detail, voting, delegation)
 
 ### UX-030 · Medium · “Cast vote” is disabled with no reason shown
 
 - **Where:** ElectionDetail.tsx:705 (needsKeypair or no selection); screenshot 23
 - **Evidence:** The explanation (“Unlock your ballot key”) is in a separate panel above.
 - **Change:** Keep the button enabled and validate on click, or add helper text under it (“Select an option” / “Unlock your passkey first”).
+- **Status:** Resolved in Phase E (election detail, voting, delegation)
 
 ### UX-031 · Medium · Live percentages shown on options before the voter decides
 
@@ -239,6 +250,7 @@ _The ballot panel, option selection, delegation dialog and their states._
 - **Where:** ElectionDetail.tsx:651-679 (screenshot 23: Option A two lines, Option B one line)
 - **Evidence:** “Current support” rows sit at different heights across the pair.
 - **Change:** Make the cards a grid with the stats row pinned to the bottom.
+- **Status:** Resolved in Phase E (election detail, voting, delegation)
 
 ### UX-033 · Medium · Percentage rounding differs between list and detail
 
@@ -252,24 +264,28 @@ _The ballot panel, option selection, delegation dialog and their states._
 - **Where:** ElectionDetail.tsx:599,623
 - **Evidence:** No winner badge and no copy when counts are equal.
 - **Change:** Show “Tie” explicitly.
+- **Status:** Resolved in Phase E (election detail, voting, delegation)
 
 ### UX-035 · Medium · Delegation weights are never shown to anyone
 
 - **Where:** Public results, tally table and receipt never display weight
 - **Evidence:** A delegate's ballot counts for more than one and nobody can see it.
 - **Change:** Show weight in the tally table and a “weighted” note on results.
+- **Status:** Resolved in Phase E (election detail, voting, delegation)
 
 ### UX-036 · Low · Self-delegation, delegation to a non-voter and chained delegation all silently become weight zero
 
 - **Where:** delegationDecoding.ts (self rejected at tally), DelegationDialog.tsx:42-47 (client-only exclusion)
 - **Evidence:** The voter is not warned before choosing.
 - **Change:** Block self in the dialog and explain the chain rule in its description.
+- **Status:** Resolved in Phase E (election detail, voting, delegation)
 
 ### UX-037 · Low · “Vote cast successfully” says nothing about what comes next
 
 - **Where:** ElectionDetail.tsx:370-371
 - **Evidence:** No pointer to the receipt or to the nullification window.
 - **Change:** “Ballot recorded. Your receipt is below. You can nullify it any time before .”
+- **Status:** Resolved in Phase E (election detail, voting, delegation)
 
 
 ## Sign-in and session (14)
@@ -769,6 +785,7 @@ _Toasts, loading, empty, error and offline behaviour._
 - **Where:** TallyResultsDisplay.tsx:56-73 (no catch, shows zeros); ElectionDetail.tsx:254-258 (vote status error shows the ballot UI); :62-66 (delegation status); ElectionAuthorityDashboard.tsx:79-82,118-121; ElectionAuthority.tsx:152-167
 - **Evidence:** The UI presents wrong-but-plausible state when a request fails.
 - **Change:** Explicit error states with Retry everywhere a read feeds a decision.
+- **Status:** Resolved in Phase E (election detail, voting, delegation)
 
 ### UX-109 · High · Toast close button has no accessible name and is invisible until hover
 
@@ -782,6 +799,7 @@ _Toasts, loading, empty, error and offline behaviour._
 - **Where:** ElectionDetail.tsx:195-200,494-511 (screenshot 8)
 - **Evidence:** Network errors look like deleted elections; two messages for one event.
 - **Change:** Separate not-found from error; one inline message with Retry.
+- **Status:** Resolved in Phase E (election detail, voting, delegation)
 
 ### UX-111 · Medium · Five different loading phrasings and components
 
@@ -896,6 +914,7 @@ _Semantics, keyboard, focus, contrast, motion, targets._
 - **Where:** DelegationDialog.tsx:38,75
 - **Evidence:** Label element lacks htmlFor; selectedIndex never resets.
 - **Change:** aria-labelledby on RadioGroup; reset on open.
+- **Status:** Resolved in Phase E (election detail, voting, delegation)
 
 ### UX-128 · Medium · Textarea and search inputs trigger iOS focus zoom
 

@@ -35,6 +35,7 @@ export type {
 export { decodeDelegations } from "@/services/delegationDecoding";
 import { signMessageWithStoredSeed } from "@/services/eddsaService";
 import type { StoredKeypair } from "@/types/keypair";
+import { readFunctionError, VotexApiError } from "@/types/api";
 
 // -----------------------------------------------------------------------
 // Write operations
@@ -79,55 +80,42 @@ export async function createDelegation(
   delegateIndex: number,
   authorityPk: EdwardsPoint,
   keypair: StoredKeypair
-): Promise<boolean> {
-  try {
-    logger.debug(
-      `Creating delegation: election=${electionId}, index=${delegateIndex}`
-    );
+): Promise<void> {
+  logger.debug(`Creating delegation: election=${electionId}, index=${delegateIndex}`);
 
-    const sessionToken = getStoredWorldIdSessionToken();
-    if (!sessionToken) {
-      logger.error("Cannot create delegation without a stored voter session");
-      return false;
-    }
-
-    // Encrypt the delegate index with the authority's public key
-    const ct = elgamalEncrypt(authorityPk, delegateIndex);
-    const ciphertext = {
-      c1: { x: ct.c1.x.toString(), y: ct.c1.y.toString() },
-      c2: { x: ct.c2.x.toString(), y: ct.c2.y.toString() },
-    };
-
-    // A session alone must not be able to delegate a ballot away: sign the
-    // exact action with the registered voting key.
-    const authorization = await createDelegationAuthorization(
-      keypair,
-      "create",
-      electionId,
-      ciphertext
-    );
-
-    const { data, error } = await supabase.functions.invoke("delegation-write", {
-      body: {
-        action: "create",
-        electionId,
-        sessionToken,
-        ciphertext,
-        authorization,
-      },
-    });
-
-    if (error || !data?.success) {
-      logger.error("Error creating delegation:", error ?? data);
-      return false;
-    }
-
-    logger.debug("Delegation created successfully");
-    return true;
-  } catch (error) {
-    logger.error("Error in createDelegation:", error);
-    return false;
+  const sessionToken = getStoredWorldIdSessionToken();
+  if (!sessionToken) {
+    throw new VotexApiError("SESSION_REQUIRED", "Sign in before delegating");
   }
+
+  // Encrypt the delegate index with the authority's public key
+  const ct = elgamalEncrypt(authorityPk, delegateIndex);
+  const ciphertext = {
+    c1: { x: ct.c1.x.toString(), y: ct.c1.y.toString() },
+    c2: { x: ct.c2.x.toString(), y: ct.c2.y.toString() },
+  };
+
+  // A session alone must not be able to delegate a ballot away: sign the
+  // exact action with the registered voting key.
+  const authorization = await createDelegationAuthorization(keypair, "create", electionId, ciphertext);
+
+  const { data, error } = await supabase.functions.invoke("delegation-write", {
+    body: {
+      action: "create",
+      electionId,
+      sessionToken,
+      ciphertext,
+      authorization,
+    },
+  });
+
+  if (error) {
+    throw await readFunctionError(error, "CONFLICT", "The delegation could not be stored");
+  }
+  if (!data?.success) {
+    throw new VotexApiError("CONFLICT", "The delegation could not be stored");
+  }
+  logger.debug("Delegation created successfully");
 }
 
 /**
@@ -136,38 +124,28 @@ export async function createDelegation(
 export async function revokeDelegation(
   electionId: string,
   keypair: StoredKeypair
-): Promise<boolean> {
-  try {
-    const sessionToken = getStoredWorldIdSessionToken();
-    if (!sessionToken) {
-      logger.error("Cannot revoke delegation without a stored voter session");
-      return false;
-    }
+): Promise<void> {
+  const sessionToken = getStoredWorldIdSessionToken();
+  if (!sessionToken) {
+    throw new VotexApiError("SESSION_REQUIRED", "Sign in before revoking a delegation");
+  }
 
-    const authorization = await createDelegationAuthorization(
-      keypair,
-      "revoke",
-      electionId
-    );
+  const authorization = await createDelegationAuthorization(keypair, "revoke", electionId);
 
-    const { data, error } = await supabase.functions.invoke("delegation-write", {
-      body: {
-        action: "revoke",
-        electionId,
-        sessionToken,
-        authorization,
-      },
-    });
+  const { data, error } = await supabase.functions.invoke("delegation-write", {
+    body: {
+      action: "revoke",
+      electionId,
+      sessionToken,
+      authorization,
+    },
+  });
 
-    if (error || !data?.success) {
-      logger.error("Error revoking delegation:", error ?? data);
-      return false;
-    }
-
-    return true;
-  } catch (error) {
-    logger.error("Error in revokeDelegation:", error);
-    return false;
+  if (error) {
+    throw await readFunctionError(error, "CONFLICT", "The delegation could not be revoked");
+  }
+  if (!data?.success) {
+    throw new VotexApiError("CONFLICT", "The delegation could not be revoked");
   }
 }
 

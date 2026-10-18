@@ -18,6 +18,8 @@ export interface TallyResult {
   nullificationCount: number;
   voteNullified: boolean;
   voteWeight: number;
+  /** When the tally run that produced this row finished (from public_tallies). */
+  processedAt?: string;
 }
 
 export interface ElectionTallyResult {
@@ -273,7 +275,7 @@ export async function getElectionTallyResults(
     const pages = await fetchAllRows((from, to) =>
       supabase
         .from("public_tallies")
-        .select("voter_pseudonym, nullification_count, vote_nullified, vote_weight")
+        .select("voter_pseudonym, nullification_count, vote_nullified, vote_weight, processed_at")
         .eq("election_id", electionId)
         .order("voter_pseudonym", { ascending: true })
         .range(from, to)
@@ -286,6 +288,7 @@ export async function getElectionTallyResults(
               nullification_count: row.nullification_count,
               vote_nullified: row.vote_nullified,
               vote_weight: row.vote_weight,
+              processed_at: row.processed_at,
             }]
           : []
     );
@@ -295,6 +298,7 @@ export async function getElectionTallyResults(
       nullificationCount: item.nullification_count,
       voteNullified: item.vote_nullified,
       voteWeight: item.vote_weight ?? 1,
+      processedAt: item.processed_at ?? undefined,
     }));
   } catch (error) {
     logger.error("Error in getElectionTallyResults:", error);
