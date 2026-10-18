@@ -53,14 +53,12 @@ CI runs the same commands.
 2. New tables and functions are deny-by-default for `anon` and `authenticated`
    (default privileges were revoked in `20260909000000`); grant exactly what the
    browser needs, usually `SELECT` on a `public_*` view.
-3. Replay everything on a throwaway PostgreSQL before pushing. With a local
-   PostgreSQL 17 installed you can create a cluster with `initdb`, create the
-   roles `anon`, `authenticated`, `service_role` and `postgres`, a stub
-   `auth.uid()` function and `storage` schema, then `psql -f` each migration in
-   order. Assert the privilege state with
-   `SELECT * FROM information_schema.role_table_grants WHERE grantee IN ('anon','authenticated') AND privilege_type <> 'SELECT'`
-   (expect no rows). `supabase db push --linked --dry-run` shows what a
-   deployment would apply.
+3. Replay everything on a throwaway PostgreSQL before pushing:
+   `scripts/replay-migrations.sh` (needs PostgreSQL 17's `initdb`, `pg_ctl`
+   and `psql` on PATH). It creates a temporary cluster with stub Supabase
+   roles and schemas, applies every migration in order, and prints the
+   non-SELECT grants held by `anon`/`authenticated` (expect none).
+   `supabase db push --linked --dry-run` shows what a deployment would apply.
 4. Regenerate `src/integrations/supabase/types.ts` if a view or table changed.
 
 ## Rebuilding the circuit

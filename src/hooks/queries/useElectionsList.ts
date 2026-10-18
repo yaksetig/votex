@@ -13,6 +13,8 @@ export interface ElectionRecord {
   option2: string;
   end_date: string;
   closed_manually_at?: string | null;
+  status?: string | null;
+  show_running_tally?: boolean | null;
   authority_id?: string | null;
   election_authorities?: { name?: string | null } | null;
   voteCount: number;

@@ -158,6 +158,7 @@ const ElectionDetail = () => {
       }
       const normalizedElection: Election = {
         ...electionData,
+        show_running_tally: electionData.show_running_tally ?? true,
         id: electionData.id,
         title: electionData.title,
         description: electionData.description,

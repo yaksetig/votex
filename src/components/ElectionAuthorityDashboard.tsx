@@ -298,7 +298,7 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
             )}
             {canEdit && safeToEdit && (
               <Suspense fallback={<TabPaneLoading />}>
-                <ElectionEditForm election={election} safeToEdit={safeToEdit} onElectionUpdated={handleElectionUpdated} />
+                <ElectionEditForm election={election} onElectionUpdated={handleElectionUpdated} />
               </Suspense>
             )}
           </TabsContent>

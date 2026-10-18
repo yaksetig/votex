@@ -94,6 +94,7 @@ _What the voter is told about what their action does and who can see it._
 - **Where:** ElectionDetail.tsx:613,635,675,792; Elections.tsx:234 says plain “votes”
 - **Evidence:** Counts come straight from the tracking tables.
 - **Change:** Use “votes” everywhere; reserve “verified” for receipt signature checks.
+- **Status:** Resolved in Phase D (elections list and creation)
 
 ### UX-011 · Medium · Decorative elements read as live data
 
@@ -231,6 +232,7 @@ _The ballot panel, option selection, delegation dialog and their states._
 - **Where:** ElectionDetail.tsx:665-666 (“Current support 62%”)
 - **Evidence:** Bandwagon pressure inside the ballot itself. The running tally is a stated design choice, but it need not sit on the option buttons.
 - **Change:** Show the distribution after the voter casts, or in the sidebar, not on the options.
+- **Status:** Resolved in Phase D (elections list and creation)
 
 ### UX-032 · Medium · Option cards misalign when titles wrap
 
@@ -243,6 +245,7 @@ _The ballot panel, option selection, delegation dialog and their states._
 - **Where:** Elections.tsx:220 forces 100%; ElectionDetail.tsx:476-477 rounds independently
 - **Evidence:** Can show 50%/50% for a 1-vs-2 split on the detail page.
 - **Change:** One shared formatter that distributes rounding.
+- **Status:** Resolved in Phase D (elections list and creation)
 
 ### UX-034 · Medium · Tie state has no treatment
 
@@ -381,60 +384,70 @@ _The browser, filters, the inline composer and the edit form._
 - **Where:** ElectionEditForm.tsx:52 (toISOString().slice(0,16))
 - **Evidence:** The prefilled time differs from the “Current end date” box beside it by the UTC offset; saving any field rewrites the deadline.
 - **Change:** Format with a local formatter (date-fns format “yyyy-MM-dd'T'HH:mm”).
+- **Status:** Resolved in Phase D (elections list and creation)
 
 ### UX-053 · High · Deadline input has no label, no minimum, no default and no timezone hint
 
 - **Where:** ElectionForm.tsx:101; ElectionEditForm.tsx:218-224; axe: label (critical)
 - **Evidence:** Empty submit shows the zod default “Invalid date” (screenshot 18). Past dates are accepted until submit.
 - **Change:** Label “Closing date and time”, min = now, default +7 days, “Times are in your local timezone (UTC±X)”.
+- **Status:** Resolved in Phase D (elections list and creation)
 
 ### UX-054 · High · Validation errors are not associated with their fields
 
 - **Where:** ElectionForm.tsx:54-102; ElectionEditForm.tsx:151-227
 - **Evidence:** No aria-invalid, aria-describedby or live region; screen-reader users get focus but no message. No required markers or length counters for the 100/500/50 limits.
 - **Change:** Wire aria-invalid and aria-describedby; add required indicators and counters.
+- **Status:** Resolved in Phase D (elections list and creation)
 
 ### UX-055 · High · No duplicate-option check
 
 - **Where:** ElectionForm/schema.ts; ElectionDetail.tsx:596-602 keys on option text
 - **Evidence:** “Yes”/“Yes” or “Yes”/“ Yes” publishes and breaks counting keys.
 - **Change:** Refine: trimmed, case-insensitive options must differ.
+- **Status:** Resolved in Phase D (elections list and creation)
 
 ### UX-056 · Medium · Empty state reads as a failed search even when nothing exists
 
 - **Where:** Elections.tsx:207-213 (“No elections found / Try another search”, “Show All Elections” while All is active; screenshot 7/16)
 - **Evidence:** Misleading for a fresh deployment; the reset button is a no-op.
 - **Change:** Branch on “no elections yet” vs “no matches”; hide the reset when no filter is active.
+- **Status:** Resolved in Phase D (elections list and creation)
 
 ### UX-057 · Medium · “Create Election” toggles an inline composer; “Close Composer” discards without confirm and uses a plus icon
 
 - **Where:** Elections.tsx:151-154 (screenshot 18)
 - **Evidence:** Button lacks aria-expanded; focus is not moved into the form; the icon contradicts the action.
 - **Change:** Move to a dialog or dedicated route; add aria-expanded; confirm discard; swap the icon.
+- **Status:** Resolved in Phase D (elections list and creation)
 
 ### UX-058 · Medium · Only entry point into an election is a small text button
 
 - **Where:** Elections.tsx:268-275 (“Vote” / “Results”, ~20 px tall)
 - **Evidence:** Card and title are not links.
 - **Change:** Make the title a stretched link; keep the explicit CTA with a 44 px target.
+- **Status:** Resolved in Phase D (elections list and creation)
 
 ### UX-059 · Medium · Sort select loses its label on phones
 
 - **Where:** Elections.tsx:192-202 (“Sort” is hidden sm:inline); axe: select-name (critical)
 - **Evidence:** display:none removes the accessible name.
 - **Change:** Use sr-only sm:not-sr-only.
+- **Status:** Resolved in Phase D (elections list and creation)
 
 ### UX-060 · Medium · Load error and empty state render together, plus a toast
 
 - **Where:** Elections.tsx:56-63,127-133,207-213
 - **Evidence:** Three messages for one failure.
 - **Change:** Show one inline error with Retry; suppress the empty state when isError.
+- **Status:** Resolved in Phase D (elections list and creation)
 
 ### UX-061 · Medium · Pagination loses focus and does not scroll
 
 - **Where:** Elections.tsx:284-305 (Next becomes disabled while focused; indicator not live)
 - **Evidence:** Keyboard users land on body on the last page.
 - **Change:** aria-disabled, aria-live on the indicator, scroll to the list heading on change.
+- **Status:** Resolved in Phase D (elections list and creation)
 
 ### UX-062 · Medium · Election cards show “4 years” with no absolute date; closed cards show a bare “10/17/2026”
 
@@ -448,18 +461,21 @@ _The browser, filters, the inline composer and the edit form._
 - **Where:** ElectionForm.tsx:75,83 (“Approve Bond”/“Decline Bond”) with defaults “Yes”/“No”
 - **Evidence:** Dead copy.
 - **Change:** Drop the defaults or the placeholders.
+- **Status:** Resolved in Phase D (elections list and creation)
 
 ### UX-064 · Low · Dead unsafe-edit branch in the edit form
 
 - **Where:** ElectionEditForm.tsx:65-73,128-142,180,195; parent mounts the form only when safeToEdit
 - **Evidence:** Window.confirm, red warning and locked inputs can never show, and their copy contradicts the dashboard.
 - **Change:** Delete the branch.
+- **Status:** Resolved in Phase D (elections list and creation)
 
 ### UX-065 · Low · “Unsaved changes will be recorded in the audit trail”
 
 - **Where:** ElectionEditForm.tsx:245
 - **Evidence:** States the opposite of what happens.
 - **Change:** “Saving records this change in the audit trail.”
+- **Status:** Resolved in Phase D (elections list and creation)
 
 ### UX-066 · Low · “1 elections”, “1 votes”
 
@@ -798,6 +814,7 @@ _Toasts, loading, empty, error and offline behaviour._
 - **Where:** Elections.tsx:68 (screenshot 20)
 - **Evidence:** The new election appears as a card with a toast; the natural next step (open it, share it) is not offered.
 - **Change:** Navigate to the new election, or add “Open” to the toast.
+- **Status:** Resolved in Phase D (elections list and creation)
 
 ### UX-116 · Low · Redundant success toasts
 

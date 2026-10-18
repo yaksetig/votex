@@ -39,6 +39,7 @@ export interface CreateElectionRequest {
   option2: string;
   endDate: string;
   idempotencyKey: string;
+  showRunningTally: boolean;
 }
 
 export interface CreateElectionResponse {

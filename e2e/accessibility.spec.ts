@@ -11,10 +11,6 @@ import { installDeterministicPasskey, installVotexBackend } from "./support/vote
  * Add to it only with a UX id and remove entries as soon as they pass.
  */
 const KNOWN: Record<string, string[]> = {
-  // UX-059: the Sort label is display:none below sm (Phase D)
-  "/elections": ["select-name"],
-  // UX-053 deadline input has no label; UX-059 sort label (Phase D)
-  "create election form": ["label", "select-name"],
   // UX-119: outline-toned submit button text (Phase H)
   "authority sign-in": ["color-contrast"],
 };
@@ -23,6 +19,8 @@ type Findings = string[];
 
 /** Scans the page and appends blocking violations to `findings`; asserted once per test. */
 async function scan(page: Page, surface: string, findings: Findings) {
+  // Let colour transitions finish; axe samples computed colours mid-transition otherwise.
+  await page.waitForTimeout(350);
   const results = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
     .analyze();
@@ -30,7 +28,10 @@ async function scan(page: Page, surface: string, findings: Findings) {
   for (const violation of results.violations) {
     if (violation.impact !== "critical" && violation.impact !== "serious") continue;
     if (allowed.has(violation.id)) continue;
-    const targets = violation.nodes.slice(0, 3).map((node) => node.target.join(" ")).join(" | ");
+    const targets = violation.nodes
+      .slice(0, 3)
+      .map((node) => `${node.target.join(" ")} — ${node.failureSummary?.split("\n").slice(1, 2).join("") ?? ""}`)
+      .join(" | ");
     findings.push(`[${surface}] ${violation.id} (${violation.impact}): ${targets}`);
   }
 }
@@ -62,6 +63,7 @@ test.describe("accessibility", () => {
 
     await page.goto("/elections");
     await page.getByRole("button", { name: "Create Election" }).click();
+    await expect(page.getByRole("heading", { name: "Create an election" })).toBeVisible();
     await scan(page, "create election form", findings);
 
     await page.getByLabel("Election title").fill("Accessibility Check Election");

@@ -334,6 +334,7 @@ export type Database = {
           last_modified_by: string | null
           option1: string
           option2: string
+          show_running_tally: boolean
           status: string | null
           title: string
         }
@@ -349,6 +350,7 @@ export type Database = {
           last_modified_by?: string | null
           option1?: string
           option2?: string
+          show_running_tally?: boolean
           status?: string | null
           title: string
         }
@@ -362,6 +364,7 @@ export type Database = {
           id?: string
           last_modified_at?: string | null
           last_modified_by?: string | null
+          show_running_tally?: boolean
           option1?: string
           option2?: string
           status?: string | null
@@ -719,6 +722,7 @@ export type Database = {
           id: string | null
           option1: string | null
           option2: string | null
+          show_running_tally: boolean | null
           status: string | null
           title: string | null
         }

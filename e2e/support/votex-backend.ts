@@ -334,6 +334,7 @@ async function handleFunction(route: Route, state: VotexTestState, functionName:
         option1: body.option1,
         option2: body.option2,
         end_date: body.endDate,
+        show_running_tally: body.showRunningTally ?? true,
         created_at: now,
         creator: VOTER_ID,
         authority_id: AUTHORITY_ID,
@@ -477,7 +478,6 @@ async function handleFunction(route: Route, state: VotexTestState, functionName:
       submitted.forEach((nullification) => state.nullifications.push({
         id: crypto.randomUUID(),
         election_id: body.electionId,
-        target_pseudonym: VOTER_ID,
         target_pseudonym: nullification.userId,
         nullifier_zkp: nullification.zkp,
         created_at: now,

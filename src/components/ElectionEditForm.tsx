@@ -2,46 +2,57 @@ import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import {
-  AlertTriangle,
-  CalendarDays,
-  Edit3,
-  Save,
-} from "lucide-react";
+import { CalendarDays, Edit3, Loader2, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { FormField } from "@/components/FormField";
 import { useToast } from "@/hooks/use-toast";
 import { updateElectionDetails } from "@/services/electionOperationsService";
-import { electionFieldSchemas } from "@/components/ElectionForm/schema";
+import {
+  DISTINCT_OPTIONS_MESSAGE,
+  ELECTION_LIMITS,
+  electionFieldSchemas,
+  optionsAreDistinct,
+} from "@/components/ElectionForm/schema";
 import type { Election } from "@/types/election";
 import { Time } from "@/components/Time";
+import { describeError } from "@/lib/errorMessages";
+import { describeLocalTimezone, toDateTimeLocalValue } from "@/lib/format";
 
-const editElectionSchema = z.object({
-  ...electionFieldSchemas,
-  end_date: z.string().min(1, "End date is required"),
-});
+const editElectionSchema = z
+  .object({
+    ...electionFieldSchemas,
+    end_date: z
+      .string()
+      .min(1, "Choose a closing date and time")
+      .refine((value) => new Date(value).getTime() > Date.now(), { message: "Choose a closing date in the future" }),
+  })
+  .refine((values) => optionsAreDistinct(values.option1, values.option2), {
+    message: DISTINCT_OPTIONS_MESSAGE,
+    path: ["option2"],
+  });
 
 type EditElectionFormValues = z.infer<typeof editElectionSchema>;
 
 interface ElectionEditFormProps {
   election: Election;
-  safeToEdit: boolean;
   onElectionUpdated: () => void;
 }
 
-const ElectionEditForm: React.FC<ElectionEditFormProps> = ({
-  election,
-  onElectionUpdated,
-  safeToEdit,
-}) => {
+/**
+ * Edits an election that has no ballots yet. The dashboard only mounts this
+ * form while editing is safe, and the database refuses updates afterwards,
+ * so there is no "edit anyway" path here.
+ */
+const ElectionEditForm: React.FC<ElectionEditFormProps> = ({ election, onElectionUpdated }) => {
   const [isUpdating, setIsUpdating] = useState(false);
   const { toast } = useToast();
 
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isDirty },
   } = useForm<EditElectionFormValues>({
     resolver: zodResolver(editElectionSchema),
@@ -50,55 +61,43 @@ const ElectionEditForm: React.FC<ElectionEditFormProps> = ({
       description: election.description,
       option1: election.option1,
       option2: election.option2,
-      end_date: new Date(election.end_date).toISOString().slice(0, 16),
+      // Local time, never UTC: the input shows what the voter sees.
+      end_date: toDateTimeLocalValue(election.end_date),
+      showRunningTally: election.show_running_tally ?? true,
     },
   });
 
+  const [title, description, option1, option2, showRunningTally] = watch([
+    "title",
+    "description",
+    "option1",
+    "option2",
+    "showRunningTally",
+  ]);
+
   const onSubmit = async (data: EditElectionFormValues) => {
     if (!isDirty) {
-      toast({
-        title: "No changes detected",
-        description: "Update one or more fields before saving.",
-      });
+      toast({ key: "election-edit", title: "No changes to save" });
       return;
     }
-
-    if (!safeToEdit) {
-      const confirmed = window.confirm(
-        "This election already has votes. Updating labels or dates may affect audit expectations. Continue?"
-      );
-
-      if (!confirmed) {
-        return;
-      }
-    }
-
     try {
       setIsUpdating(true);
-
-      const success = await updateElectionDetails(election.id, {
+      await updateElectionDetails(election.id, {
+        title: data.title,
         description: data.description,
-        end_date: new Date(data.end_date).toISOString(),
         option1: data.option1,
         option2: data.option2,
-        title: data.title,
+        end_date: new Date(data.end_date).toISOString(),
+        show_running_tally: data.showRunningTally,
       });
-
-      if (!success) {
-        throw new Error("Failed to update election");
-      }
-
-      toast({
-        title: "Election updated",
-        description: "The revised election details have been saved.",
-      });
+      toast({ key: "election-edit", title: "Election updated", description: "The change is recorded in the audit trail." });
       onElectionUpdated();
     } catch (error) {
       toast({
+        key: "election-edit",
         variant: "destructive",
-        title: "Update failed",
-        description:
-          error instanceof Error ? error.message : "Unknown error occurred",
+        title: "Election not updated",
+        description: describeError(error, "The changes could not be saved. Try again."),
       });
     } finally {
       setIsUpdating(false);
@@ -106,159 +105,135 @@ const ElectionEditForm: React.FC<ElectionEditFormProps> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-8" aria-labelledby="edit-election-title" noValidate>
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-2xl">
-          <p className="ledger-eyebrow">Election editor</p>
-          <h2 className="mt-2 font-headline text-3xl font-extrabold text-primary">
-            Refine ballot language and timeline
+          <p className="ledger-eyebrow">Edit election</p>
+          <h2 id="edit-election-title" className="mt-2 font-headline text-3xl font-bold text-primary">
+            Edit the question and the closing time
           </h2>
           <p className="mt-3 text-sm leading-relaxed text-on-surface-variant">
-            Use this form to update the active election metadata. Changes are recorded in the audit trail and should preserve the meaning of already published commitments.
+            Editing is possible until the first ballot is cast. Saving records the change in the audit trail.
           </p>
         </div>
-
         <div className="rounded-xl bg-surface-container-low px-5 py-4">
-          <p className="ledger-eyebrow">Current end date</p>
+          <p className="ledger-eyebrow">Currently closes</p>
           <p className="mt-2 font-semibold text-primary">
             <Time value={election.end_date} relative />
           </p>
         </div>
       </div>
 
-      {!safeToEdit && (
-        <div className="rounded-xl border border-error/20 bg-error-container/70 p-5 text-on-error-container">
-          <div className="flex items-start gap-4">
-            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-error" />
-            <div>
-              <h3 className="font-headline text-xl font-bold text-primary">
-                Editing after votes have been cast is risky
-              </h3>
-              <p className="mt-2 text-sm leading-relaxed">
-                Option labels are locked for good reason. If you proceed, keep the semantics stable so historical signatures and public expectations remain coherent.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1.15fr)_360px]">
         <div className="space-y-6">
-          <div className="rounded-xl border border-outline-variant/12 bg-surface-container-lowest p-6">
-            <Label htmlFor="title" className="ledger-eyebrow">
-              Election title
-            </Label>
-            <Input id="title" {...register("title")} className="mt-3" disabled={isUpdating} />
-            {errors.title && (
-              <p className="mt-2 text-sm text-error">{errors.title.message}</p>
-            )}
+          <div className="ledger-panel p-6">
+            <FormField
+              id="edit-title"
+              label="Election title"
+              required
+              error={errors.title?.message}
+              counter={{ value: title?.length ?? 0, max: ELECTION_LIMITS.title.max }}
+            >
+              {(a11y) => <Input {...register("title")} {...a11y} disabled={isUpdating} />}
+            </FormField>
           </div>
 
-          <div className="rounded-xl border border-outline-variant/12 bg-surface-container-lowest p-6">
-            <Label htmlFor="description" className="ledger-eyebrow">
-              Description
-            </Label>
-            <Textarea
-              id="description"
-              {...register("description")}
-              className="mt-3"
-              disabled={isUpdating}
-            />
-            {errors.description && (
-              <p className="mt-2 text-sm text-error">{errors.description.message}</p>
-            )}
+          <div className="ledger-panel p-6">
+            <FormField
+              id="edit-description"
+              label="Context"
+              required
+              error={errors.description?.message}
+              counter={{ value: description?.length ?? 0, max: ELECTION_LIMITS.description.max }}
+            >
+              {(a11y) => <Textarea {...register("description")} {...a11y} rows={4} disabled={isUpdating} />}
+            </FormField>
           </div>
 
           <div className="grid gap-6 md:grid-cols-2">
-            <div className="rounded-xl border border-outline-variant/12 bg-surface-container-lowest p-6">
-              <Label htmlFor="option1" className="ledger-eyebrow">
-                Option A
-              </Label>
-              <Input
-                id="option1"
-                {...register("option1")}
-                className="mt-3"
-                disabled={isUpdating || !safeToEdit}
-              />
-              {errors.option1 && (
-                <p className="mt-2 text-sm text-error">{errors.option1.message}</p>
-              )}
+            <div className="ledger-panel p-6">
+              <FormField
+                id="edit-option1"
+                label="Option A"
+                required
+                error={errors.option1?.message}
+                counter={{ value: option1?.length ?? 0, max: ELECTION_LIMITS.option.max }}
+              >
+                {(a11y) => <Input {...register("option1")} {...a11y} disabled={isUpdating} />}
+              </FormField>
             </div>
-
-            <div className="rounded-xl border border-outline-variant/12 bg-surface-container-lowest p-6">
-              <Label htmlFor="option2" className="ledger-eyebrow">
-                Option B
-              </Label>
-              <Input
-                id="option2"
-                {...register("option2")}
-                className="mt-3"
-                disabled={isUpdating || !safeToEdit}
-              />
-              {errors.option2 && (
-                <p className="mt-2 text-sm text-error">{errors.option2.message}</p>
-              )}
+            <div className="ledger-panel p-6">
+              <FormField
+                id="edit-option2"
+                label="Option B"
+                required
+                error={errors.option2?.message}
+                counter={{ value: option2?.length ?? 0, max: ELECTION_LIMITS.option.max }}
+              >
+                {(a11y) => <Input {...register("option2")} {...a11y} disabled={isUpdating} />}
+              </FormField>
             </div>
           </div>
         </div>
 
         <aside className="space-y-6">
-          <div className="rounded-xl border border-outline-variant/12 bg-surface-container-lowest p-6">
+          <div className="ledger-panel p-6">
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-white">
-                <CalendarDays className="h-5 w-5" />
+                <CalendarDays className="h-5 w-5" aria-hidden="true" />
               </div>
-              <div>
-                <p className="ledger-eyebrow">Voting deadline</p>
-                <h3 className="mt-1 font-headline text-2xl font-bold text-primary">
-                  Adjust closing time
-                </h3>
-              </div>
+              <h3 className="font-headline text-xl font-bold text-primary">Closing</h3>
             </div>
-
-            <Input
-              id="end_date"
-              type="datetime-local"
-              {...register("end_date")}
+            <FormField
+              id="edit-end_date"
+              label="Closing date and time"
+              required
+              hint={`Times are in your local timezone, ${describeLocalTimezone()}.`}
+              error={errors.end_date?.message}
               className="mt-5"
-              disabled={isUpdating}
-            />
-            {errors.end_date && (
-              <p className="mt-2 text-sm text-error">{errors.end_date.message}</p>
-            )}
+            >
+              {(a11y) => (
+                <Input
+                  type="datetime-local"
+                  {...register("end_date")}
+                  {...a11y}
+                  min={toDateTimeLocalValue(new Date(Date.now() + 60_000))}
+                  disabled={isUpdating}
+                />
+              )}
+            </FormField>
           </div>
 
-          <div className="rounded-xl bg-primary p-6 text-on-primary">
-            <p className="ledger-eyebrow text-on-primary-container">Editing rules</p>
-            <div className="mt-4 space-y-3 text-sm text-white/74">
-              <p>Keep option labels precise and stable.</p>
-              <p>Do not rewrite the question after votes exist unless the policy owner explicitly approves.</p>
-              <p>Every save becomes part of the authority audit trail.</p>
-            </div>
+          <div className="ledger-panel p-6">
+            <label htmlFor="edit-showRunningTally" className="flex cursor-pointer items-start gap-3">
+              <input
+                id="edit-showRunningTally"
+                type="checkbox"
+                {...register("showRunningTally")}
+                disabled={isUpdating}
+                className="mt-1 h-5 w-5 shrink-0 rounded border-outline-variant text-secondary focus:ring-secondary"
+              />
+              <span>
+                <span className="block font-semibold text-primary">Show running results while voting</span>
+                <span className="mt-1 block text-xs leading-relaxed text-on-surface-variant">
+                  {showRunningTally
+                    ? "Voters see the current count before they choose."
+                    : "Counts stay hidden until the election closes. Ballots themselves remain public."}
+                </span>
+              </span>
+            </label>
           </div>
         </aside>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-4 border-t border-outline-variant/15 pt-6">
-        <div className="inline-flex items-center gap-3 text-sm text-on-surface-variant">
-          <Edit3 className="h-4 w-4 text-surface-tint" />
-          {isDirty
-            ? "Unsaved changes will be recorded in the audit trail."
-            : "No pending changes."}
-        </div>
-
-        <Button type="submit" disabled={isUpdating || !isDirty}>
-          {isUpdating ? (
-            <>
-              <Save className="h-4 w-4 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <Save className="h-4 w-4" />
-              Save Changes
-            </>
-          )}
+      <div className="flex flex-wrap items-center justify-between gap-4 border-t border-outline-variant pt-6">
+        <p className="inline-flex items-center gap-3 text-sm text-on-surface-variant" role="status">
+          <Edit3 className="h-4 w-4 text-surface-tint" aria-hidden="true" />
+          {isDirty ? "Saving records this change in the audit trail." : "No changes yet."}
+        </p>
+        <Button type="submit" busy={isUpdating} aria-disabled={!isDirty || undefined}>
+          {isUpdating ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Save className="h-4 w-4" aria-hidden="true" />}
+          {isUpdating ? "Saving…" : "Save changes"}
         </Button>
       </div>
     </form>

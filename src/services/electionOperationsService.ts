@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/services/logger";
+import { VotexApiError, type ApiErrorCode } from "@/types/api";
 
 export async function closeElectionEarly(electionId: string): Promise<boolean> {
   const { data, error } = await supabase.rpc("close_election_atomic", {
@@ -22,8 +23,9 @@ export async function updateElectionDetails(
     option1?: string;
     option2?: string;
     end_date?: string;
+    show_running_tally?: boolean;
   }
-): Promise<boolean> {
+): Promise<void> {
   const { data, error } = await supabase.rpc("update_election_details_atomic", {
     p_election_id: electionId,
     p_updates: updates,
@@ -31,9 +33,18 @@ export async function updateElectionDetails(
 
   if (error || data !== true) {
     logger.error("Election update failed", error);
-    return false;
+    // The RPC raises its reason as the message (ELECTION_ALREADY_STARTED,
+    // AUTHORITY_REQUIRED, INVALID_ELECTION_UPDATE); map the known ones.
+    const reason = error?.message ?? "";
+    const code: ApiErrorCode = reason.includes("ELECTION_ALREADY_STARTED")
+      ? "ELECTION_ALREADY_STARTED"
+      : reason.includes("AUTHORITY_REQUIRED")
+        ? "AUTHORITY_REQUIRED"
+        : reason.includes("INVALID_ELECTION_UPDATE")
+          ? "VALIDATION_ERROR"
+          : "CONFLICT";
+    throw new VotexApiError(code, reason || "Election update failed");
   }
-  return true;
 }
 
 export async function isElectionSafeToEdit(electionId: string): Promise<boolean> {

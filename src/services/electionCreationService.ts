@@ -25,6 +25,7 @@ export async function createElection(form: FormData): Promise<CreateElectionResp
       option2: form.option2,
       endDate: form.endDate.toISOString(),
       idempotencyKey: crypto.randomUUID(),
+      showRunningTally: form.showRunningTally,
     },
   });
 

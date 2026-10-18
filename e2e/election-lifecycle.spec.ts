@@ -24,7 +24,7 @@ test("verified voter creates, delegates, signs, audits, nullifies, closes, and t
   await expect(page.getByText("Election published", { exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "E2E Community Proposal" })).toBeVisible();
 
-  await page.getByRole("button", { name: "Vote", exact: true }).click();
+  // Publishing lands on the new election's page.
   await expect(page.getByRole("heading", { name: "Cast your ballot" })).toBeVisible();
   await page.getByRole("button", { name: "Unlock passkey" }).click();
   await expect(page.getByRole("button", { name: "Unlock passkey" })).toBeHidden();
