@@ -577,14 +577,15 @@ const ElectionDetail = () => {
                 <div className="ledger-panel p-6">
                   <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
                     <div>
-                      <h2 className="font-headline text-2xl font-bold text-primary">Unlock your ballot key</h2>
+                      <h2 className="font-headline text-2xl font-bold text-primary">Unlock your passkey to continue</h2>
                       <p className="mt-2 text-sm leading-relaxed text-on-surface-variant">
-                        Voting and nullification require the passkey-derived BabyJubJub keypair for this session.
+                        Your voting key is kept in this tab only, so each new tab or page reload asks for your passkey again.
+                        Unlocking derives the key in this browser; it is never sent to Votex.
                       </p>
                     </div>
                     <button type="button" onClick={rederiveKeypair} className="ledger-button-primary" aria-busy={isDerivingKey || undefined} aria-disabled={isDerivingKey || undefined}>
                       {isDerivingKey ? <Loader2 className="h-4 w-4 animate-spin" /> : <Fingerprint className="h-4 w-4" />}
-                      {isDerivingKey ? "Deriving..." : "Unlock Passkey"}
+                      {isDerivingKey ? "Waiting for your passkey…" : "Unlock passkey"}
                     </button>
                   </div>
                 </div>

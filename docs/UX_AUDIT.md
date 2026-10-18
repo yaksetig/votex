@@ -63,6 +63,7 @@ _What the voter is told about what their action does and who can see it._
 - **Where:** WorldIDSignIn.tsx:407; Dashboard.tsx:50,140; HowItWorks.tsx:54; FAQ.tsx:18
 - **Evidence:** The seed and scalar are written to sessionStorage for the tab lifetime and the PRF secret seeds a server-side verifier. The key is not sent to Votex, which is the true claim.
 - **Change:** Say “Your voting key is derived in this browser and is never sent to Votex. It stays in this tab until you sign out or close it.”
+- **Status:** Resolved in Phase C (sign-in and session)
 
 ### UX-006 · High · “Final decryption finished successfully” and “official result set” next to a replacement-tally button
 
@@ -277,30 +278,35 @@ _Passkey and World ID onboarding, session lifetime, logout._
 - **Where:** WorldIDSignIn.tsx:352-379 (screenshot 11)
 - **Evidence:** “Use an Existing Votex Passkey” is the filled primary above “Create a New Votex Passkey”; first-time users must notice the divider “First time here?”.
 - **Change:** One primary “Continue with passkey” that opens the native picker, plus a text link “I don't have a Votex passkey yet”.
+- **Status:** Resolved in Phase C (sign-in and session)
 
 ### UX-039 · High · RP signature failure leaves “Initializing…” forever
 
 - **Where:** WorldIDSignIn.tsx:86-113 (error only logged); :473-481
 - **Evidence:** If the rp-signature call fails, step 2 never becomes available and there is no retry.
 - **Change:** Render an error state with Retry.
+- **Status:** Resolved in Phase C (sign-in and session)
 
 ### UX-040 · High · World ID and passkey errors surface as raw codes
 
 - **Where:** WorldIDSignIn.tsx:290-294 (IDKit code), :182-187 (DOMException text), passkeyService.ts:205-208 (“PRF/hmac-secret extension”)
 - **Evidence:** Voters see “verification_rejected” or “NotAllowedError”.
 - **Change:** Map codes to sentences, e.g. “This passkey type can't be used for Votex. Try one stored in iCloud Keychain, Google Password Manager, or a security key that supports hmac-secret.”
+- **Status:** Resolved in Phase C (sign-in and session)
 
 ### UX-041 · High · Sign-out is an icon-only header button; nothing on the profile page
 
 - **Where:** NavBar.tsx:103-111 (h-10, no visible label); Dashboard.tsx
 - **Evidence:** Hard to find, easy to hit by accident, no confirmation.
 - **Change:** Add a labelled “Sign out” on the profile; keep the header icon with a tooltip and a confirm.
+- **Status:** Resolved in Phase C (sign-in and session)
 
 ### UX-042 · High · Session expiry is silent
 
 - **Where:** WalletContext.tsx:69-71 flips to unverified without a message
 - **Evidence:** A voter mid-flow gets whatever the server error says.
 - **Change:** Toast “Your session expired. Sign in again” and preserve a return path (?next=).
+- **Status:** Resolved in Phase C (sign-in and session)
 
 ### UX-043 · Medium · Three different post-sign-in landings
 
@@ -321,30 +327,35 @@ _Passkey and World ID onboarding, session lifetime, logout._
 - **Where:** WorldIDSignIn.tsx:386-404,485-494,503-512 (“Passkey Ready”, “Binding identity…”)
 - **Evidence:** Not actions, skipped by screen readers, state changes unannounced.
 - **Change:** Render as role=status text; keep buttons for actions only.
+- **Status:** Resolved in Phase C (sign-in and session)
 
 ### UX-046 · Medium · Step 2 panel dimmed to roughly 2.9:1 before the passkey step
 
 - **Where:** WorldIDSignIn.tsx:412-419 opacity-60 on the whole section
 - **Evidence:** Explanatory text becomes unreadable for low-vision users.
 - **Change:** Dim only the control; keep text at full opacity and mark the step aria-disabled.
+- **Status:** Resolved in Phase C (sign-in and session)
 
 ### UX-047 · Medium · Watermark fingerprint overlaps the step-1 text
 
 - **Where:** WorldIDSignIn.tsx:331-333 (screenshot 11/12)
 - **Evidence:** “originally registered.” runs into the decorative icon on desktop.
 - **Change:** Reserve right padding for the watermark or drop it.
+- **Status:** Resolved in Phase C (sign-in and session)
 
 ### UX-048 · Medium · New tab or refresh asks the voter to “Unlock Passkey” again with no explanation
 
 - **Where:** ElectionDetail.tsx:571-586; keypair lives in sessionStorage per tab
 - **Evidence:** Looks like a lost session.
 - **Change:** Add “Your voting key is kept per tab for safety; unlock to continue.”
+- **Status:** Resolved in Phase C (sign-in and session)
 
 ### UX-049 · Medium · Key-conflict recovery dead-ends
 
 - **Where:** WorldIDSignIn.tsx:276-278 hides the create button and offers only Support
 - **Evidence:** A voter who truly lost their passkey has no path.
 - **Change:** Offer the documented recovery path or a clear “contact support with this code”.
+- **Status:** Resolved in Phase C (sign-in and session)
 
 ### UX-050 · Low · Header shows “Sign In” link while on the sign-in page
 

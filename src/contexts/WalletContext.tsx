@@ -13,7 +13,9 @@ interface WalletContextType {
   setIsWorldIDVerified: (value: boolean) => void;
   setUserId: (id: string | null) => void;
   setDerivedPublicKey: (pk: { x: string; y: string } | null) => void;
-  resetIdentity: () => void;
+  resetIdentity: () => Promise<void>;
+  /** Clears local identity after the server reports an expired session and tells the voter why. */
+  markSessionExpired: () => void;
 }
 
 const WalletContext = createContext<WalletContextType>({
@@ -24,7 +26,8 @@ const WalletContext = createContext<WalletContextType>({
   setIsWorldIDVerified: () => {},
   setUserId: () => {},
   setDerivedPublicKey: () => {},
-  resetIdentity: () => {},
+  resetIdentity: async () => {},
+  markSessionExpired: () => {},
 });
 
 // The context hook is intentionally co-located with its provider.
@@ -47,6 +50,12 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     let cancelled = false;
 
     const restoreIdentity = async () => {
+      let hadStoredSession = false;
+      try {
+        hadStoredSession = Boolean(window.localStorage.getItem(SESSION_STORAGE_KEY));
+      } catch {
+        hadStoredSession = false;
+      }
       try {
         const session = await validateStoredWorldIdSession();
 
@@ -60,6 +69,15 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         } else {
           setUserId(null);
           setIsWorldIDVerified(false);
+          if (hadStoredSession) {
+            // The session was there last time; say why the voter is signed out
+            // instead of silently flipping the header.
+            toast({
+              key: "session",
+              title: "Your session expired",
+              description: "Sign in again to vote, delegate or nullify.",
+            });
+          }
         }
       } catch {
         if (!cancelled) {
@@ -78,6 +96,8 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     return () => {
       cancelled = true;
     };
+    // toast is a stable module-level dispatcher; run once on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   
   // A logout in one tab must not leave the seed and a verified state alive in
@@ -105,16 +125,26 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     setIsWorldIDVerified(false);
     setDerivedPublicKey(null);
     
-    toast(serverRevoked
-      ? {
-          title: "Identity reset",
-          description: "Your local identity was cleared and the server session was revoked.",
-        }
-      : {
-          variant: "destructive",
-          title: "Local identity cleared",
-          description: "Server revocation could not be confirmed. Retry from a trusted device before assuming copied sessions are invalid.",
-        });
+    if (!serverRevoked) {
+      toast({
+        key: "session",
+        variant: "destructive",
+        title: "Signed out on this device only",
+        description: "We couldn't confirm the sign-out with Votex. Sign out again when you are back online.",
+      });
+    }
+  };
+
+  const markSessionExpired = () => {
+    clearStoredKeypair();
+    setUserId(null);
+    setIsWorldIDVerified(false);
+    setDerivedPublicKey(null);
+    toast({
+      key: "session",
+      title: "Your session expired",
+      description: "Sign in again to continue.",
+    });
   };
   
   // Expose context values
@@ -126,7 +156,8 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     setIsWorldIDVerified,
     setUserId,
     setDerivedPublicKey,
-    resetIdentity
+    resetIdentity,
+    markSessionExpired,
   };
   
   return (

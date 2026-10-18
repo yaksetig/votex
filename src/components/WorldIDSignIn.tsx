@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   IDKitRequestWidget,
   orbLegacy,
@@ -18,7 +18,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { useWallet } from "@/contexts/WalletContext";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -40,6 +40,8 @@ import { logger } from "@/services/logger";
 import { createRegistrationOwnershipProof } from "@/services/registrationOwnershipProofService";
 import { WORLD_ID_DEFAULT_RP_ID, WORLD_ID_REGISTRATION_ACTION } from "@protocol";
 import { readFunctionError, VotexApiError } from "@/types/api";
+import { describeError, describeWorldIdError } from "@/lib/errorMessages";
+import { cn } from "@/lib/utils";
 
 type SignInStep =
   | "ready"
@@ -62,9 +64,32 @@ interface PreparedPasskey {
 const WORLD_ID_APP_ID = "app_e2fd2f8c99430ab200a093278e801c57";
 const WORLD_ID_RP_ID = import.meta.env.VITE_WORLD_ID_RP_ID ?? WORLD_ID_DEFAULT_RP_ID;
 const WORLD_ID_ACTION = WORLD_ID_REGISTRATION_ACTION;
-/** Lets the success toast render before leaving the sign-in page. */
+const SUPPORT_EMAIL = "support@votex.world";
 
 type PasskeyPreparationMode = "existing" | "new";
+
+/** A non-interactive progress or result row; replaces the old disabled buttons. */
+const StatusRow = ({
+  tone,
+  icon,
+  children,
+}: {
+  tone: "busy" | "done";
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}) => (
+  <div
+    role="status"
+    aria-live="polite"
+    className={cn(
+      "flex min-h-12 w-full items-center justify-center gap-3 rounded-xl px-6 py-3 text-base font-semibold",
+      tone === "busy" ? "bg-surface-container-low text-primary" : "bg-primary-fixed text-primary"
+    )}
+  >
+    {icon}
+    {children}
+  </div>
+);
 
 const WorldIDSignIn: React.FC = () => {
   const [step, setStep] = useState<SignInStep>("ready");
@@ -73,45 +98,43 @@ const WorldIDSignIn: React.FC = () => {
   const [hasKeyConflict, setHasKeyConflict] = useState(false);
   const [widgetOpen, setWidgetOpen] = useState(false);
   const [rpContext, setRpContext] = useState<RpContext | null>(null);
+  const [rpState, setRpState] = useState<"loading" | "ready" | "failed">("loading");
   const [returningIdentity, setReturningIdentity] = useState(false);
-  const {
-    setDerivedPublicKey,
-    setIsWorldIDVerified,
-    setUserId,
-  } = useWallet();
+  const { setDerivedPublicKey, setIsWorldIDVerified, setUserId } = useWallet();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const nextPath = safeNextPath(searchParams.get("next"), ROUTES.elections);
 
-  // Fetch RP signature on mount
-  useEffect(() => {
-    async function fetchRpSignature() {
-      try {
-        const { data, error: invokeError } = await supabase.functions.invoke(
-          "rp-signature",
-          {
-            body: { action: WORLD_ID_ACTION },
-          }
-        );
-
-        if (invokeError || !data) {
-          logger.error("Failed to fetch RP signature");
-          return;
-        }
-
-        setRpContext({
-          rp_id: WORLD_ID_RP_ID,
-          nonce: data.nonce,
-          created_at: data.created_at,
-          expires_at: data.expires_at,
-          signature: data.sig,
-        });
-      } catch (err) {
-        logger.error("Error fetching RP signature", err);
+  // World ID needs a server-signed relying-party context. Without it step 2
+  // cannot start, so a failure is shown with a retry rather than logged only.
+  const fetchRpSignature = useCallback(async () => {
+    setRpState("loading");
+    try {
+      const { data, error: invokeError } = await supabase.functions.invoke("rp-signature", {
+        body: { action: WORLD_ID_ACTION },
+      });
+      if (invokeError || !data) {
+        logger.error("Failed to fetch RP signature", invokeError);
+        setRpState("failed");
+        return;
       }
+      setRpContext({
+        rp_id: WORLD_ID_RP_ID,
+        nonce: data.nonce,
+        created_at: data.created_at,
+        expires_at: data.expires_at,
+        signature: data.sig,
+      });
+      setRpState("ready");
+    } catch (err) {
+      logger.error("Error fetching RP signature", err);
+      setRpState("failed");
     }
-    fetchRpSignature();
   }, []);
+
+  useEffect(() => {
+    void fetchRpSignature();
+  }, [fetchRpSignature]);
 
   const completeSession = async (
     nullifierHash: string,
@@ -119,7 +142,6 @@ const WorldIDSignIn: React.FC = () => {
     publicKey?: { x: string; y: string }
   ) => {
     const session = await createWorldIdSession(nullifierHash, prfSecret);
-
     setUserId(session.userId);
     setIsWorldIDVerified(true);
     if (publicKey) {
@@ -134,7 +156,7 @@ const WorldIDSignIn: React.FC = () => {
     if (responses?.[0]?.nullifier) {
       return responses[0].nullifier;
     }
-    throw new Error("No nullifier found in IDKit result");
+    throw new VotexApiError("VALIDATION_ERROR", "World ID returned no nullifier");
   };
 
   // Step 1: derive the passkey-backed keypair so we know the public key that
@@ -171,27 +193,27 @@ const WorldIDSignIn: React.FC = () => {
       const signal = await hashPublicKeyForSignal(keypair.pk);
       const verifierHash = await deriveSessionVerifierHash(prfResult.secret);
 
-      setPreparedPasskey({
-        prfSecret: prfResult.secret,
-        publicKey,
-        signal,
-        verifierHash,
-      });
+      setPreparedPasskey({ prfSecret: prfResult.secret, publicKey, signal, verifierHash });
       setStep("awaiting-worldid");
       setWidgetOpen(true);
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to prepare passkey";
-      setError(message);
+      logger.error("Passkey preparation failed", err);
+      setError(
+        describeError(
+          err,
+          mode === "new"
+            ? "Your passkey could not be created. Try again, or use a different browser or device."
+            : "Your passkey could not be read. Try again and pick the passkey you created for Votex."
+        )
+      );
       setStep("error");
     }
   };
 
   /** Called by IDKitRequestWidget to verify the proof on our backend */
   const handleVerify = async (result: IDKitResult) => {
-    // This is called before onSuccess — if it throws, onSuccess won't fire
-    // We don't do full verification here since that happens during registration
-    // Just validate the result shape
+    // This is called before onSuccess — if it throws, onSuccess won't fire.
+    // Full verification happens during registration; only the shape is checked here.
     const responses = (result as unknown as Record<string, unknown>).responses as Array<{ nullifier?: string }> | undefined;
     if (!responses?.[0]?.nullifier) {
       throw new Error("Invalid IDKit result: missing nullifier");
@@ -203,7 +225,7 @@ const WorldIDSignIn: React.FC = () => {
   // this is a new registration or a returning identity (alreadyExists).
   const handleWorldIDSuccess = async (result: IDKitResult) => {
     if (!preparedPasskey) {
-      setError("Passkey was not prepared before World ID verification");
+      setError("Your passkey step did not finish. Start again from step 1.");
       setStep("error");
       return;
     }
@@ -216,215 +238,185 @@ const WorldIDSignIn: React.FC = () => {
 
       // Prove possession of the passkey-derived private key for this exact
       // nullifier; register-keypair refuses bindings without it.
-      const ownershipProof = await createRegistrationOwnershipProof(
-        prfSecret,
-        getNullifier(result),
-        publicKey
-      );
+      const ownershipProof = await createRegistrationOwnershipProof(prfSecret, getNullifier(result), publicKey);
 
       // verifierHash is registered here, under the verified World ID proof;
       // worldid-session refuses to issue sessions for identities without one.
-      const { data, error: registerError } = await supabase.functions.invoke(
-        "register-keypair",
-        {
-          body: {
-            pk: publicKey,
-            signal,
-            idkitResult: result,
-            verifierHash,
-            ownershipProof,
-          },
-        }
-      );
+      const { data, error: registerError } = await supabase.functions.invoke("register-keypair", {
+        body: { pk: publicKey, signal, idkitResult: result, verifierHash, ownershipProof },
+      });
 
       if (registerError) {
-        throw await readFunctionError(
-          registerError,
-          "CONFLICT",
-          "Failed to bind World ID to the selected passkey"
-        );
+        throw await readFunctionError(registerError, "CONFLICT", "Failed to bind World ID to the selected passkey");
       }
-
       if (data?.error) {
-        throw new Error(data.error);
+        throw new VotexApiError(data.code ?? "CONFLICT", String(data.error));
       }
 
       const nullifier = getNullifier(result);
       await completeSession(nullifier, prfSecret, publicKey);
-      setStep("complete");
-
       // The confirmation step below owns the next move; no timer, no toast.
       setReturningIdentity(data?.alreadyExists === true);
+      setStep("complete");
     } catch (err) {
-      if (
-        err instanceof VotexApiError &&
-        (err.code === "KEYPAIR_ALREADY_BOUND" ||
-          err.message.toLowerCase().includes("already bound"))
-      ) {
+      logger.error("Registration failed", err);
+      if (err instanceof VotexApiError && err.code === "KEYPAIR_ALREADY_BOUND") {
         setPreparedPasskey(null);
         setWidgetOpen(false);
         setHasKeyConflict(true);
-        setError(
-          "This World ID is already linked to another Votex passkey. Choose the original passkey you used on votex.world; a newly created passkey produces a different voting key."
-        );
+        setError(null);
         setStep("error");
         return;
       }
-
-      const message =
-        err instanceof Error ? err.message : "Failed to register voting identity";
-      setError(message);
+      setError(describeError(err, "Your identity could not be registered. Try again in a moment."));
       setStep("error");
     }
   };
 
   const handleWorldIDError = (errorCode: unknown) => {
-    const code = typeof errorCode === "string" ? errorCode : String(errorCode);
-    setError(code || "World ID verification failed");
+    const code = typeof errorCode === "string" ? errorCode : undefined;
+    logger.error("World ID verification failed", errorCode);
+    setError(describeWorldIdError(code));
     setStep("error");
   };
 
-  const showPasskeyActions =
-    step === "ready" || (step === "error" && !preparedPasskey);
+  const showPasskeyActions = step === "ready" || (step === "error" && !preparedPasskey);
   const stepTwoEnabled =
     step === "awaiting-worldid" ||
     step === "registering" ||
     step === "complete" ||
     (step === "error" && !!preparedPasskey);
+  const supportHref = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Votex sign-in: passkey already linked")}`;
 
   return (
     <div className="relative flex min-h-[calc(100vh-64px)] items-center justify-center overflow-hidden px-4 py-10 sm:px-6">
-      <div className="absolute inset-0 ledger-grid-glow opacity-60" />
+      <div className="absolute inset-0 ledger-grid-glow opacity-60" aria-hidden="true" />
 
       <div className="relative z-10 w-full max-w-5xl">
         <div className="text-center">
-          <span className="ledger-badge bg-secondary-container text-on-secondary-container">
-            <ShieldCheck className="h-4 w-4" />
-            Secure voting portal
-          </span>
-          <h1 className="mt-5 font-headline text-3xl font-bold tracking-[-0.03em] text-primary sm:text-4xl">
-            Verify your <span className="text-secondary">identity</span>
+          <p className="ledger-eyebrow text-secondary">Sign in</p>
+          <h1 className="mt-3 font-headline text-3xl font-bold tracking-[-0.03em] text-primary sm:text-4xl">
+            Sign in to Votex
           </h1>
           <p className="mx-auto mt-3 max-w-2xl text-base leading-7 text-on-surface-variant">
-            Access your ballot through World ID proof-of-personhood and a passkey-derived cryptographic identity.
+            Two steps: unlock your Votex passkey, then confirm with World ID that you are a unique person.
           </p>
         </div>
 
         <div className="mx-auto mt-8 max-w-2xl space-y-4">
           {error && (
             <Alert variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
+              <AlertTriangle className="h-4 w-4" aria-hidden="true" />
+              <AlertTitle>Something went wrong</AlertTitle>
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
 
-          <section className="ledger-panel relative overflow-hidden p-5 sm:p-8">
-            <div className="absolute right-0 top-0 p-6 opacity-[0.06]">
-              <Fingerprint className="h-28 w-28" />
+          {hasKeyConflict && (
+            <Alert>
+              <KeyRound className="h-4 w-4" aria-hidden="true" />
+              <AlertTitle>This World ID is already linked to a different passkey</AlertTitle>
+              <AlertDescription>
+                <p>
+                  Choose the passkey you originally created for Votex. A newly created passkey produces a different
+                  voting key, so it cannot be linked to the same World ID.
+                </p>
+                <p className="mt-2">
+                  Lost the original passkey?{" "}
+                  <a href={supportHref} className="font-semibold text-secondary underline-offset-4 hover:underline">
+                    Contact support
+                  </a>{" "}
+                  and mention the code <code className="civic-mono">KEYPAIR_ALREADY_BOUND</code>.
+                </p>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <section className="ledger-panel relative overflow-hidden p-5 sm:p-8" aria-labelledby="step-1-title">
+            <div className="pointer-events-none absolute -right-4 -top-4 hidden opacity-[0.05] lg:block" aria-hidden="true">
+              <Fingerprint className="h-32 w-32" />
             </div>
 
-            <div className="relative z-10">
+            <div className="relative z-10 lg:pr-24">
               <div className="mb-6 flex items-center gap-4">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-on-primary">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-on-primary" aria-hidden="true">
                   1
                 </div>
                 <div>
-                  <h2 className="font-headline text-xl font-semibold text-primary">
-                    Unlock Your Voting Passkey
+                  <h2 id="step-1-title" className="font-headline text-xl font-semibold text-primary">
+                    Unlock your Votex passkey
                   </h2>
                   <p className="text-sm text-on-surface-variant">
-                    Returning voters should use the same passkey they originally registered.
+                    Use the same passkey you created when you first joined.
                   </p>
                 </div>
               </div>
 
               {showPasskeyActions ? (
                 <div className="space-y-3">
-                  <Button
-                    onClick={() => preparePasskey("existing")}
-                    size="lg"
-                    className="w-full justify-center text-base"
-                    variant="default"
-                  >
-                    <KeyRound className="h-5 w-5" />
-                    {hasKeyConflict
-                      ? "Choose Your Original Votex Passkey"
-                      : "Use an Existing Votex Passkey"}
+                  <Button onClick={() => preparePasskey("existing")} size="lg" className="w-full justify-center text-base">
+                    <KeyRound className="h-5 w-5" aria-hidden="true" />
+                    {hasKeyConflict ? "Choose your original Votex passkey" : "Continue with passkey"}
                   </Button>
 
                   {!hasKeyConflict && (
-                    <>
-                      <div className="flex items-center gap-3 py-1 text-xs font-bold uppercase tracking-[0.05em] text-outline">
-                        <span className="h-px flex-1 bg-outline-variant" />
-                        First time here?
-                        <span className="h-px flex-1 bg-outline-variant" />
-                      </div>
+                    <div className="text-center">
                       <Button
+                        type="button"
+                        variant="link"
                         onClick={() => preparePasskey("new")}
-                        size="lg"
-                        className="w-full justify-center text-base"
-                        variant="outline"
+                        className="text-sm font-semibold text-secondary"
                       >
-                        <Fingerprint className="h-5 w-5" />
-                        Create a New Votex Passkey
+                        <Fingerprint className="h-4 w-4" aria-hidden="true" />
+                        I don&apos;t have a Votex passkey yet
                       </Button>
-                      <p className="text-center text-xs leading-relaxed text-on-surface-variant">
-                        Only create one if you have never registered on votex.world. A new passkey creates a new cryptographic voting identity.
+                      <p className="mt-1 text-xs leading-relaxed text-on-surface-variant">
+                        Only create one if you have never joined Votex. A new passkey creates a new voting identity.
                       </p>
-                    </>
+                    </div>
                   )}
                 </div>
               ) : step === "preparing-passkey" ? (
-                <button
-                  type="button"
-                  disabled
-                  className="flex w-full items-center justify-center gap-3 rounded-[1rem] bg-secondary px-6 py-4 text-lg font-bold text-white opacity-95"
-                >
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  Setting up passkey...
-                </button>
+                <StatusRow tone="busy" icon={<Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />}>
+                  Waiting for your passkey…
+                </StatusRow>
               ) : (
-                <button
-                  type="button"
-                  disabled
-                  className="flex w-full items-center justify-center gap-3 rounded-[1rem] bg-secondary px-6 py-4 text-lg font-bold text-white opacity-95"
-                >
-                  <CheckCircle2 className="h-5 w-5" />
-                  Passkey Ready
-                </button>
+                <StatusRow tone="done" icon={<CheckCircle2 className="h-5 w-5" aria-hidden="true" />}>
+                  Passkey unlocked
+                </StatusRow>
               )}
 
-              <p className="mt-4 text-center text-[11px] font-bold uppercase tracking-[0.08em] text-outline">
-                Local key never leaves this device
+              <p className="mt-4 text-center text-sm text-on-surface-variant">
+                Your voting key is derived in this browser and is never sent to Votex.
               </p>
             </div>
           </section>
 
           <section
-            className={[
-                  "rounded-xl border p-5 transition-all sm:p-8",
+            aria-labelledby="step-2-title"
+            className={cn(
+              "rounded-xl border p-5 transition-colors sm:p-8",
               stepTwoEnabled
-                ? "border-outline-variant/12 bg-surface-container-lowest shadow-ledger"
-                : "border-dashed border-outline-variant bg-surface-container opacity-60",
-            ].join(" ")}
+                ? "border-outline-variant bg-surface-container-lowest shadow-ledger"
+                : "border-dashed border-outline-variant bg-surface-container-low"
+            )}
           >
             <div className="mb-6 flex items-center gap-4">
               <div
-                className={[
+                aria-hidden="true"
+                className={cn(
                   "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold",
-                  stepTwoEnabled
-                    ? "bg-surface-tint text-white"
-                    : "bg-outline-variant text-on-surface-variant",
-                ].join(" ")}
+                  stepTwoEnabled ? "bg-surface-tint text-white" : "bg-surface-container-highest text-on-surface-variant"
+                )}
               >
                 2
               </div>
               <div>
-                <h2 className="font-headline text-xl font-semibold text-primary">
-                  Authenticate via World ID
+                <h2 id="step-2-title" className="font-headline text-xl font-semibold text-primary">
+                  Confirm with World ID
                 </h2>
                 <p className="text-sm text-on-surface-variant">
-                  Verify that you are a unique human participant.
+                  {stepTwoEnabled ? "Prove you are a unique person." : "Available after step 1."}
                 </p>
               </div>
             </div>
@@ -445,8 +437,8 @@ const WorldIDSignIn: React.FC = () => {
               />
             )}
 
-            {(step === "awaiting-worldid" || (step === "error" && !!preparedPasskey)) && (
-              rpContext ? (
+            {(step === "awaiting-worldid" || (step === "error" && !!preparedPasskey)) &&
+              (rpState === "ready" ? (
                 <Button
                   onClick={() => {
                     setError(null);
@@ -455,33 +447,29 @@ const WorldIDSignIn: React.FC = () => {
                   }}
                   size="lg"
                   className="w-full justify-center text-base"
-                  variant="default"
                 >
-                  <ShieldCheck className="h-5 w-5" />
-                  {step === "error" ? "Retry World ID" : "Verify with World ID"}
+                  <ShieldCheck className="h-5 w-5" aria-hidden="true" />
+                  {step === "error" ? "Try World ID again" : "Verify with World ID"}
                 </Button>
+              ) : rpState === "failed" ? (
+                <div className="space-y-3" role="alert">
+                  <p className="text-sm leading-relaxed text-on-error-container">
+                    World ID could not be prepared because Votex did not answer. Check your connection and try again.
+                  </p>
+                  <Button onClick={() => void fetchRpSignature()} size="lg" variant="outline" className="w-full justify-center text-base">
+                    Retry
+                  </Button>
+                </div>
               ) : (
-                <Button
-                  disabled
-                  size="lg"
-                  className="w-full justify-center text-base"
-                  variant="default"
-                >
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  Initializing...
-                </Button>
-              )
-            )}
+                <StatusRow tone="busy" icon={<Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />}>
+                  Preparing World ID…
+                </StatusRow>
+              ))}
 
             {step === "registering" && (
-              <button
-                type="button"
-                disabled
-                className="flex w-full items-center justify-center gap-3 rounded-[1rem] bg-surface-container-high px-6 py-4 text-lg font-bold text-on-surface-variant"
-              >
-                <Loader2 className="h-5 w-5 animate-spin" />
-                Binding identity to passkey...
-              </button>
+              <StatusRow tone="busy" icon={<Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />}>
+                Linking your passkey to World ID…
+              </StatusRow>
             )}
 
             {step === "complete" && (
@@ -493,12 +481,7 @@ const WorldIDSignIn: React.FC = () => {
                     ? "Welcome back. Your passkey and World ID match an existing Votex identity."
                     : "Your Votex identity is ready. Your voting key is derived in this browser and is never sent to Votex."}
                 </p>
-                <Button
-                  type="button"
-                  className="mt-5 w-full"
-                  size="lg"
-                  onClick={() => navigate(nextPath, { replace: true })}
-                >
+                <Button type="button" className="mt-5 w-full" size="lg" onClick={() => navigate(nextPath, { replace: true })}>
                   {nextPath === ROUTES.elections ? "Continue to Elections" : "Continue"}
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </Button>
@@ -506,36 +489,35 @@ const WorldIDSignIn: React.FC = () => {
             )}
 
             {!stepTwoEnabled && (
-              <button
-                type="button"
-                disabled
-                className="flex w-full items-center justify-center gap-3 rounded-[1rem] bg-surface-container-high px-6 py-4 text-lg font-bold text-on-surface-variant"
+              <div
+                aria-disabled="true"
+                className="flex min-h-12 w-full items-center justify-center gap-3 rounded-xl border border-dashed border-outline-variant px-6 py-3 text-base font-semibold text-on-surface-variant"
               >
-                <ShieldCheck className="h-5 w-5" />
+                <ShieldCheck className="h-5 w-5" aria-hidden="true" />
                 Verify with World ID
-              </button>
+              </div>
             )}
           </section>
 
-          <div className="rounded-xl border border-outline-variant/12 bg-surface-container-low p-5">
+          <div className="rounded-xl border border-outline-variant bg-surface-container-low p-5">
             <div className="flex items-start gap-4">
-              <ShieldCheck className="mt-1 h-5 w-5 text-surface-tint" />
+              <ShieldCheck className="mt-1 h-5 w-5 shrink-0 text-surface-tint" aria-hidden="true" />
               <div>
-                <p className="font-headline text-lg font-bold text-primary">
-                  Cryptographic Integrity
-                </p>
+                <p className="font-headline text-lg font-bold text-primary">What Votex keeps</p>
                 <p className="mt-2 text-sm leading-relaxed text-on-surface-variant">
-                  Your cryptographic identity is derived from your passkey and used only locally for vote signing and protected session recovery. Server-side state stores only the verifier and session bindings needed to authenticate the same person later.
+                  Votex stores your pseudonym, the public half of your voting key and a session binding so it can
+                  recognise the same person later. It never receives your passkey, your private voting key, or your
+                  real-world identity.
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center justify-center gap-6 pt-4 text-xs font-semibold uppercase tracking-[0.05em] text-outline">
-            <Link to="/privacy">Privacy Policy</Link>
-            <Link to="/audit-protocol">Audit Protocol</Link>
-            <a href="mailto:support@votex.world" className="inline-flex items-center gap-2">
-              <HelpCircle className="h-4 w-4" />
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 pt-2 text-sm font-semibold text-on-surface-variant">
+            <Link to={ROUTES.privacy} className="inline-flex min-h-11 items-center hover:text-primary">Privacy Policy</Link>
+            <Link to={ROUTES.auditProtocol} className="inline-flex min-h-11 items-center hover:text-primary">Audit Protocol</Link>
+            <a href={`mailto:${SUPPORT_EMAIL}`} className="inline-flex min-h-11 items-center gap-2 hover:text-primary">
+              <HelpCircle className="h-4 w-4" aria-hidden="true" />
               Support
             </a>
           </div>

@@ -160,7 +160,7 @@ const Profile = () => {
             ) : (
               <Fingerprint className="h-4 w-4" aria-hidden="true" />
             )}
-            {isDerivingKey ? "Unlocking…" : derivedPublicKey ? "Unlock again" : "Unlock voting key"}
+            {isDerivingKey ? "Waiting for your passkey…" : derivedPublicKey ? "Unlock again" : "Unlock passkey"}
           </button>
         </aside>
 

@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { KEYPAIR_VERSION } from "@/services/eddsaService";
 import type { StoredKeypair } from "@/types/keypair";
 import type { DerivedKeypair } from "@/services/deterministicKeyService";
+import { describeError } from "@/lib/errorMessages";
 
 export interface DeriveKeypairResult {
   derivedKeypair: DerivedKeypair;
@@ -25,7 +26,7 @@ function toStoredKeypair(keypair: DerivedKeypair): StoredKeypair {
  * Shared passkey -> keypair derivation flow used by the dashboard and the
  * election detail page. Authenticates with the preferred passkey, derives and
  * verifies the BabyJubJub keypair, publishes the public key to wallet context,
- * and surfaces success/failure as a toast. Returns null on failure.
+ * and reports failure as a toast. Returns null on failure.
  *
  * @param options.store  also persist the keypair to sessionStorage
  *                        (election detail needs it for signing; the dashboard
@@ -64,18 +65,14 @@ export function useDeriveKeypair() {
           storeKeypair(storedKeypair);
         }
 
-        toast({
-          title: "Passkey unlocked",
-          description: "Your signing key has been re-derived locally and is ready for use.",
-        });
-
+        // No success toast: every caller changes its own panel when the key arrives.
         return { derivedKeypair, publicKey, storedKeypair };
       } catch (error) {
         toast({
+          key: "passkey",
           variant: "destructive",
-          title: "Derivation failed",
-          description:
-            error instanceof Error ? error.message : "Failed to derive keypair",
+          title: "Passkey not unlocked",
+          description: describeError(error, "Your passkey could not be read. Try again and pick the passkey you created for Votex."),
         });
         return null;
       } finally {

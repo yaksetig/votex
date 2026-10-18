@@ -11,9 +11,6 @@ import { installDeterministicPasskey, installVotexBackend } from "./support/vote
  * Add to it only with a UX id and remove entries as soon as they pass.
  */
 const KNOWN: Record<string, string[]> = {
-  // UX-046 / UX-119: dimmed step text and text-outline labels (Phases C, J)
-  "/sign-in": ["color-contrast"],
-  "sign-in complete": ["color-contrast"],
   // UX-059: the Sort label is display:none below sm (Phase D)
   "/elections": ["select-name"],
   // UX-053 deadline input has no label; UX-059 sort label (Phase D)
@@ -58,7 +55,7 @@ test.describe("accessibility", () => {
     await page.goto("/sign-in");
     await scan(page, "/sign-in", findings);
 
-    await page.getByRole("button", { name: "Create a New Votex Passkey" }).click();
+    await page.getByRole("button", { name: "I don't have a Votex passkey yet" }).click();
     await page.getByRole("button", { name: "Complete test World ID verification" }).click();
     await expect(page.getByRole("heading", { name: "Identity Confirmed" })).toBeVisible();
     await scan(page, "sign-in complete", findings);

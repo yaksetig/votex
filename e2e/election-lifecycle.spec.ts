@@ -9,7 +9,7 @@ test("verified voter creates, delegates, signs, audits, nullifies, closes, and t
   await installDeterministicPasskey(page);
 
   await page.goto("/sign-in");
-  await page.getByRole("button", { name: "Create a New Votex Passkey" }).click();
+  await page.getByRole("button", { name: "I don't have a Votex passkey yet" }).click();
   await page.getByRole("button", { name: "Complete test World ID verification" }).click();
   await expect(page.getByRole("heading", { name: "Identity Confirmed" })).toBeVisible();
   await page.getByRole("button", { name: "Continue to Elections" }).click();
@@ -26,8 +26,8 @@ test("verified voter creates, delegates, signs, audits, nullifies, closes, and t
 
   await page.getByRole("button", { name: "Vote", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Cast your ballot" })).toBeVisible();
-  await page.getByRole("button", { name: "Unlock Passkey" }).click();
-  await expect(page.getByText("Passkey unlocked", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Unlock passkey" }).click();
+  await expect(page.getByRole("button", { name: "Unlock passkey" })).toBeHidden();
   await page.getByRole("button", { name: "Delegate Vote" }).click();
   await page.getByLabel(/Participant #1/).click();
   await page.getByRole("button", { name: "Delegate", exact: true }).click();
