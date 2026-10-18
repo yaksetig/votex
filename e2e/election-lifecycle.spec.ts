@@ -8,7 +8,7 @@ test("verified voter creates, delegates, signs, audits, nullifies, closes, and t
   const backend = await installVotexBackend(page);
   await installDeterministicPasskey(page);
 
-  await page.goto("/dashboard");
+  await page.goto("/sign-in");
   await page.getByRole("button", { name: "Create a New Votex Passkey" }).click();
   await page.getByRole("button", { name: "Complete test World ID verification" }).click();
   await expect(page.getByRole("heading", { name: "Identity Confirmed" })).toBeVisible();
@@ -54,7 +54,7 @@ test("verified voter creates, delegates, signs, audits, nullifies, closes, and t
     });
   }
 
-  await page.goto("/election_authority");
+  await page.goto("/authority");
   await page.getByLabel("Email").fill("authority@votex.world");
   await page.getByLabel("Password").fill("correct horse battery staple");
   await page.getByRole("button", { name: "Secure Sign In" }).click();

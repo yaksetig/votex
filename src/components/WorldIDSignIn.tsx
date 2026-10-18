@@ -5,9 +5,11 @@ import {
   type IDKitResult,
   type RpContext,
 } from "@worldcoin/idkit";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { ROUTES, safeNextPath } from "@/lib/routes";
 import {
   AlertTriangle,
+  ArrowRight,
   CheckCircle2,
   Fingerprint,
   HelpCircle,
@@ -15,7 +17,6 @@ import {
   Loader2,
   ShieldCheck,
 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
 import { useWallet } from "@/contexts/WalletContext";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -62,7 +63,6 @@ const WORLD_ID_APP_ID = "app_e2fd2f8c99430ab200a093278e801c57";
 const WORLD_ID_RP_ID = import.meta.env.VITE_WORLD_ID_RP_ID ?? WORLD_ID_DEFAULT_RP_ID;
 const WORLD_ID_ACTION = WORLD_ID_REGISTRATION_ACTION;
 /** Lets the success toast render before leaving the sign-in page. */
-const POST_SIGN_IN_REDIRECT_DELAY_MS = 1200;
 
 type PasskeyPreparationMode = "existing" | "new";
 
@@ -73,14 +73,15 @@ const WorldIDSignIn: React.FC = () => {
   const [hasKeyConflict, setHasKeyConflict] = useState(false);
   const [widgetOpen, setWidgetOpen] = useState(false);
   const [rpContext, setRpContext] = useState<RpContext | null>(null);
-  const { toast } = useToast();
+  const [returningIdentity, setReturningIdentity] = useState(false);
   const {
     setDerivedPublicKey,
     setIsWorldIDVerified,
-    setJustVerified,
     setUserId,
   } = useWallet();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const nextPath = safeNextPath(searchParams.get("next"), ROUTES.elections);
 
   // Fetch RP signature on mount
   useEffect(() => {
@@ -121,7 +122,6 @@ const WorldIDSignIn: React.FC = () => {
 
     setUserId(session.userId);
     setIsWorldIDVerified(true);
-    setJustVerified(true);
     if (publicKey) {
       setDerivedPublicKey(publicKey);
     }
@@ -253,17 +253,8 @@ const WorldIDSignIn: React.FC = () => {
       await completeSession(nullifier, prfSecret, publicKey);
       setStep("complete");
 
-      const returning = data?.alreadyExists === true;
-      toast({
-        title: returning ? "Secure session restored" : "Identity registration complete",
-        description: returning
-          ? "World ID and passkey authentication completed successfully."
-          : "Your passkey-backed voting identity is ready.",
-      });
-
-      window.setTimeout(() => {
-        navigate(returning ? "/elections" : "/success", { replace: true });
-      }, POST_SIGN_IN_REDIRECT_DELAY_MS);
+      // The confirmation step below owns the next move; no timer, no toast.
+      setReturningIdentity(data?.alreadyExists === true);
     } catch (err) {
       if (
         err instanceof VotexApiError &&
@@ -494,9 +485,23 @@ const WorldIDSignIn: React.FC = () => {
             )}
 
             {step === "complete" && (
-              <div className="flex items-center justify-center gap-3 rounded-[1rem] bg-primary-fixed px-6 py-4 text-lg font-bold text-primary">
-                <CheckCircle2 className="h-5 w-5" />
-                Identity Confirmed
+              <div className="rounded-xl bg-primary-fixed p-6 text-center" role="status" aria-live="polite">
+                <CheckCircle2 className="mx-auto h-8 w-8 text-primary" aria-hidden="true" />
+                <h2 className="mt-3 font-headline text-2xl font-bold text-primary">Identity Confirmed</h2>
+                <p className="mt-2 text-sm leading-relaxed text-on-surface-variant">
+                  {returningIdentity
+                    ? "Welcome back. Your passkey and World ID match an existing Votex identity."
+                    : "Your Votex identity is ready. Your voting key is derived in this browser and is never sent to Votex."}
+                </p>
+                <Button
+                  type="button"
+                  className="mt-5 w-full"
+                  size="lg"
+                  onClick={() => navigate(nextPath, { replace: true })}
+                >
+                  {nextPath === ROUTES.elections ? "Continue to Elections" : "Continue"}
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Button>
               </div>
             )}
 

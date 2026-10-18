@@ -1,116 +1,81 @@
-import React from "react";
-import {
-  Eye,
-  Fingerprint,
-  KeyRound,
-  Lock,
-  ShieldCheck,
-  Vote,
-} from "lucide-react";
+import { useEffect } from "react";
+import { Link, useLocation } from "react-router-dom";
+import { ArrowRight } from "lucide-react";
+import { EXPLAINER_SECTIONS } from "@/content/howItWorks";
+import { usePageTitle } from "@/hooks/usePageTitle";
+import { ROUTES } from "@/lib/routes";
 
+/**
+ * The one explainer page. Every section has an anchor so other pages can
+ * deep-link (for example the ballot panel links to #privacy and the
+ * nullification panel to #pressure).
+ */
 const HowItWorks = () => {
+  usePageTitle("How Votex works");
+  const { hash } = useLocation();
+
+  useEffect(() => {
+    if (!hash) return;
+    const target = document.getElementById(hash.slice(1));
+    if (target) {
+      target.scrollIntoView({ block: "start" });
+      target.focus({ preventScroll: true });
+    }
+  }, [hash]);
+
   return (
-    <div className="civic-container pb-28 pt-10 md:pb-12">
-      <div className="space-y-10">
-        <section className="grid gap-6 border-b border-outline-variant pb-10 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="py-4 md:py-8">
-            <div className="max-w-3xl">
-              <span className="ledger-badge bg-secondary-container text-on-secondary-container">
-                <ShieldCheck className="h-4 w-4" />
-                How it works
-              </span>
-              <h1 className="mt-5 font-headline text-3xl font-bold tracking-[-0.03em] text-primary sm:text-4xl">
-                How Votex Works
-              </h1>
-              <p className="mt-5 text-lg leading-relaxed text-on-surface-variant">
-                A public voting system combining World ID uniqueness checks, passkey-derived signing keys, delegation, and a coercion-mitigation nullification workflow.
-              </p>
-            </div>
-          </div>
+    <div className="civic-container pb-12 pt-10">
+      <header className="border-b border-outline-variant pb-8">
+        <p className="ledger-eyebrow text-secondary">Guide</p>
+        <h1 className="mt-3 font-headline text-3xl font-bold tracking-[-0.03em] text-primary sm:text-4xl">How Votex works</h1>
+        <p className="mt-4 max-w-3xl text-lg leading-relaxed text-on-surface-variant">
+          Votex runs public, verifiable elections. Each person proves they are unique with World ID, votes with a key
+          derived from their own passkey, and can later cancel that ballot with a request nobody can tell apart from a
+          decoy. This page explains each part and what it does and does not protect.
+        </p>
+      </header>
 
-          <aside className="rounded-xl bg-primary p-6 text-on-primary sm:p-8">
-            <ShieldCheck className="h-10 w-10 text-primary-fixed-dim" />
-            <h2 className="mt-5 font-headline text-2xl font-bold text-white">
-              Cryptographic Integrity
-            </h2>
-            <p className="mt-3 text-sm leading-relaxed text-white/74">
-              Every election uses public pseudonymous signed ballots, proof-of-personhood, and tally-side nullification processing. Real-world identities are not written to the public ledger, but ballot choices are public.
-            </p>
-          </aside>
-        </section>
+      <div className="mt-8 grid gap-10 lg:grid-cols-[240px_minmax(0,1fr)]">
+        <nav aria-label="On this page" className="lg:sticky lg:top-24 lg:self-start">
+          <p className="ledger-eyebrow">On this page</p>
+          <ol className="mt-3 space-y-1 border-l border-outline-variant">
+            {EXPLAINER_SECTIONS.map((section) => (
+              <li key={section.id}>
+                <a
+                  href={`#${section.id}`}
+                  className="-ml-px block border-l-2 border-transparent py-2 pl-4 text-sm text-on-surface-variant hover:border-secondary hover:text-primary"
+                >
+                  {section.title}
+                </a>
+              </li>
+            ))}
+          </ol>
+        </nav>
 
-        <section className="grid gap-6 md:grid-cols-2">
-          {[
-            {
-              icon: ShieldCheck,
-              title: "1. Verify unique humanity",
-              description:
-                "World ID proves that one real person is entering the system without exposing their personal identity to the election ledger.",
-            },
-            {
-              icon: KeyRound,
-              title: "2. Derive a voting key locally",
-              description:
-                "A BabyJubJub keypair is derived from the voter’s passkey. The private key never leaves the device and is used only for signing and nullification workflows.",
-            },
-            {
-              icon: Vote,
-              title: "3. Cast a signed ballot",
-              description:
-                "Each public ballot is tied to a World ID-derived pseudonym and local signing key. Observers can audit the choice without learning the voter’s real-world identity from Votex.",
-            },
-            {
-              icon: Lock,
-              title: "4. Preserve coercion resistance",
-              description:
-                "If a voter is pressured or threatened, they can later nullify their ballot using a zero-knowledge workflow that looks identical to a harmless decoy request.",
-            },
-          ].map(({ icon: Icon, title, description }) => (
-            <article key={title} className="ledger-panel p-7">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-on-primary">
-                <Icon className="h-6 w-6" />
-              </div>
-              <h2 className="mt-6 font-headline text-2xl font-bold text-primary">{title}</h2>
-              <p className="mt-3 text-sm leading-relaxed text-on-surface-variant">{description}</p>
-            </article>
+        <div className="min-w-0 space-y-6">
+          {EXPLAINER_SECTIONS.map((section) => (
+            <section
+              key={section.id}
+              id={section.id}
+              tabIndex={-1}
+              aria-labelledby={`${section.id}-title`}
+              className="ledger-panel scroll-mt-24 p-6 outline-none sm:p-8"
+            >
+              <h2 id={`${section.id}-title`} className="font-headline text-2xl font-bold text-primary">
+                {section.title}
+              </h2>
+              <p className="mt-2 text-sm font-semibold text-secondary">{section.summary}</p>
+              <div className="mt-5 space-y-4">{section.body}</div>
+            </section>
           ))}
-        </section>
 
-        <section>
-          <div className="ledger-panel p-6 sm:p-8">
-            <h2 className="font-headline text-3xl font-bold text-primary">Security guarantees</h2>
-            <div className="mt-8 grid gap-4 md:grid-cols-2">
-              {[
-                {
-                  icon: Lock,
-                  title: "Encrypted nullification state",
-                  description: "Nullification accumulators and delegate selections remain encrypted until the election authority processes the tally. Ballot choices themselves are public.",
-                },
-                {
-                  icon: Eye,
-                  title: "Pseudonymous public ballots",
-                  description: "The ledger publishes pseudonymous voter identifiers and choices, not real-world identities. Pseudonymous activity may still be linkable.",
-                },
-                {
-                  icon: ShieldCheck,
-                  title: "Coercion resistance",
-                  description: "Actual and dummy nullifications are intentionally indistinguishable to outside observers.",
-                },
-                {
-                  icon: Fingerprint,
-                  title: "One person, one vote",
-                  description: "World ID prevents duplicate participation without placing the voter’s real-world identity in the Votex ledger.",
-                },
-              ].map(({ icon: Icon, title, description }) => (
-                <div key={title} className="rounded-xl border border-outline-variant/12 bg-surface-container-low p-5">
-                  <Icon className="h-5 w-5 text-surface-tint" />
-                  <h3 className="mt-4 font-headline text-xl font-bold text-primary">{title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-on-surface-variant">{description}</p>
-                </div>
-              ))}
-            </div>
+          <div className="flex flex-col gap-3 rounded-xl bg-surface-container-low p-6 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-on-surface-variant">Still have a question? The FAQ covers the short practical ones.</p>
+            <Link to={ROUTES.faq} className="ledger-button-secondary shrink-0">
+              Read the FAQ <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
           </div>
-        </section>
+        </div>
       </div>
     </div>
   );

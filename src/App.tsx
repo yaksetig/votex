@@ -1,7 +1,9 @@
 import React, { Suspense, lazy, useEffect } from 'react';
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { BrowserRouter, Routes, Route } from "react-router-dom"
+import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom"
+import { useWallet } from "@/contexts/WalletContext"
+import { LEGACY_ROUTES, ROUTES, signInPath } from "@/lib/routes"
 import { WalletProvider } from "@/contexts/WalletContext"
 import ProtectedRoute from "@/components/ProtectedRoute"
 import NavBar from "@/components/NavBar"
@@ -12,8 +14,8 @@ import { LoadingPanel } from "@/components/LoadingPanel"
 import { MAIN_CONTENT_ID, RouteFocusManager, SkipLink } from "@/components/RouteFocusManager"
 
 const Index = lazy(() => import("@/pages/Index"))
-const Dashboard = lazy(() => import("@/pages/Dashboard"))
-const Success = lazy(() => import("@/pages/Success"))
+const SignIn = lazy(() => import("@/pages/SignIn"))
+const Profile = lazy(() => import("@/pages/Profile"))
 const Elections = lazy(() => import("@/pages/Elections"))
 const ElectionDetail = lazy(() => import("@/pages/ElectionDetail"))
 const ElectionAuthority = lazy(() => import("@/pages/ElectionAuthority"))
@@ -26,6 +28,18 @@ const AuditProtocol = lazy(() => import("@/pages/AuditProtocol"))
 
 const queryClient = new QueryClient()
 const LOOPBACK_IP_HOSTS = new Set(["127.0.0.1", "::1", "[::1]"])
+
+/** /dashboard used to be both sign-in and profile; send each visitor to the right half. */
+const LegacyDashboardRedirect = () => {
+  const { isAuthLoading, isWorldIDVerified } = useWallet()
+  if (isAuthLoading) return <LoadingPanel label="Checking your session" />
+  return <Navigate to={isWorldIDVerified ? ROUTES.profile : signInPath(ROUTES.profile)} replace />
+}
+
+const LegacyAuthorityElectionRedirect = () => {
+  const { id } = useParams()
+  return <Navigate to={id ? ROUTES.authorityElection(id) : ROUTES.authority} replace />
+}
 
 function getLocalhostUrl() {
   const { protocol, port, pathname, search, hash } = window.location
@@ -78,18 +92,23 @@ const App: React.FC = () => {
               <ErrorBoundary>
                 <Suspense fallback={<LoadingPanel label="Loading page" />}>
                   <Routes>
-                    <Route path="/" element={<Index />} />
-                    <Route path="/dashboard" element={<Dashboard />} />
-                    <Route path="/success" element={<ProtectedRoute><Success /></ProtectedRoute>} />
-                    <Route path="/elections" element={<Elections />} />
+                    <Route path={ROUTES.home} element={<Index />} />
+                    <Route path={ROUTES.signIn} element={<SignIn />} />
+                    <Route path={ROUTES.profile} element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+                    <Route path={ROUTES.elections} element={<Elections />} />
                     <Route path="/elections/:id" element={<ElectionDetail />} />
                     <Route path="/receipts/:receiptId" element={<VoteReceipt />} />
-                    <Route path="/elections/:id/authority" element={<ElectionAuthority />} />
-                    <Route path="/election_authority" element={<ElectionAuthority />} />
-                    <Route path="/how-it-works" element={<HowItWorks />} />
-                    <Route path="/faq" element={<FAQ />} />
-                    <Route path="/privacy" element={<Privacy />} />
-                    <Route path="/audit-protocol" element={<AuditProtocol />} />
+                    <Route path={ROUTES.authority} element={<ElectionAuthority />} />
+                    <Route path="/authority/elections/:id" element={<ElectionAuthority />} />
+                    <Route path={ROUTES.howItWorks} element={<HowItWorks />} />
+                    <Route path={ROUTES.faq} element={<FAQ />} />
+                    <Route path={ROUTES.privacy} element={<Privacy />} />
+                    <Route path={ROUTES.auditProtocol} element={<AuditProtocol />} />
+                    {/* Old paths keep working for bookmarks and shared links. */}
+                    <Route path={LEGACY_ROUTES.dashboard} element={<LegacyDashboardRedirect />} />
+                    <Route path={LEGACY_ROUTES.success} element={<Navigate to={ROUTES.elections} replace />} />
+                    <Route path={LEGACY_ROUTES.electionAuthority} element={<Navigate to={ROUTES.authority} replace />} />
+                    <Route path={LEGACY_ROUTES.electionAuthorityById} element={<LegacyAuthorityElectionRedirect />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </Suspense>

@@ -12,7 +12,8 @@ import { installDeterministicPasskey, installVotexBackend } from "./support/vote
  */
 const KNOWN: Record<string, string[]> = {
   // UX-046 / UX-119: dimmed step text and text-outline labels (Phases C, J)
-  "/dashboard": ["color-contrast"],
+  "/sign-in": ["color-contrast"],
+  "sign-in complete": ["color-contrast"],
   // UX-059: the Sort label is display:none below sm (Phase D)
   "/elections": ["select-name"],
   // UX-053 deadline input has no label; UX-059 sort label (Phase D)
@@ -54,8 +55,8 @@ test.describe("accessibility", () => {
     await installDeterministicPasskey(page);
     const findings: Findings = [];
 
-    await page.goto("/dashboard");
-    await scan(page, "/dashboard", findings);
+    await page.goto("/sign-in");
+    await scan(page, "/sign-in", findings);
 
     await page.getByRole("button", { name: "Create a New Votex Passkey" }).click();
     await page.getByRole("button", { name: "Complete test World ID verification" }).click();
@@ -83,7 +84,7 @@ test.describe("accessibility", () => {
   test("authority surfaces", async ({ page }) => {
     await installVotexBackend(page);
     const findings: Findings = [];
-    await page.goto("/election_authority");
+    await page.goto("/authority");
     await scan(page, "authority sign-in", findings);
 
     await page.getByLabel("Email").fill("authority@votex.world");

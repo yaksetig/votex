@@ -1,27 +1,21 @@
-import { FormEvent, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
   ArrowRight,
   Database,
   Fingerprint,
   KeyRound,
   ReceiptText,
-  Search,
   ShieldCheck,
   TriangleAlert,
   Vote,
 } from "lucide-react";
 import { useWallet } from "@/contexts/WalletContext";
+import { usePageTitle } from "@/hooks/usePageTitle";
+import { ROUTES } from "@/lib/routes";
 
 const Index = () => {
-  const navigate = useNavigate();
+  usePageTitle("");
   const { isWorldIDVerified } = useWallet();
-  const [query, setQuery] = useState("");
-
-  const submitSearch = (event: FormEvent) => {
-    event.preventDefault();
-    navigate(query.trim() ? `/elections?q=${encodeURIComponent(query.trim())}` : "/elections");
-  };
 
   return (
     <div className="overflow-hidden">
@@ -39,34 +33,17 @@ const Index = () => {
             Prove you are a unique human with World ID, then cast a public pseudonymous ballot that anyone can independently audit.
           </p>
           <div className="mt-8 flex w-full max-w-xl flex-col justify-center gap-3 sm:flex-row">
-            <Link to={isWorldIDVerified ? "/dashboard" : "/dashboard"} className="ledger-button-primary px-7 py-4">
-              {isWorldIDVerified ? "Open Voting Profile" : "Verify Identity with World ID"}
+            <Link to={isWorldIDVerified ? ROUTES.profile : ROUTES.signIn} className="ledger-button-primary px-7 py-4">
+              {isWorldIDVerified ? "Open your profile" : "Sign in with World ID"}
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
-            <Link to="/elections" className="ledger-button-secondary px-7 py-4">
-              Browse Active Elections
+            <Link to={`${ROUTES.elections}?status=active`} className="ledger-button-secondary px-7 py-4">
+              Browse open elections
               <Vote className="h-4 w-4" aria-hidden="true" />
             </Link>
           </div>
         </div>
       </section>
-
-      <div className="civic-container relative z-10 -mt-8">
-        <form onSubmit={submitSearch} className="ledger-panel flex flex-col gap-2 p-2 shadow-ledger md:flex-row">
-          <label className="flex min-h-14 flex-1 items-center gap-3 rounded-lg bg-surface-container-low px-4">
-            <Search className="h-5 w-5 text-outline" aria-hidden="true" />
-            <span className="sr-only">Search elections</span>
-            <input
-              type="search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search by election title or topic..."
-              className="w-full bg-transparent text-sm text-primary outline-none placeholder:text-on-surface-variant"
-            />
-          </label>
-          <button type="submit" className="ledger-button-primary min-h-14 px-7">Find Elections</button>
-        </form>
-      </div>
 
       <section className="civic-container py-24 sm:py-32">
         <div className="grid gap-6 md:grid-cols-12">
@@ -150,8 +127,10 @@ const Index = () => {
           <h2 className="civic-section-title">Ready to participate?</h2>
           <p className="mx-auto mt-3 max-w-lg text-on-surface-variant">Browse a live election or prepare your passkey-backed voting identity.</p>
           <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-            <Link to="/dashboard" className="ledger-button-primary px-8 py-4">Get Started</Link>
-            <Link to="/audit-protocol" className="ledger-button-secondary px-8 py-4">View Audit Protocol</Link>
+            <Link to={isWorldIDVerified ? ROUTES.elections : ROUTES.signIn} className="ledger-button-primary px-8 py-4">
+              {isWorldIDVerified ? "Browse elections" : "Get started"}
+            </Link>
+            <Link to={ROUTES.auditProtocol} className="ledger-button-secondary px-8 py-4">Read the audit protocol</Link>
           </div>
         </div>
       </section>

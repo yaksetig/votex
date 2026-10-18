@@ -4,8 +4,10 @@ import { Link, useParams } from "react-router-dom";
 import VoteReceiptCard from "@/components/VoteReceiptCard";
 import { supabase } from "@/integrations/supabase/client";
 import type { VoteReceipt } from "@/types/api";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 export default function VoteReceiptPage() {
+  usePageTitle("Ballot receipt");
   const { receiptId } = useParams();
   const [receipt, setReceipt] = useState<VoteReceipt | null>(null);
   const [loading, setLoading] = useState(true);

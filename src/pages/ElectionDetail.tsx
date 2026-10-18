@@ -34,6 +34,8 @@ import type { VoteReceipt } from "@/types/api";
 import { pluralize } from "@/lib/format";
 import { Time } from "@/components/Time";
 import { Skeleton } from "@/components/Skeleton";
+import { usePageTitle } from "@/hooks/usePageTitle";
+import { ROUTES, signInPath } from "@/lib/routes";
 
 const ElectionDetail = () => {
   const { id } = useParams();
@@ -43,6 +45,7 @@ const ElectionDetail = () => {
   const { deriveKeypair, isDeriving: isDerivingKey } = useDeriveKeypair();
 
   const [election, setElection] = useState<Election | null>(null);
+  usePageTitle(election ? election.title : "Election");
   const [loading, setLoading] = useState(true);
   const [voteCounts, setVoteCounts] = useState({ option1: 0, option2: 0 });
   const [selectedOption, setSelectedOption] = useState("");
@@ -720,7 +723,7 @@ const ElectionDetail = () => {
                           </Button>
                         </>
                       ) : (
-                        <button type="button" onClick={() => navigate("/dashboard")} className="ledger-button-primary">
+                        <button type="button" onClick={() => navigate(signInPath(ROUTES.election(election.id)))} className="ledger-button-primary">
                           <ShieldCheck className="h-4 w-4" />
                           Verify Identity First
                         </button>

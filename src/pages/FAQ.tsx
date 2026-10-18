@@ -1,63 +1,82 @@
-import React from "react";
-import { CircleHelp } from "lucide-react";
+import { Link } from "react-router-dom";
+import { usePageTitle } from "@/hooks/usePageTitle";
+import { ROUTES, howItWorksSection } from "@/lib/routes";
 
-const FAQ_ITEMS = [
+const FAQ_ITEMS: Array<{ question: string; answer: string; more?: { label: string; to: string } }> = [
   {
     question: "Can I change my vote?",
     answer:
-      "You cannot directly overwrite a ballot. If coercion, compromise, or regret becomes relevant, the system supports a later nullification flow so the invalidated vote is excluded during tally processing.",
+      "No. A ballot cannot be edited or replaced. If you need it not to count, you can nullify it before the election closes; the ballot is then removed at the tally and you cannot cast a new one.",
+    more: { label: "How nullification works", to: howItWorksSection("nullification") },
   },
   {
     question: "Who can see my vote?",
     answer:
-      "Ballots are public under a World ID-derived pseudonym: observers can see that pseudonymous voter X selected option Y, but the ledger does not contain that voter’s real-world identity. Reuse of a pseudonym may make activity linkable across elections. Full ballot secrecy is future work.",
+      "Everyone. Ballots are public under your pseudonym: anyone can see that a given pseudonym chose a given option. Votex never records your name or real-world identity, but the same pseudonym may be recognisable across elections.",
+    more: { label: "Privacy model", to: howItWorksSection("privacy") },
   },
   {
     question: "Why do I need a passkey?",
     answer:
-      "The passkey is used to derive your local cryptographic identity for ballot signing and recovery workflows. The private signing material stays on your device.",
+      "Your passkey derives your voting key in this browser. That key signs your ballots and is never sent to Votex. The same passkey derives the same key again on any device, which is how you keep one identity.",
   },
   {
     question: "Can someone vote twice?",
     answer:
-      "The system combines World ID uniqueness checks with signed ballot rules to keep duplicate participation from being counted as separate valid votes.",
+      "No. World ID confirms that each person registers once, and each voting key can hold one ballot per election. A second ballot from the same key is rejected.",
   },
   {
-    question: "What happens after nullification?",
+    question: "What does delegating do?",
     answer:
-      "During tally processing, the election authority resolves nullification accumulators. Votes tied to invalidated states are removed from the final count.",
+      "Your ballot is counted as the delegate's choice, with their ballot counting twice. Everyone can see that you delegated; only the Election Authority learns to whom. Only one hop counts: if your delegate delegates too, neither ballot counts.",
+    more: { label: "How delegation works", to: howItWorksSection("delegation") },
+  },
+  {
+    question: "What is a decoy nullification and why would I send one?",
+    answer:
+      "A decoy is a nullification request that changes nothing, and it is indistinguishable from a real one. Decoys are what make real nullifications safe to send: if nobody sent decoys, every request would reveal itself. Sending one after you vote helps everyone.",
+    more: { label: "Why decoys matter", to: howItWorksSection("nullification") },
+  },
+  {
+    question: "What happens after I nullify?",
+    answer:
+      "Nothing visible, by design. The page does not change and the public record shows a request identical to a decoy. When the election closes, the Election Authority's tally removes nullified ballots from the count.",
   },
   {
     question: "What can auditors verify?",
     answer:
-      "Auditors can inspect pseudonymous ballot choices, signatures, proof artifacts, nullification state, delegation ciphertexts, and tally output. Delegation hides the selected delegate; nullification hides whether a request is real or a decoy.",
+      "Every ballot and its signature, the list of participants, delegation records, nullification proofs and the published tally. Delegation hides the chosen delegate and nullification hides whether a request was real; everything else is open.",
+    more: { label: "Audit protocol", to: ROUTES.auditProtocol },
   },
 ];
 
 const FAQ = () => {
+  usePageTitle("FAQ");
   return (
-    <div className="civic-container pb-28 pt-10 md:pb-12">
+    <div className="civic-container pb-12 pt-10">
       <div className="mx-auto max-w-4xl space-y-10">
-        <section className="border-b border-outline-variant pb-8">
-          <div className="max-w-3xl">
-            <span className="ledger-badge bg-secondary-container text-on-secondary-container">
-              <CircleHelp className="h-4 w-4" />
-              Frequently asked questions
-            </span>
-            <h1 className="mt-5 font-headline text-3xl font-bold tracking-[-0.03em] text-primary sm:text-4xl">
-              FAQ
-            </h1>
-            <p className="mt-5 text-lg leading-relaxed text-on-surface-variant">
-              Short answers for the voter-facing questions that do not belong in the deeper protocol walkthrough.
-            </p>
-          </div>
-        </section>
+        <header className="border-b border-outline-variant pb-8">
+          <p className="ledger-eyebrow text-secondary">Frequently asked questions</p>
+          <h1 className="mt-3 font-headline text-3xl font-bold tracking-[-0.03em] text-primary sm:text-4xl">FAQ</h1>
+          <p className="mt-4 max-w-3xl text-lg leading-relaxed text-on-surface-variant">
+            Short answers to the practical questions. For the full picture, read{" "}
+            <Link to={ROUTES.howItWorks} className="font-semibold text-secondary underline-offset-4 hover:underline">
+              how Votex works
+            </Link>
+            .
+          </p>
+        </header>
 
-        <section className="space-y-4">
-          {FAQ_ITEMS.map(({ question, answer }) => (
+        <section className="space-y-4" aria-label="Questions">
+          {FAQ_ITEMS.map(({ question, answer, more }) => (
             <article key={question} className="ledger-panel p-6">
               <h2 className="font-headline text-xl font-semibold text-primary">{question}</h2>
-              <p className="mt-3 text-sm leading-relaxed text-on-surface-variant">{answer}</p>
+              <p className="mt-3 text-sm leading-relaxed text-on-surface-variant sm:text-base">{answer}</p>
+              {more ? (
+                <Link to={more.to} className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-secondary underline-offset-4 hover:underline">
+                  {more.label}
+                </Link>
+              ) : null}
             </article>
           ))}
         </section>

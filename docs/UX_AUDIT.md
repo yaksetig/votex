@@ -111,6 +111,7 @@ _What the voter is told about what their action does and who can see it._
 - **Where:** NavBar.tsx:101
 - **Evidence:** It navigates to the profile; nothing indicates that.
 - **Change:** Style it as a link to “Profile” or make it a non-interactive status plus a separate profile link.
+- **Status:** Resolved in Phase B (routes and navigation)
 
 
 ## Nullification (11)
@@ -306,12 +307,14 @@ _Passkey and World ID onboarding, session lifetime, logout._
 - **Where:** WorldIDSignIn.tsx:265 (new: /success then auto /elections), returning: /elections, home CTA: /dashboard
 - **Evidence:** Inconsistent and the Success page is a third confirmation after the step state and a toast.
 - **Change:** Land everyone on /elections with a one-line welcome banner; retire /success.
+- **Status:** Resolved in Phase B (routes and navigation)
 
 ### UX-044 · Medium · Success page auto-redirects after 4.5 s with no indication or way to pause
 
 - **Where:** Success.tsx:16-19
 - **Evidence:** Fails WCAG 2.2.1 timing; users reading the card get yanked away.
 - **Change:** Remove the timer; the Continue button already exists.
+- **Status:** Resolved in Phase B (routes and navigation)
 
 ### UX-045 · Medium · Status messages are rendered as disabled buttons
 
@@ -348,12 +351,14 @@ _Passkey and World ID onboarding, session lifetime, logout._
 - **Where:** NavBar.tsx:113-116 on /dashboard (screenshot 11)
 - **Evidence:** Self-referential.
 - **Change:** Hide or mark current.
+- **Status:** Resolved in Phase B (routes and navigation)
 
 ### UX-051 · Low · 1.2 s delay before redirect after “Identity Confirmed” with nothing indicating it
 
 - **Where:** WorldIDSignIn.tsx:264-266
 - **Evidence:** Feels like a stall.
 - **Change:** Redirect immediately or show the Continue button only.
+- **Status:** Resolved in Phase B (routes and navigation)
 
 
 ## Elections list and creation (15)
@@ -570,6 +575,7 @@ _Operator sign-in, election list, dashboard, close, tally and results._
 - **Where:** App.tsx:95; ElectionAuthority.tsx:141-249 never reads useParams
 - **Evidence:** Lands on the list instead of the election; views are not URL-addressable so Back does nothing.
 - **Change:** Read the id, preselect, reflect view in the URL; rename to /authority/elections/:id.
+- **Status:** Resolved in Phase B (routes and navigation)
 
 ### UX-085 · Medium · Sign-in hint mentions a recovery key on a screen that has no such field
 
@@ -618,6 +624,7 @@ _Operator sign-in, election list, dashboard, close, tally and results._
 - **Where:** NavBar and Footer hidden on authority routes; sidebar has no home link
 - **Evidence:** Operators are stranded.
 - **Change:** Add “Back to Votex” in the sidebar.
+- **Status:** Resolved in Phase B (routes and navigation)
 
 ### UX-093 · Medium · Audit log prints raw action identifiers and “Performed by ”
 
@@ -653,54 +660,63 @@ _Routes, menus, page purposes and how they connect._
 - **Where:** NavBar.tsx:30 (Profile), :115 (Sign In), :102 (Verified Human); Index.tsx:43,153; NotFound.tsx:24 (Back to Identity); Elections.tsx:157 (Verify to Create); ElectionDetail.tsx:723 (Verify Identity First)
 - **Evidence:** The same route is a sign-in for some users and a profile for others.
 - **Change:** Split into /sign-in and /profile; use “Sign in” and “Profile” consistently.
+- **Status:** Resolved in Phase B (routes and navigation)
 
 ### UX-098 · High · Desktop and mobile navigation expose different pages
 
 - **Where:** NavBar.tsx:14-34 (Home/Vote/Audit/Profile) vs :70-72 (Elections/How It Works/FAQ); footer has neither FAQ nor How It Works
 - **Evidence:** How It Works and FAQ are unreachable on phones; Audit Protocol is footer-only on desktop; “Vote” and “Elections” name the same route.
 - **Change:** One navigation model; add FAQ and How Votex works to the footer.
+- **Status:** Resolved in Phase B (routes and navigation)
 
 ### UX-099 · Medium · Four overlapping explainer pages, two of them stubs
 
 - **Where:** Index.tsx, HowItWorks.tsx, FAQ.tsx, Privacy.tsx (16 lines), AuditProtocol.tsx (18 lines); dangling references at FAQ.tsx:51 and AuditProtocol.tsx:14
 - **Evidence:** The same four facts repeat; the honest caveats live on the least-linked page.
 - **Change:** One “How Votex works” page with anchored sections; FAQ keeps true FAQs; link Privacy from the ballot panel.
+- **Status:** Resolved in Phase B (routes and navigation)
 
 ### UX-100 · Medium · “Operator Entrance” in the public footer
 
 - **Where:** AppFooter.tsx:26
 - **Evidence:** Odd label; exposes the admin login to every voter.
 - **Change:** “Election Authority sign-in”, or move it to the audit page.
+- **Status:** Resolved in Phase B (routes and navigation)
 
 ### UX-101 · Medium · Route naming inconsistency
 
 - **Where:** App.tsx:104-105 (/election_authority vs /elections/:id/authority)
 - **Evidence:** Underscore vs hyphen; detection relies on both string shapes.
 - **Change:** /authority and /authority/elections/:id.
+- **Status:** Resolved in Phase B (routes and navigation)
 
 ### UX-102 · Medium · Navigation implemented with buttons instead of links
 
 - **Where:** Dashboard.tsx:53,122,143; Elections.tsx:156,270; ElectionDetail.tsx:503,519,721; Success.tsx:39
 - **Evidence:** No middle-click, new tab or link semantics.
 - **Change:** Use Link.
+- **Status:** Resolved in Phase B (routes and navigation)
 
 ### UX-103 · Medium · 404 page copy and CTA mislead
 
 - **Where:** NotFound.tsx:15-25 (“This ledger entry does not exist”, “Back to Identity”, “authenticated dashboard” for signed-out users; screenshot 6)
 - **Evidence:** Jargon and a primary CTA to the sign-in page.
 - **Change:** “Page not found”, “Go to elections”, “Go home”.
+- **Status:** Resolved in Phase B (routes and navigation)
 
 ### UX-104 · Low · Dead ternary on the home CTA
 
 - **Where:** Index.tsx:42 (isWorldIDVerified ? "/dashboard" : "/dashboard")
 - **Evidence:** Both branches identical; the signed-in label “Open Voting Profile” goes to the sign-in route.
 - **Change:** Point signed-in users at /profile.
+- **Status:** Resolved in Phase B (routes and navigation)
 
 ### UX-105 · Low · Home search box duplicates the header search and lands on the All filter
 
 - **Where:** Index.tsx:64; Elections.tsx:50
 - **Evidence:** Two searches with different placeholders.
 - **Change:** Keep one; make “Browse Active Elections” apply the Active filter.
+- **Status:** Resolved in Phase B (routes and navigation)
 
 
 ## Feedback and states (11)

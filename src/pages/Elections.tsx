@@ -21,6 +21,8 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Time } from "@/components/Time";
 import { Skeleton } from "@/components/Skeleton";
+import { usePageTitle } from "@/hooks/usePageTitle";
+import { ROUTES, signInPath } from "@/lib/routes";
 
 type ElectionFilter = "all" | "active" | "closed";
 type ElectionSort = "closing" | "participation";
@@ -34,6 +36,7 @@ function statusLabel(status: ElectionStatus) {
 }
 
 const Elections = () => {
+  usePageTitle("Elections");
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const searchQuery = searchParams.get("q")?.trim().toLowerCase() ?? "";
@@ -154,7 +157,7 @@ const Elections = () => {
               {showForm ? "Close Composer" : "Create Election"}
             </button>
           ) : (
-            <button type="button" onClick={() => navigate("/dashboard")} className="ledger-button-secondary">
+            <button type="button" onClick={() => navigate(signInPath(ROUTES.elections))} className="ledger-button-secondary">
               <ShieldCheck className="h-4 w-4" aria-hidden="true" /> Verify to Create
             </button>
           )}

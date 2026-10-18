@@ -1,5 +1,9 @@
 import React, { Suspense, lazy, useEffect, useState } from "react";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { ROUTES } from "@/lib/routes";
+import { usePageTitle } from "@/hooks/usePageTitle";
 import {
+  ArrowLeft,
   HelpCircle,
   History,
   LayoutDashboard,
@@ -11,7 +15,6 @@ import {
   validateElectionAuthoritySession,
 } from "@/services/electionAuthoritySessionService";
 import { getCurrentAuthority } from "@/services/electionAuthorityAuthService";
-import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { LoadingPanel } from "@/components/LoadingPanel";
 
@@ -45,9 +48,14 @@ const AuthorityShell: React.FC<AuthorityShellProps> = ({
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-outline-variant bg-surface px-4 lg:hidden">
-        <div>
-          <p className="font-headline text-lg font-bold text-primary">Votex Authority</p>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.05em] text-secondary">Secure session active</p>
+        <div className="flex items-center gap-3">
+          <Link to={ROUTES.home} aria-label="Back to Votex" className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-low">
+            <ArrowLeft className="h-5 w-5" aria-hidden="true" />
+          </Link>
+          <div>
+            <p className="font-headline text-lg font-bold text-primary">Election Authority</p>
+            <p className="text-xs font-semibold text-on-surface-variant">{authorityName}</p>
+          </div>
         </div>
         <button type="button" onClick={onLogout} aria-label="Log out" className="flex h-10 w-10 items-center justify-center rounded-lg text-error hover:bg-error-container">
           <LogOut className="h-5 w-5" aria-hidden="true" />
@@ -56,8 +64,11 @@ const AuthorityShell: React.FC<AuthorityShellProps> = ({
 
       <aside className="fixed left-0 top-0 hidden h-screen w-64 border-r border-outline-variant bg-surface px-4 py-6 lg:flex lg:flex-col">
         <div className="mb-8 px-3 pt-2">
-          <h1 className="font-headline text-xl font-bold tracking-[-0.02em] text-primary">Votex</h1>
-          <p className="mt-1 text-sm text-on-surface-variant">Authority Portal</p>
+          <p className="font-headline text-xl font-bold tracking-[-0.02em] text-primary">Votex</p>
+          <p className="mt-1 text-sm text-on-surface-variant">Election Authority console</p>
+          <Link to={ROUTES.home} className="mt-3 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-secondary hover:text-primary">
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Back to Votex
+          </Link>
         </div>
 
         <div className="mb-8 rounded-xl bg-primary p-4 text-on-primary">
@@ -133,10 +144,17 @@ const AuthorityShell: React.FC<AuthorityShellProps> = ({
 const ElectionAuthority = () => {
   const [authorityId, setAuthorityId] = useState<string | null>(null);
   const [authorityName, setAuthorityName] = useState<string | null>(null);
-  const [selectedElectionId, setSelectedElectionId] = useState<string | null>(null);
-  const [activeView, setActiveView] = useState<"dashboard" | "audit">("dashboard");
   const [isCheckingSession, setIsCheckingSession] = useState(true);
-  const { toast } = useToast();
+  const navigate = useNavigate();
+  const { id: routeElectionId } = useParams();
+  const [searchParams] = useSearchParams();
+  // The URL is the source of truth: /authority/elections/:id opens one
+  // election, /authority?view=audit opens the audit log.
+  const selectedElectionId = routeElectionId ?? null;
+  const activeView: "dashboard" | "audit" = searchParams.get("view") === "audit" ? "audit" : "dashboard";
+  const setSelectedElectionId = (id: string | null) => navigate(id ? ROUTES.authorityElection(id) : ROUTES.authority);
+  const setActiveView = (view: "dashboard" | "audit") => navigate(view === "audit" ? `${ROUTES.authority}?view=audit` : ROUTES.authority);
+  usePageTitle(selectedElectionId ? "Election · Election Authority" : activeView === "audit" ? "Audit log · Election Authority" : "Election Authority");
 
   useEffect(() => {
     let cancelled = false;
@@ -164,7 +182,6 @@ const ElectionAuthority = () => {
       if (event === "SIGNED_OUT") {
         setAuthorityId(null);
         setAuthorityName(null);
-        setSelectedElectionId(null);
       }
     });
 
@@ -183,22 +200,11 @@ const ElectionAuthority = () => {
     await clearElectionAuthoritySession();
     setAuthorityId(null);
     setAuthorityName(null);
-    setSelectedElectionId(null);
-    toast({
-      title: "Logged out",
-      description: "You have been securely logged out.",
-    });
+    navigate(ROUTES.authority, { replace: true });
   };
 
   if (isCheckingSession) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="rounded-xl border border-outline-variant/15 bg-surface-container-lowest px-8 py-10 text-center shadow-ledger">
-          <p className="ledger-eyebrow">Authority gateway</p>
-          <h1 className="mt-3 font-headline text-3xl font-bold text-primary">Checking session integrity</h1>
-        </div>
-      </div>
-    );
+    return <LoadingPanel label="Checking your session" />;
   }
 
   if (!authorityId) {
@@ -214,10 +220,7 @@ const ElectionAuthority = () => {
       authorityName={authorityName || "Election Authority"}
       activeItem={selectedElectionId ? "management" : activeView}
       onLogout={handleLogout}
-      onNavigate={(view) => {
-        setSelectedElectionId(null);
-        setActiveView(view);
-      }}
+      onNavigate={(view) => setActiveView(view)}
     >
       <Suspense fallback={<AuthorityPaneLoading />}>
         {selectedElectionId ? (

@@ -1,15 +1,28 @@
+import { Link } from "react-router-dom";
+import { getExplainerSection } from "@/content/howItWorks";
+import { usePageTitle } from "@/hooks/usePageTitle";
+import { ROUTES } from "@/lib/routes";
+
+/** Standalone privacy page, linked from the ballot panel and sign-in; same copy as the guide section. */
 export default function Privacy() {
+  usePageTitle("Privacy model");
+  const section = getExplainerSection("privacy");
   return (
-    <div className="civic-container py-10 pb-28 md:pb-12">
-      <section className="ledger-panel mx-auto max-w-4xl p-6 sm:p-10">
+    <div className="civic-container pb-12 pt-10">
+      <section className="ledger-panel mx-auto max-w-4xl p-6 sm:p-10" aria-labelledby="privacy-title">
         <p className="ledger-eyebrow text-secondary">Votex disclosure</p>
-        <h1 className="mt-3 font-headline text-3xl font-bold tracking-[-0.03em] text-primary">Privacy model</h1>
-        <div className="mt-6 space-y-5 text-sm leading-relaxed text-on-surface-variant">
-          <p>World ID supplies a pseudonymous proof of unique humanity. Votex does not ask World ID to place your name, email, or government identity in the election ledger.</p>
-          <p>Ballots are intentionally public under a pseudonymous voter identifier. Observers can see the selected option, signature, and timestamp. Pseudonymous activity may be linkable across elections, and the receipt is not coercion-resistant.</p>
-          <p>Nullification requests use encrypted accumulators and zero-knowledge proofs so outside observers cannot distinguish a real nullification from a decoy. Delegation records reveal that delegation occurred while encrypting the selected delegate for the Election Authority.</p>
-          <p>Full ballot secrecy, unlinkable election-specific identities, and authority-blind tallying are future work and are not claims of this pre-production release.</p>
-        </div>
+        <h1 id="privacy-title" className="mt-3 font-headline text-3xl font-bold tracking-[-0.03em] text-primary">
+          {section.title}
+        </h1>
+        <p className="mt-2 text-sm font-semibold text-secondary">{section.summary}</p>
+        <div className="mt-6 space-y-5">{section.body}</div>
+        <p className="mt-8 text-sm text-on-surface-variant">
+          Part of{" "}
+          <Link to={ROUTES.howItWorks} className="font-semibold text-secondary underline-offset-4 hover:underline">
+            how Votex works
+          </Link>
+          .
+        </p>
       </section>
     </div>
   );
