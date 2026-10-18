@@ -44,7 +44,7 @@ const Dashboard = () => {
     <div className="civic-container pb-28 pt-10 md:pb-12">
       <header className="flex flex-col gap-5 border-b border-outline-variant pb-8 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="civic-label text-secondary">My identity</p>
+          <p className="ledger-eyebrow text-secondary">My identity</p>
           <h1 className="mt-3 font-headline text-3xl font-bold tracking-[-0.03em] text-primary sm:text-4xl">Your voting profile</h1>
           <p className="mt-3 max-w-2xl text-on-surface-variant">
             World ID is verified. Your passkey reconstructs the signing key locally only when a voting action requires it.
@@ -57,7 +57,7 @@ const Dashboard = () => {
 
       <div className="mt-8 grid gap-6 lg:grid-cols-12">
         <aside className="space-y-6 lg:col-span-4">
-          <section className="civic-card p-6">
+          <section className="ledger-panel p-6">
             <div className="flex items-center gap-4">
               <div className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-secondary bg-surface-container text-secondary">
                 <ShieldCheck className="h-7 w-7" aria-hidden="true" />
@@ -80,7 +80,7 @@ const Dashboard = () => {
           </section>
 
           <section className="rounded-xl bg-primary p-6 text-on-primary">
-            <p className="civic-label text-secondary-fixed">Active cryptographic identity</p>
+            <p className="ledger-eyebrow text-secondary-fixed">Active cryptographic identity</p>
             {derivedPublicKey ? (
               <div className="mt-5 space-y-4">
                 {(["x", "y"] as const).map((coordinate) => (
@@ -105,14 +105,14 @@ const Dashboard = () => {
             )}
           </section>
 
-          <button type="button" onClick={() => void deriveKeypair()} disabled={isDerivingKey} className="ledger-button-secondary w-full">
+          <button type="button" onClick={() => { if (!isDerivingKey) void deriveKeypair(); }} aria-busy={isDerivingKey || undefined} aria-disabled={isDerivingKey || undefined} className="ledger-button-secondary w-full">
             {isDerivingKey ? <Loader2 className="h-4 w-4 animate-spin" /> : derivedPublicKey ? <RefreshCw className="h-4 w-4" /> : <Fingerprint className="h-4 w-4" />}
             {isDerivingKey ? "Unlocking..." : derivedPublicKey ? "Re-derive with Passkey" : "Unlock with Passkey"}
           </button>
         </aside>
 
         <section className="grid gap-6 md:grid-cols-2 lg:col-span-8">
-          <article className="civic-card flex min-h-64 flex-col justify-between p-6">
+          <article className="ledger-panel flex min-h-64 flex-col justify-between p-6">
             <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-surface-container text-secondary">
               <Vote className="h-5 w-5" aria-hidden="true" />
             </div>
@@ -136,7 +136,7 @@ const Dashboard = () => {
           <article className="rounded-xl border border-outline-variant bg-surface-container-high p-7 md:col-span-2">
             <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
               <div className="max-w-xl">
-                <p className="civic-label">Local key handling</p>
+                <p className="ledger-eyebrow">Local key handling</p>
                 <h2 className="mt-2 font-headline text-xl font-semibold text-primary">Your private voting key stays on this device</h2>
                 <p className="mt-3 text-sm leading-6 text-on-surface-variant">The browser derives the BabyJubJub key in memory from your passkey. Votex receives signed public data and session bindings, never the private key itself.</p>
               </div>

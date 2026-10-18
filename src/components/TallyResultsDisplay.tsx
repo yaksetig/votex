@@ -14,6 +14,8 @@ import { getElectionTallyResults } from "@/services/tallyService";
 import type { VoteData } from "@/services/voteTrackingService";
 import { getElectionVoteData } from "@/services/voteTrackingService";
 import type { TallyChartDatum } from "@/components/TallyResultsChart";
+import { Time } from "@/components/Time";
+import { Skeleton } from "@/components/Skeleton";
 
 const TallyResultsChart = lazy(() => import("@/components/TallyResultsChart"));
 
@@ -38,7 +40,7 @@ const EmptyChartState = () => (
 );
 
 const ChartLoadingState = () => (
-  <div className="h-full animate-pulse rounded-xl border border-outline-variant/12 bg-surface-container-low" />
+  <Skeleton className="h-full" />
 );
 
 const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({
@@ -117,14 +119,14 @@ const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({
     return (
       <div className="space-y-6">
         <div className="grid gap-4 md:grid-cols-4">
-          <div className="ledger-subpanel h-28 animate-pulse" />
-          <div className="ledger-subpanel h-28 animate-pulse" />
-          <div className="ledger-subpanel h-28 animate-pulse" />
-          <div className="ledger-subpanel h-28 animate-pulse" />
+          <Skeleton className="h-28" label="Loading results" />
+          <Skeleton className="h-28" />
+          <Skeleton className="h-28" />
+          <Skeleton className="h-28" />
         </div>
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_360px]">
-          <div className="ledger-subpanel h-[24rem] animate-pulse" />
-          <div className="ledger-subpanel h-[24rem] animate-pulse" />
+          <Skeleton className="h-[24rem]" />
+          <Skeleton className="h-[24rem]" />
         </div>
       </div>
     );
@@ -265,7 +267,7 @@ const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({
               Last updated
             </h3>
             <p className="mt-3 text-sm text-on-surface-variant">
-              {lastUpdated.toLocaleString()}
+              <Time value={lastUpdated} />
             </p>
           </div>
         </div>

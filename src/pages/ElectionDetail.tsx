@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { formatDistanceToNow } from "date-fns";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -32,6 +31,9 @@ import { useDeriveKeypair } from "@/hooks/useDeriveKeypair";
 import VoteReceiptCard from "@/components/VoteReceiptCard";
 import ElectionPublicAudit from "@/components/ElectionPublicAudit";
 import type { VoteReceipt } from "@/types/api";
+import { pluralize } from "@/lib/format";
+import { Time } from "@/components/Time";
+import { Skeleton } from "@/components/Skeleton";
 
 const ElectionDetail = () => {
   const { id } = useParams();
@@ -481,10 +483,10 @@ const ElectionDetail = () => {
     return (
       <div className="px-4 py-10 sm:px-6">
         <div className="mx-auto max-w-6xl space-y-6">
-          <div className="ledger-panel h-56 animate-pulse" />
+          <Skeleton className="h-56" label="Loading election" />
           <div className="grid gap-6 lg:grid-cols-12">
-            <div className="ledger-panel h-[30rem] animate-pulse lg:col-span-7" />
-            <div className="ledger-panel h-[30rem] animate-pulse lg:col-span-5" />
+            <Skeleton className="h-[30rem] lg:col-span-7" />
+            <Skeleton className="h-[30rem] lg:col-span-5" />
           </div>
         </div>
       </div>
@@ -542,7 +544,7 @@ const ElectionDetail = () => {
                 )}
                 {!electionClosed && (
                   <span className="text-xs font-semibold uppercase tracking-[0.05em] text-on-surface-variant">
-                    Ends {formatDistanceToNow(new Date(election.end_date), { addSuffix: true })}
+                    Closes <Time value={election.end_date} relative />
                   </span>
                 )}
               </div>
@@ -577,7 +579,7 @@ const ElectionDetail = () => {
                         Voting and nullification require the passkey-derived BabyJubJub keypair for this session.
                       </p>
                     </div>
-                    <button type="button" onClick={rederiveKeypair} className="ledger-button-primary" disabled={isDerivingKey}>
+                    <button type="button" onClick={rederiveKeypair} className="ledger-button-primary" aria-busy={isDerivingKey || undefined} aria-disabled={isDerivingKey || undefined}>
                       {isDerivingKey ? <Loader2 className="h-4 w-4 animate-spin" /> : <Fingerprint className="h-4 w-4" />}
                       {isDerivingKey ? "Deriving..." : "Unlock Passkey"}
                     </button>
@@ -610,7 +612,7 @@ const ElectionDetail = () => {
                           <h3 className="mt-3 font-headline text-2xl font-bold text-primary">{option}</h3>
                           <div className="mt-6 space-y-2">
                             <div className="flex items-end justify-between">
-                              <span className="text-sm text-on-surface-variant">{count} vote{count !== 1 ? "s" : ""}</span>
+                              <span className="text-sm text-on-surface-variant">{pluralize(count, "vote")}</span>
                               <span className="font-headline text-2xl font-extrabold text-surface-tint">{percentage}%</span>
                             </div>
                             <div className="h-2 rounded-full bg-surface-container-high">
@@ -632,7 +634,7 @@ const ElectionDetail = () => {
                   </div>
 
                   <div className="mt-6 text-center text-sm text-on-surface-variant">
-                    {totalVotes} total verified vote{totalVotes !== 1 ? "s" : ""} recorded
+                    {pluralize(totalVotes, "vote")} recorded
                   </div>
                 </div>
               ) : !hasVoted ? (
@@ -672,7 +674,7 @@ const ElectionDetail = () => {
                               />
                             </div>
                             <p className="text-xs font-semibold uppercase tracking-[0.05em] text-on-surface-variant">
-                              {count} verified vote{count === 1 ? "" : "s"}
+                              {pluralize(count, "vote")}
                             </p>
                           </div>
                         </button>

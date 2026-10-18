@@ -10,6 +10,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuthorityElections } from "@/hooks/queries/useAuthorityElections";
 import type { AuthorityElection } from "@/services/electionDataService";
 import { cn } from "@/lib/utils";
+import { pluralize } from "@/lib/format";
+import { Skeleton } from "@/components/Skeleton";
 
 interface AuthorityElectionsListProps {
   authorityId: string;
@@ -71,8 +73,8 @@ const AuthorityElectionsList: React.FC<AuthorityElectionsListProps> = ({
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="ledger-panel h-36 animate-pulse" />
-        <div className="ledger-panel h-[34rem] animate-pulse" />
+        <Skeleton className="h-36" label="Loading elections" />
+        <Skeleton className="h-[34rem]" />
       </div>
     );
   }
@@ -128,7 +130,7 @@ const AuthorityElectionsList: React.FC<AuthorityElectionsListProps> = ({
             <div>
               <h2 className="font-headline text-2xl font-bold text-primary">Live Election Ledger</h2>
               <p className="mt-1 text-sm text-on-surface-variant">
-                {elections.length} election{elections.length === 1 ? "" : "s"} under active management
+                {pluralize(elections.length, "election")} published through this authority
               </p>
             </div>
           </div>

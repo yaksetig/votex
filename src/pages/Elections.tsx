@@ -11,7 +11,6 @@ import {
   ShieldCheck,
   Users,
 } from "lucide-react";
-import { formatDistanceToNowStrict } from "date-fns";
 import { useWallet } from "@/contexts/WalletContext";
 import { getElectionStatus, type ElectionStatus } from "@/lib/electionStatus";
 import { useElectionsList } from "@/hooks/queries/useElectionsList";
@@ -20,6 +19,8 @@ import type { FormData } from "@/components/ElectionForm/types";
 import { createElection } from "@/services/electionCreationService";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { Time } from "@/components/Time";
+import { Skeleton } from "@/components/Skeleton";
 
 type ElectionFilter = "all" | "active" | "closed";
 type ElectionSort = "closing" | "participation";
@@ -114,9 +115,9 @@ const Elections = () => {
   if (isLoading) {
     return (
       <div className="civic-container space-y-8 pb-28 pt-10 md:pb-12">
-        <div className="h-32 animate-pulse rounded-xl bg-surface-container" />
+        <Skeleton className="h-32" label="Loading elections" />
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 6 }, (_, index) => <div key={index} className="h-80 animate-pulse rounded-xl bg-surface-container" />)}
+          {Array.from({ length: 6 }, (_, index) => <Skeleton key={index} className="h-80" />)}
         </div>
       </div>
     );
@@ -134,7 +135,7 @@ const Elections = () => {
 
       <header className="flex flex-col gap-6 border-b border-outline-variant pb-8 md:flex-row md:items-end md:justify-between">
         <div className="max-w-3xl">
-          <p className="civic-label text-secondary">Public election browser</p>
+          <p className="ledger-eyebrow text-secondary">Public election browser</p>
           <h1 className="mt-3 font-headline text-3xl font-bold tracking-[-0.03em] text-primary sm:text-4xl">
             Active Polls &amp; Elections
           </h1>
@@ -220,7 +221,7 @@ const Elections = () => {
             const option2Percent = total ? 100 - option1Percent : 0;
 
             return (
-              <article key={election.id} className="civic-card flex min-h-[340px] flex-col overflow-hidden transition-transform hover:-translate-y-0.5 hover:shadow-ledger">
+              <article key={election.id} className="ledger-panel flex min-h-[340px] flex-col overflow-hidden transition-transform hover:-translate-y-0.5 hover:shadow-ledger">
                 <div className="h-1 bg-secondary" />
                 <div className="flex flex-1 flex-col p-6">
                   <div className="flex items-center justify-between gap-3">
@@ -257,12 +258,14 @@ const Elections = () => {
 
                   <div className="mt-auto flex items-end justify-between gap-4 border-t border-outline-variant/50 pt-5">
                     <div>
-                      <p className="civic-label">{status === "active" ? "Closes in" : "Closed"}</p>
+                      <p className="ledger-eyebrow">{status === "active" ? "Closes" : "Closed"}</p>
                       <p className="mt-1 inline-flex items-center gap-1.5 text-sm font-semibold text-primary">
                         <Clock3 className="h-4 w-4 text-secondary" aria-hidden="true" />
-                        {status === "active"
-                          ? formatDistanceToNowStrict(new Date(election.end_date))
-                          : new Date(election.closed_manually_at ?? election.end_date).toLocaleDateString()}
+                        {status === "active" ? (
+                          <Time value={election.end_date} relative />
+                        ) : (
+                          <Time value={election.closed_manually_at ?? election.end_date} />
+                        )}
                       </p>
                     </div>
                     <button

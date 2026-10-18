@@ -55,7 +55,7 @@ const FAQ = () => {
 
         <section className="space-y-4">
           {FAQ_ITEMS.map(({ question, answer }) => (
-            <article key={question} className="civic-card p-6">
+            <article key={question} className="ledger-panel p-6">
               <h2 className="font-headline text-xl font-semibold text-primary">{question}</h2>
               <p className="mt-3 text-sm leading-relaxed text-on-surface-variant">{answer}</p>
             </article>

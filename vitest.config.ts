@@ -11,6 +11,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "node",
+    setupFiles: ["src/test/setup.ts"],
     // circuitNegative runs real witness generation against the shipped wasm.
     testTimeout: 30_000,
     // Only run the browser/node test suite. Edge-function tests under

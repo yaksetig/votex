@@ -13,6 +13,7 @@ import {
 import { getCurrentAuthority } from "@/services/electionAuthorityAuthService";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { LoadingPanel } from "@/components/LoadingPanel";
 
 const ElectionAuthorityLogin = lazy(() => import("@/components/ElectionAuthorityLogin"));
 const ElectionAuthorityDashboard = lazy(() => import("@/components/ElectionAuthorityDashboard"));
@@ -32,16 +33,7 @@ interface AuthorityShellProps {
   children: React.ReactNode;
 }
 
-const AuthorityPaneLoading = () => (
-  <div className="flex min-h-[40vh] items-center justify-center">
-    <div className="rounded-xl border border-outline-variant/15 bg-surface-container-lowest px-8 py-10 text-center shadow-ledger">
-      <p className="ledger-eyebrow">Authority workspace</p>
-      <h2 className="mt-3 font-headline text-2xl font-bold text-primary">
-        Loading view
-      </h2>
-    </div>
-  </div>
-);
+const AuthorityPaneLoading = () => <LoadingPanel label="Loading view" fullHeight={false} />;
 
 const AuthorityShell: React.FC<AuthorityShellProps> = ({
   authorityName,
@@ -69,7 +61,7 @@ const AuthorityShell: React.FC<AuthorityShellProps> = ({
         </div>
 
         <div className="mb-8 rounded-xl bg-primary p-4 text-on-primary">
-          <p className="civic-label text-white/55">Authenticated authority</p>
+          <p className="ledger-eyebrow text-white/55">Authenticated authority</p>
           <p className="mt-2 font-headline text-xl font-bold text-white">{authorityName}</p>
           <p className="mt-3 inline-flex items-center gap-2 text-xs font-semibold text-secondary-fixed"><span className="h-2 w-2 rounded-full bg-secondary-fixed" />Session active</p>
         </div>

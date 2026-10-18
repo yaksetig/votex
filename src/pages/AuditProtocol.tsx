@@ -1,8 +1,8 @@
 export default function AuditProtocol() {
   return (
     <div className="civic-container py-10 pb-28 md:pb-12">
-      <section className="civic-card mx-auto max-w-4xl p-6 sm:p-10">
-        <p className="civic-label text-secondary">Public verification</p>
+      <section className="ledger-panel mx-auto max-w-4xl p-6 sm:p-10">
+        <p className="ledger-eyebrow text-secondary">Public verification</p>
         <h1 className="mt-3 font-headline text-3xl font-bold tracking-[-0.03em] text-primary">Audit protocol</h1>
         <ol className="mt-8 space-y-5 text-sm leading-relaxed text-on-surface-variant">
           <li><strong className="text-primary">1. Election record:</strong> verify the binary options, authority public key, creator pseudonym, and closing time.</li>

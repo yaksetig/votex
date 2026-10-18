@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { updateElectionDetails } from "@/services/electionOperationsService";
 import { electionFieldSchemas } from "@/components/ElectionForm/schema";
 import type { Election } from "@/types/election";
+import { Time } from "@/components/Time";
 
 const editElectionSchema = z.object({
   ...electionFieldSchemas,
@@ -120,7 +121,7 @@ const ElectionEditForm: React.FC<ElectionEditFormProps> = ({
         <div className="rounded-xl bg-surface-container-low px-5 py-4">
           <p className="ledger-eyebrow">Current end date</p>
           <p className="mt-2 font-semibold text-primary">
-            {new Date(election.end_date).toLocaleString()}
+            <Time value={election.end_date} relative />
           </p>
         </div>
       </div>

@@ -1,6 +1,5 @@
 import React, { Suspense, lazy, useEffect } from 'react';
 import { Toaster } from "@/components/ui/toaster"
-import { TooltipProvider } from "@/components/ui/tooltip"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { BrowserRouter, Routes, Route } from "react-router-dom"
 import { WalletProvider } from "@/contexts/WalletContext"
@@ -8,6 +7,9 @@ import ProtectedRoute from "@/components/ProtectedRoute"
 import NavBar from "@/components/NavBar"
 import ConnectivityBanner from "@/components/ConnectivityBanner"
 import AppFooter from "@/components/AppFooter"
+import { ErrorBoundary } from "@/components/ErrorBoundary"
+import { LoadingPanel } from "@/components/LoadingPanel"
+import { MAIN_CONTENT_ID, RouteFocusManager, SkipLink } from "@/components/RouteFocusManager"
 
 const Index = lazy(() => import("@/pages/Index"))
 const Dashboard = lazy(() => import("@/pages/Dashboard"))
@@ -31,17 +33,6 @@ function getLocalhostUrl() {
   return `${protocol}//localhost${portSuffix}${pathname}${search}${hash}`
 }
 
-const RouteLoading = () => (
-  <div className="flex min-h-[calc(100vh-72px)] items-center justify-center px-4 py-10">
-    <div className="rounded-xl border border-outline-variant/15 bg-surface-container-lowest px-8 py-10 text-center shadow-ledger">
-      <p className="ledger-eyebrow">Votex</p>
-      <h1 className="mt-3 font-headline text-3xl font-bold text-primary">
-        Loading interface
-      </h1>
-    </div>
-  </div>
-)
-
 const App: React.FC = () => {
   const redirectUrl =
     typeof window !== "undefined" && LOOPBACK_IP_HOSTS.has(window.location.hostname)
@@ -54,60 +45,61 @@ const App: React.FC = () => {
     }
   }, [redirectUrl])
 
+  if (redirectUrl) {
+    return (
+      <div className="flex min-h-screen items-center justify-center px-4 py-10">
+        <div className="ledger-panel max-w-lg px-8 py-10 text-center">
+          <p className="ledger-eyebrow">Votex</p>
+          <h1 className="mt-3 font-headline text-3xl font-bold text-primary">
+            Redirecting to localhost
+          </h1>
+          <p className="mt-4 text-base leading-relaxed text-on-surface-variant">
+            Passkey authentication requires a valid WebAuthn relying-party hostname. Local development must use{" "}
+            <span className="font-semibold text-primary">localhost</span>, not a loopback IP.
+          </p>
+          <a className="ledger-button-primary mt-6" href={redirectUrl}>
+            Continue on localhost
+          </a>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <WalletProvider>
+      <WalletProvider>
+        <BrowserRouter>
+          <RouteFocusManager />
+          <div className="ledger-shell flex min-h-screen flex-col pb-[var(--bottom-nav-h)]">
+            <SkipLink />
+            <NavBar />
+            <ConnectivityBanner />
+            <main id={MAIN_CONTENT_ID} tabIndex={-1} className="flex-1 outline-none">
+              <ErrorBoundary>
+                <Suspense fallback={<LoadingPanel label="Loading page" />}>
+                  <Routes>
+                    <Route path="/" element={<Index />} />
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/success" element={<ProtectedRoute><Success /></ProtectedRoute>} />
+                    <Route path="/elections" element={<Elections />} />
+                    <Route path="/elections/:id" element={<ElectionDetail />} />
+                    <Route path="/receipts/:receiptId" element={<VoteReceipt />} />
+                    <Route path="/elections/:id/authority" element={<ElectionAuthority />} />
+                    <Route path="/election_authority" element={<ElectionAuthority />} />
+                    <Route path="/how-it-works" element={<HowItWorks />} />
+                    <Route path="/faq" element={<FAQ />} />
+                    <Route path="/privacy" element={<Privacy />} />
+                    <Route path="/audit-protocol" element={<AuditProtocol />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </Suspense>
+              </ErrorBoundary>
+            </main>
+            <AppFooter />
+          </div>
           <Toaster />
-          {redirectUrl ? (
-            <div className="flex min-h-screen items-center justify-center px-4 py-10">
-              <div className="max-w-lg rounded-xl border border-outline-variant/15 bg-surface-container-lowest px-8 py-10 text-center shadow-ledger">
-                <p className="ledger-eyebrow">Votex</p>
-                <h1 className="mt-3 font-headline text-3xl font-bold text-primary">
-                  Redirecting to localhost
-                </h1>
-                <p className="mt-4 text-base leading-relaxed text-on-surface-variant">
-                  Passkey authentication requires a valid WebAuthn relying-party hostname. Local development must use{" "}
-                  <span className="font-semibold text-primary">localhost</span>, not a loopback IP.
-                </p>
-                <a
-                  className="mt-6 inline-flex rounded-full bg-primary px-6 py-3 font-semibold text-on-primary transition hover:brightness-110"
-                  href={redirectUrl}
-                >
-                  Continue on localhost
-                </a>
-              </div>
-            </div>
-          ) : (
-            <BrowserRouter>
-              <div className="ledger-shell flex min-h-screen flex-col">
-                <NavBar />
-                <ConnectivityBanner />
-                <main className="flex-1">
-                  <Suspense fallback={<RouteLoading />}>
-                    <Routes>
-                      <Route path="/" element={<Index />} />
-                      <Route path="/dashboard" element={<Dashboard />} />
-                      <Route path="/success" element={<ProtectedRoute><Success /></ProtectedRoute>} />
-                      <Route path="/elections" element={<Elections />} />
-                      <Route path="/elections/:id" element={<ElectionDetail />} />
-                      <Route path="/receipts/:receiptId" element={<VoteReceipt />} />
-                      <Route path="/elections/:id/authority" element={<ElectionAuthority />} />
-                      <Route path="/election_authority" element={<ElectionAuthority />} />
-                      <Route path="/how-it-works" element={<HowItWorks />} />
-                      <Route path="/faq" element={<FAQ />} />
-                      <Route path="/privacy" element={<Privacy />} />
-                      <Route path="/audit-protocol" element={<AuditProtocol />} />
-                      <Route path="*" element={<NotFound />} />
-                    </Routes>
-                  </Suspense>
-                </main>
-                <AppFooter />
-              </div>
-            </BrowserRouter>
-          )}
-        </WalletProvider>
-      </TooltipProvider>
+        </BrowserRouter>
+      </WalletProvider>
     </QueryClientProvider>
   )
 }

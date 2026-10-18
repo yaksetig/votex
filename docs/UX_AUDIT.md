@@ -425,6 +425,7 @@ _The browser, filters, the inline composer and the edit form._
 - **Where:** Elections.tsx:264-265 (screenshots 21, 54)
 - **Evidence:** Ambiguous day/month order and no time or zone.
 - **Change:** One date formatter with absolute local time, zone and a  element; relative time as a secondary label.
+- **Status:** Resolved in Phase A (foundations)
 
 ### UX-063 · Medium · Placeholders for options never render
 
@@ -449,6 +450,7 @@ _The browser, filters, the inline composer and the edit form._
 - **Where:** Elections.tsx:190,234 (screenshots 20, 54)
 - **Evidence:** Plural bug.
 - **Change:** Shared plural helper.
+- **Status:** Resolved in Phase A (foundations)
 
 
 ## Receipts and audit ledger (12)
@@ -496,6 +498,7 @@ _Receipt card, receipt page, and the public tables under each election._
 - **Where:** VoteReceiptCard.tsx:81,85; ElectionPublicAudit.tsx:34
 - **Evidence:** “10/17/2026, 5:58:36 PM” is locale-ambiguous.
 - **Change:** Shared date formatter with zone.
+- **Status:** Resolved in Phase A (foundations)
 
 ### UX-074 · Medium · “Load 25 More” unmounts while loading, losing focus
 
@@ -709,12 +712,14 @@ _Toasts, loading, empty, error and offline behaviour._
 - **Where:** WalletContext.tsx:65-68 (visible in 20 of 54 screenshots)
 - **Evidence:** Permanent noise that trains users to ignore toasts.
 - **Change:** Remove; show identity state in the header only.
+- **Status:** Resolved in Phase A (foundations)
 
 ### UX-107 · High · Error toasts auto-dismiss in five seconds and old ones stack
 
 - **Where:** ui/toast.tsx default duration; screenshots 45/46 show a stale “Tally processing failed” beside “Tally processed”
 - **Evidence:** Failures vanish before they can be read; superseded errors linger.
 - **Change:** Persistent destructive toasts; dismiss earlier toasts of the same action on success.
+- **Status:** Resolved in Phase A (foundations)
 
 ### UX-108 · High · Silent data failures
 
@@ -727,6 +732,7 @@ _Toasts, loading, empty, error and offline behaviour._
 - **Where:** ui/toast.tsx:72-86 (axe button-name, critical, 31 steps); :79 opacity-0
 - **Evidence:** Screen-reader users hear nothing; touch users cannot dismiss.
 - **Change:** Add sr-only “Dismiss”; always visible.
+- **Status:** Resolved in Phase A (foundations)
 
 ### UX-110 · Medium · Any election fetch error becomes “Election not found” plus a duplicate toast
 
@@ -739,12 +745,14 @@ _Toasts, loading, empty, error and offline behaviour._
 - **Where:** App.tsx:40, ProtectedRoute.tsx:18, ElectionAuthority.tsx:40,206, ElectionAuthorityDashboard.tsx:37, bare spinners in Dashboard.tsx:28 and VoteReceipt.tsx:96, skeletons elsewhere; none have role=status
 - **Evidence:** Inconsistent and silent for assistive tech.
 - **Change:** Skeletons for pages, one inline spinner component, role=status with text.
+- **Status:** Resolved in Phase A (foundations)
 
 ### UX-112 · Medium · In-progress buttons use disabled
 
 - **Where:** ui/button.tsx:9 with ~12 call sites (“Recording vote…”, “Unlock Passkey”, “Begin Tally Processing”)
 - **Evidence:** Removed from tab order, dimmed to 2.4:1, no aria-busy.
 - **Change:** aria-disabled plus aria-busy; keep opacity; reserve disabled for truly unavailable actions.
+- **Status:** Resolved in Phase A (foundations)
 
 ### UX-113 · Medium · Scary sign-out failure toast
 
@@ -769,6 +777,7 @@ _Toasts, loading, empty, error and offline behaviour._
 - **Where:** “Secure session restored”, “Passkey unlocked” (duplicates panel copy), “Vote delegated” (duplicates the banner), “Logged out”
 - **Evidence:** Toast per state change regardless of visible feedback.
 - **Change:** Toast only when nothing else on screen confirms the result.
+- **Status:** Resolved in Phase A (foundations)
 
 
 ## Accessibility (15)
@@ -780,12 +789,14 @@ _Semantics, keyboard, focus, contrast, motion, targets._
 - **Where:** Observed: focus on  after sign-in completion, after casting, after delegating, after nullifying, after sign-out (records.json)
 - **Evidence:** Keyboard and screen-reader users lose their place after every major action.
 - **Change:** Move focus to the result heading or region after each action; return focus to the trigger when dialogs close.
+- **Status:** Resolved in Phase A (foundations)
 
 ### UX-118 · High · No skip link, no scroll reset or focus move on route change
 
 - **Where:** App.tsx:82-107; index.html
 - **Evidence:** Navigating from the bottom of a list keeps the scroll offset; nothing lets keyboard users skip the header.
 - **Change:** Skip-to-content link; scrollTo(0,0) and focus main on location change.
+- **Status:** Resolved in Phase A (foundations)
 
 ### UX-119 · High · Contrast failures on labels, placeholders, dark-panel eyebrows and chart ticks
 
@@ -828,6 +839,7 @@ _Semantics, keyboard, focus, contrast, motion, targets._
 - **Where:** AppFooter.tsx:22-23 (“Public verification guide” for “Audit Protocol”, “Contact the Votex team” for “Support”)
 - **Evidence:** Voice-control users cannot say the visible label (WCAG 2.5.3).
 - **Change:** Remove the aria-labels.
+- **Status:** Resolved in Phase A (foundations)
 
 ### UX-126 · Medium · Decorative icons not hidden from assistive tech
 
@@ -858,12 +870,14 @@ _Semantics, keyboard, focus, contrast, motion, targets._
 - **Where:** ui/badge.tsx:7,30-33; ui/alert.tsx:39
 - **Evidence:** Semantics and heading order issues wherever used.
 - **Change:** span for badges; non-heading element for alert titles.
+- **Status:** Resolved in Phase A (foundations)
 
 ### UX-131 · Low · Unused TooltipProvider and identical gradient button variant
 
 - **Where:** App.tsx:59; ui/button.tsx:23-24
 - **Evidence:** Dead code that suggests affordances that do not exist.
 - **Change:** Remove.
+- **Status:** Resolved in Phase A (foundations)
 
 
 ## Mobile (7)
@@ -934,6 +948,7 @@ _Vocabulary drift, jargon, claims, grammar._
 - **Where:** ElectionDetail.tsx:98,379,466; WorldIDSignIn.tsx:137,185,197,285,292; useDeriveKeypair.ts:78; Elections.tsx:61,80; tallyService.ts:122 (“Accumulator for  contains an invalid point”)
 - **Evidence:** “No nullifier found in IDKit result”, “Derived keypair failed validation”.
 - **Change:** One error-code-to-sentence map; never pass error.message into voter toasts.
+- **Status:** Resolved in Phase A (foundations)
 
 ### UX-142 · Medium · Authority has seven names
 
@@ -946,6 +961,7 @@ _Vocabulary drift, jargon, claims, grammar._
 - **Where:** Elections.tsx:30-33 (Active/Closed/Expired), ElectionDetail.tsx:536-541 (Active ballot/Live/Closed), AuthorityElectionsList.tsx:168-179 (Manually Closed/Tallied/Pending Tally), ElectionAuthorityDashboard.tsx:208,254 (Done/Ready/Live), TallyResultsDisplay.tsx:148
 - **Evidence:** The same state has different words in each surface.
 - **Change:** One status enum rendered by one StatusPill.
+- **Status:** Resolved in Phase A (foundations)
 
 ### UX-144 · Medium · Jargon in voter-facing text
 
@@ -970,6 +986,7 @@ _Vocabulary drift, jargon, claims, grammar._
 - **Where:** ElectionAuthorityInterface.tsx:115-116 (“1 delegation … were ignored”), :71 (“Resolved 1 voter records”); TallyResultsDisplay.tsx:256 (“1 tracked ballots”); AuthorityElectionsList.tsx:131 (“under active management” for closed)
 - **Evidence:** Visible on common counts.
 - **Change:** Plural helper; rewrite the management line.
+- **Status:** Resolved in Phase A (foundations)
 
 ### UX-148 · Low · Ellipsis character vs three dots
 
@@ -999,6 +1016,7 @@ _Tokens, spacing, radius, type scale and component consistency._
 - **Where:** index.css: .civic-card = .ledger-panel (:124-126 vs :77-79); .civic-label = .ledger-eyebrow (:136-138 vs :100-102)
 - **Evidence:** Both pairs are used interchangeably, sometimes in one file.
 - **Change:** Keep one of each.
+- **Status:** Resolved in Phase A (foundations)
 
 ### UX-152 · Medium · Hand-built card recipe repeated instead of the shared class
 
@@ -1011,6 +1029,7 @@ _Tokens, spacing, radius, type scale and component consistency._
 - **Where:** outline-variant at /8, /10, /12, /15, /16, /20, /40, /50; rounded-[1rem] on sign-in buttons flips radius between states (WorldIDSignIn.tsx:390-507); rounded-lg sm:rounded-xl on the nullify card
 - **Evidence:** Edges look slightly different everywhere.
 - **Change:** Two border tokens, three radii.
+- **Status:** Resolved in Phase A (foundations)
 
 ### UX-154 · Medium · Off-palette colours
 
@@ -1058,34 +1077,40 @@ _Titles, scroll, error boundary, theming and motion preferences._
 - **Where:** All 54 steps reported title “Votex”; no title hook exists
 - **Evidence:** Tabs, history and screen-reader page announcements are indistinguishable.
 - **Change:** usePageTitle("Elections · Votex") per page; include the election title and receipt id where relevant.
+- **Status:** Resolved in Phase A (foundations)
 
 ### UX-161 · High · No error boundary around routes
 
 - **Where:** App.tsx:87
 - **Evidence:** A failed lazy chunk after a deploy renders a blank page.
 - **Change:** Error boundary with a Reload action around Suspense.
+- **Status:** Resolved in Phase A (foundations)
 
 ### UX-162 · Medium · No prefers-reduced-motion handling
 
 - **Where:** index.css:53-55 (scroll-smooth), animate-pulse skeletons, 14 spinners, Radix animations, hover translate/scale
 - **Evidence:** Motion plays for users who asked for none.
 - **Change:** Global reduced-motion rule; motion-safe variants.
+- **Status:** Resolved in Phase A (foundations)
 
 ### UX-163 · Medium · Forced light theme without declaring color-scheme
 
 - **Where:** tailwind.config.ts:4 declares darkMode class with no dark tokens; body background hard-coded; no color-scheme
 - **Evidence:** Native selects, date pickers and scrollbars follow the OS and render dark on a light page.
 - **Change:** Add color-scheme: light (or implement dark tokens); remove dead --sidebar/--card variables.
+- **Status:** Resolved in Phase A (foundations)
 
 ### UX-164 · Medium · index.html has a blank line before the doctype and no explicit icon or theme-color
 
 - **Where:** index.html:1; no link rel=icon, apple-touch-icon, theme-color; twitter:card without og:image
 - **Evidence:** Quirks risk in some tooling; poor install and share previews.
 - **Change:** Trim, add icons and an og image.
+- **Status:** Resolved in Phase A (foundations)
 
 ### UX-165 · Low · Dates rely on toLocaleString() without options in eight files
 
 - **Where:** VoteReceiptCard.tsx, AuthorityAuditLog.tsx, ElectionEditForm.tsx, ElectionAuthorityDashboard.tsx, ElectionAuthorityInterface.tsx, ElectionPublicAudit.tsx, TallyResultsDisplay.tsx, Elections.tsx
 - **Evidence:** Locale-dependent format, no zone, no .
 - **Change:** One formatDateTime with Intl and timeZoneName.
+- **Status:** Resolved in Phase A (foundations)
 

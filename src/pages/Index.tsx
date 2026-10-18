@@ -52,7 +52,7 @@ const Index = () => {
       </section>
 
       <div className="civic-container relative z-10 -mt-8">
-        <form onSubmit={submitSearch} className="civic-card flex flex-col gap-2 p-2 shadow-ledger md:flex-row">
+        <form onSubmit={submitSearch} className="ledger-panel flex flex-col gap-2 p-2 shadow-ledger md:flex-row">
           <label className="flex min-h-14 flex-1 items-center gap-3 rounded-lg bg-surface-container-low px-4">
             <Search className="h-5 w-5 text-outline" aria-hidden="true" />
             <span className="sr-only">Search elections</span>
@@ -70,7 +70,7 @@ const Index = () => {
 
       <section className="civic-container py-24 sm:py-32">
         <div className="grid gap-6 md:grid-cols-12">
-          <article className="civic-card relative overflow-hidden bg-surface-container-low p-8 md:col-span-8">
+          <article className="ledger-panel relative overflow-hidden bg-surface-container-low p-8 md:col-span-8">
             <Database className="h-9 w-9 text-secondary" aria-hidden="true" />
             <h2 className="mt-6 font-headline text-xl font-semibold text-primary">Publicly auditable</h2>
             <p className="mt-3 max-w-xl leading-7 text-on-surface-variant">
@@ -99,7 +99,7 @@ const Index = () => {
             </div>
           </article>
 
-          <article className="civic-card p-8 md:col-span-4">
+          <article className="ledger-panel p-8 md:col-span-4">
             <KeyRound className="h-9 w-9 text-secondary" aria-hidden="true" />
             <h2 className="mt-6 font-headline text-xl font-semibold text-primary">Local passkey identity</h2>
             <p className="mt-3 text-sm leading-6 text-on-surface-variant">
@@ -146,7 +146,7 @@ const Index = () => {
       </section>
 
       <section className="civic-container py-24">
-        <div className="civic-card bg-white/80 p-8 text-center shadow-ledger sm:p-12">
+        <div className="ledger-panel bg-white/80 p-8 text-center shadow-ledger sm:p-12">
           <h2 className="civic-section-title">Ready to participate?</h2>
           <p className="mx-auto mt-3 max-w-lg text-on-surface-variant">Browse a live election or prepare your passkey-backed voting identity.</p>
           <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">

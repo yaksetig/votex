@@ -4,6 +4,7 @@ import { ChevronDown, Database as DatabaseIcon, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { cn } from "@/lib/utils";
+import { formatDateTime } from "@/lib/format";
 
 type AuditTab = "ballots" | "participants" | "activity";
 type PublicVote = Database["public"]["Views"]["public_votes"]["Row"];
@@ -31,7 +32,7 @@ function shortened(value: string | null | undefined, length = 16) {
 
 function displayedTime(value: string | null | undefined) {
   if (!value) return "—";
-  return new Date(value).toLocaleString();
+  return formatDateTime(value);
 }
 
 export default function ElectionPublicAudit({ electionId }: { electionId: string }) {
@@ -112,7 +113,7 @@ export default function ElectionPublicAudit({ electionId }: { electionId: string
     <section className="border-t border-outline-variant pt-8" aria-labelledby="public-audit-title">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="civic-label text-secondary">Public verification</p>
+          <p className="ledger-eyebrow text-secondary">Public verification</p>
           <h2 id="public-audit-title" className="mt-2 font-headline text-2xl font-semibold text-primary">Election audit ledger</h2>
           <p className="mt-2 text-sm text-on-surface-variant">Sanitized public records used to independently inspect election activity.</p>
         </div>

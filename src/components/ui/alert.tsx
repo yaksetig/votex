@@ -32,13 +32,15 @@ const Alert = React.forwardRef<
 ))
 Alert.displayName = "Alert"
 
+// A div rather than a heading: alerts appear inside sections at any depth,
+// and a fixed heading level would break the document outline.
 const AlertTitle = React.forwardRef<
-  HTMLParagraphElement,
-  React.HTMLAttributes<HTMLHeadingElement>
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => (
-  <h5
+  <div
     ref={ref}
-    className={cn("mb-1 font-medium leading-none tracking-tight", className)}
+    className={cn("mb-1 font-semibold leading-none tracking-tight", className)}
     {...props}
   />
 ))

@@ -66,7 +66,7 @@ const HowItWorks = () => {
                 "If a voter is pressured or threatened, they can later nullify their ballot using a zero-knowledge workflow that looks identical to a harmless decoy request.",
             },
           ].map(({ icon: Icon, title, description }) => (
-            <article key={title} className="civic-card p-7">
+            <article key={title} className="ledger-panel p-7">
               <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-on-primary">
                 <Icon className="h-6 w-6" />
               </div>
@@ -77,7 +77,7 @@ const HowItWorks = () => {
         </section>
 
         <section>
-          <div className="civic-card p-6 sm:p-8">
+          <div className="ledger-panel p-6 sm:p-8">
             <h2 className="font-headline text-3xl font-bold text-primary">Security guarantees</h2>
             <div className="mt-8 grid gap-4 md:grid-cols-2">
               {[

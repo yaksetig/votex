@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { ElectionTallyResult, processElectionTally } from "@/services/tallyService";
+import { pluralize } from "@/lib/format";
+import { Time } from "@/components/Time";
 
 interface ElectionAuthorityInterfaceProps {
   electionId: string;
@@ -100,7 +102,7 @@ const ElectionAuthorityInterface: React.FC<ElectionAuthorityInterfaceProps> = ({
               </h2>
               <p className="mt-3 text-sm leading-relaxed text-white/76">
                 The authority key resolved the nullification accumulators and persisted the final tally ledger on{" "}
-                {new Date(tallyResults.processedAt).toLocaleString()}.
+                <Time value={tallyResults.processedAt} />.
               </p>
             </div>
           </div>
@@ -112,8 +114,8 @@ const ElectionAuthorityInterface: React.FC<ElectionAuthorityInterfaceProps> = ({
               <AlertTriangle className="mt-0.5 h-5 w-5 text-tertiary-container" />
               <div>
                 <h3 className="font-headline text-lg font-bold text-primary">
-                  {tallyResults.invalidDelegations.length} delegation
-                  {tallyResults.invalidDelegations.length === 1 ? "" : "s"} could not be decoded and were ignored
+                  {pluralize(tallyResults.invalidDelegations.length, "delegation")} could not be decoded and{" "}
+                  {tallyResults.invalidDelegations.length === 1 ? "was" : "were"} ignored
                 </h3>
                 <p className="mt-2 text-sm text-on-surface-variant">
                   The authority key was verified against the registered key before decryption, so these records are

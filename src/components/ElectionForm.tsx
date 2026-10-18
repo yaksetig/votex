@@ -115,7 +115,7 @@ const ElectionForm: React.FC<ElectionFormProps> = ({ onSubmit, onCancel }) => {
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
-        <Button type="submit" className="bg-secondary text-on-primary" disabled={isSubmitting}>
+        <Button type="submit" className="bg-secondary text-on-primary" busy={isSubmitting}>
           {isSubmitting ? "Publishing..." : "Publish Election"}
         </Button>
       </div>

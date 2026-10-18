@@ -14,6 +14,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { closeElectionEarly, isElectionSafeToEdit } from "@/services/electionOperationsService";
 import type { Election } from "@/types/election";
+import { Time } from "@/components/Time";
+import { Skeleton } from "@/components/Skeleton";
 
 const TallyResultsDisplay = lazy(() => import("@/components/TallyResultsDisplay"));
 const ElectionEditForm = lazy(() => import("@/components/ElectionEditForm"));
@@ -166,8 +168,8 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="ledger-panel h-48 animate-pulse" />
-        <div className="ledger-panel h-[42rem] animate-pulse" />
+        <Skeleton className="h-48" label="Loading election" />
+        <Skeleton className="h-[42rem]" />
       </div>
     );
   }
@@ -306,7 +308,7 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
               <div className="rounded-xl border border-primary/15 bg-primary-fixed/30 p-6">
                 <h3 className="font-headline text-2xl font-bold text-primary">Tally already processed</h3>
                 <p className="mt-3 text-sm leading-relaxed text-on-surface-variant">
-                  Completed on {new Date(tallyStats.processedAt).toLocaleString()}
+                  Completed on <Time value={tallyStats.processedAt} />
                   {tallyStats.processedBy ? ` by ${tallyStats.processedBy}` : ""}.
                 </p>
               </div>

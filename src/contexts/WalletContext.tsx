@@ -62,10 +62,6 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         if (session) {
           setUserId(session.userId);
           setIsWorldIDVerified(true);
-          toast({
-            title: "Authentication loaded",
-            description: "Your human identity has been restored.",
-          });
         } else {
           setUserId(null);
           setIsWorldIDVerified(false);
@@ -87,7 +83,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     return () => {
       cancelled = true;
     };
-  }, [toast]);
+  }, []);
   
   // A logout in one tab must not leave the seed and a verified state alive in
   // another. sessionStorage is per-tab, so react to the shared localStorage

@@ -5,7 +5,7 @@ const NotFound = () => {
   return (
     <div className="civic-container pb-28 pt-10 md:pb-12">
       <div className="mx-auto max-w-4xl">
-        <section className="civic-card p-8 md:p-12">
+        <section className="ledger-panel p-8 md:p-12">
           <div className="max-w-3xl">
             <span className="ledger-badge bg-secondary-container text-on-secondary-container">
               <ShieldCheck className="h-4 w-4" />

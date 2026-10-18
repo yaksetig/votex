@@ -2,6 +2,7 @@ import { CheckCircle2, Code2, Copy, Download, ExternalLink, ShieldCheck } from "
 import { useToast } from "@/hooks/use-toast";
 import type { VoteReceipt } from "@/types/api";
 import { Link } from "react-router-dom";
+import { Time } from "@/components/Time";
 
 interface VoteReceiptCardProps {
   receipt: VoteReceipt;
@@ -33,7 +34,7 @@ export default function VoteReceiptCard({ receipt }: VoteReceiptCardProps) {
     <section className="mt-6" aria-labelledby="vote-receipt-title">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="civic-label text-secondary">Receipt verification</p>
+          <p className="ledger-eyebrow text-secondary">Receipt verification</p>
           <h2 id="vote-receipt-title" className="mt-1 font-headline text-2xl font-semibold text-primary">Public ballot receipt</h2>
         </div>
         <div className={`inline-flex w-fit items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold ${receipt.signatureVerified ? "bg-green-100 text-green-800" : "bg-error-container text-on-error-container"}`}>
@@ -44,8 +45,8 @@ export default function VoteReceiptCard({ receipt }: VoteReceiptCardProps) {
 
       <div className="grid gap-6 lg:grid-cols-12">
         <div className="space-y-6 lg:col-span-8">
-          <div className="civic-card p-5 sm:p-7">
-            <p className="civic-label">Receipt fingerprint</p>
+          <div className="ledger-panel p-5 sm:p-7">
+            <p className="ledger-eyebrow">Receipt fingerprint</p>
             <div className="mt-4 flex items-center gap-3 rounded-lg border border-outline-variant/50 bg-surface-container-low p-4">
               <code className="civic-mono min-w-0 flex-1 break-all text-secondary">{receipt.receiptId}</code>
               <button type="button" aria-label="Copy receipt JSON" onClick={() => void copyReceipt()} className="shrink-0 text-outline hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary">
@@ -78,11 +79,11 @@ export default function VoteReceiptCard({ receipt }: VoteReceiptCardProps) {
             <dl className="mt-5 divide-y divide-outline-variant/50 text-sm">
               <div className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <dt className="text-on-surface-variant">Signed timestamp</dt>
-                <dd className="font-semibold text-primary">{new Date(receipt.signedAt).toLocaleString()}</dd>
+                <dd className="font-semibold text-primary"><Time value={receipt.signedAt} /></dd>
               </div>
               <div className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <dt className="text-on-surface-variant">Accepted by ledger</dt>
-                <dd className="font-semibold text-primary">{new Date(receipt.acceptedAt).toLocaleString()}</dd>
+                <dd className="font-semibold text-primary"><Time value={receipt.acceptedAt} /></dd>
               </div>
               <div className="py-3">
                 <dt className="text-on-surface-variant">Serialized signature</dt>
@@ -94,7 +95,7 @@ export default function VoteReceiptCard({ receipt }: VoteReceiptCardProps) {
 
         <aside className="space-y-6 lg:col-span-4">
           <div className="rounded-xl bg-primary p-6 text-on-primary">
-            <p className="civic-label text-white/60">Actions</p>
+            <p className="ledger-eyebrow text-white/60">Actions</p>
             <div className="mt-4 space-y-3">
               <Link to={`/receipts/${receipt.receiptId}`} className="flex w-full items-center justify-between rounded-lg bg-white/10 p-3 text-sm font-semibold hover:bg-white/20">
                 Verify Receipt <ShieldCheck className="h-4 w-4" />

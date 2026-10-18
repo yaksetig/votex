@@ -3,6 +3,7 @@ import { Download, History } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllRows } from "@/lib/fetchAllRows";
 import type { Tables } from "@/integrations/supabase/types";
+import { Time } from "@/components/Time";
 
 type AuditEvent = Tables<"election_authority_audit_log">;
 
@@ -67,7 +68,7 @@ export default function AuthorityAuditLog() {
           <article key={event.id} className="rounded-lg bg-surface-container-low p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="font-semibold text-primary">{event.action}</h2>
-              <time className="text-xs text-on-surface-variant">{new Date(event.performed_at).toLocaleString()}</time>
+              <Time value={event.performed_at} className="text-xs text-on-surface-variant" />
             </div>
             <p className="mt-2 text-sm text-on-surface-variant">Performed by {event.performed_by}</p>
             {event.election_id && <p className="mt-1 break-all font-mono text-xs text-on-surface-variant">Election {event.election_id}</p>}

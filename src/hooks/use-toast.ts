@@ -5,7 +5,8 @@ import type {
   ToastProps,
 } from "@/components/ui/toast"
 
-const TOAST_LIMIT = 5
+// Two visible at once: a third would cover page content on phones.
+const TOAST_LIMIT = 2
 const TOAST_REMOVE_DELAY = 1000000
 
 type ToasterToast = ToastProps & {
@@ -13,6 +14,12 @@ type ToasterToast = ToastProps & {
   title?: React.ReactNode
   description?: React.ReactNode
   action?: ToastActionElement
+  /**
+   * Groups toasts about one action ("vote", "delegation", "tally"). A new
+   * toast with the same key dismisses the earlier one, so a success message
+   * replaces the stale error it supersedes instead of stacking beside it.
+   */
+  key?: string
 }
 
 const actionTypes = {
@@ -57,11 +64,17 @@ const toastTimeouts = new Map<string, ReturnType<typeof setTimeout>>()
 
 const reducer = (state: State, action: Action): State => {
   switch (action.type) {
-    case actionTypes.ADD_TOAST:
+    case actionTypes.ADD_TOAST: {
+      const superseded = action.toast.key
+        ? state.toasts.filter((t) => t.key === action.toast.key && t.id !== action.toast.id)
+        : []
+      superseded.forEach((t) => addToRemoveQueue(t.id))
+      const remaining = state.toasts.filter((t) => !superseded.includes(t))
       return {
         ...state,
-        toasts: [action.toast, ...state.toasts].slice(0, TOAST_LIMIT),
+        toasts: [action.toast, ...remaining].slice(0, TOAST_LIMIT),
       }
+    }
 
     case actionTypes.UPDATE_TOAST:
       return {
@@ -123,6 +136,9 @@ function dispatch(action: Action) {
 
 function toast({ ...props }: Omit<ToasterToast, "id">) {
   const id = genId()
+  // Errors stay until dismissed; five seconds is not enough to read and act.
+  const duration =
+    props.duration ?? (props.variant === "destructive" ? Infinity : undefined)
 
   const update = (props: ToasterToast) =>
     dispatch({
@@ -135,6 +151,7 @@ function toast({ ...props }: Omit<ToasterToast, "id">) {
     type: actionTypes.ADD_TOAST,
     toast: {
       ...props,
+      duration,
       id,
       open: true,
       onOpenChange: (open) => {
@@ -161,7 +178,7 @@ function useToast() {
         listeners.splice(index, 1)
       }
     }
-  }, [state])
+  }, [])
 
   return {
     ...state,

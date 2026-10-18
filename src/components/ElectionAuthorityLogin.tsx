@@ -147,13 +147,13 @@ const ElectionAuthorityLogin: React.FC<ElectionAuthorityLoginProps> = ({ onLogin
           <p className="mt-2 text-xs font-semibold uppercase tracking-[0.08em] text-secondary">Election Authority Entrance</p>
         </header>
 
-        <section className="civic-card p-6 sm:p-8">
+        <section className="ledger-panel p-6 sm:p-8">
           <div className="flex items-center gap-3 border-b border-outline-variant pb-5">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-container text-secondary">
               <Lock className="h-5 w-5" aria-hidden="true" />
             </div>
             <div>
-              <p className="civic-label">Operator only</p>
+              <p className="ledger-eyebrow">Operator only</p>
               <h2 className="mt-1 font-headline text-xl font-semibold text-primary">
                 {requiresAuthorityLink ? "Link authority identity" : isSignUp ? "Link fixed authority" : "Sign in to continue"}
               </h2>
@@ -170,7 +170,7 @@ const ElectionAuthorityLogin: React.FC<ElectionAuthorityLoginProps> = ({ onLogin
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-5">
             <div>
-              <Label htmlFor="email" className="civic-label">Email</Label>
+              <Label htmlFor="email" className="ledger-eyebrow">Email</Label>
               <div className="relative mt-2">
                 <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-outline" aria-hidden="true" />
                 <Input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} disabled={isSubmitting} className="pl-10" placeholder="authority@example.com" />
@@ -178,7 +178,7 @@ const ElectionAuthorityLogin: React.FC<ElectionAuthorityLoginProps> = ({ onLogin
             </div>
 
             <div>
-              <Label htmlFor="password" className="civic-label">Password</Label>
+              <Label htmlFor="password" className="ledger-eyebrow">Password</Label>
               <div className="relative mt-2">
                 <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-outline" aria-hidden="true" />
                 <Input id="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} disabled={isSubmitting} className="pl-10" placeholder="Enter your password" />
@@ -188,11 +188,11 @@ const ElectionAuthorityLogin: React.FC<ElectionAuthorityLoginProps> = ({ onLogin
             {(isSignUp || requiresAuthorityLink) && (
               <div className="space-y-5 rounded-lg border border-outline-variant bg-surface-container-low p-4">
                 <div>
-                  <Label htmlFor="authorityName" className="civic-label">Authority name</Label>
+                  <Label htmlFor="authorityName" className="ledger-eyebrow">Authority name</Label>
                   <Input id="authorityName" value={authorityName} onChange={(event) => setAuthorityName(event.target.value)} disabled={isSubmitting} className="mt-2" placeholder="Votex Election Authority" />
                 </div>
                 <div>
-                  <Label htmlFor="authoritySecret" className="civic-label">Authority secret</Label>
+                  <Label htmlFor="authoritySecret" className="ledger-eyebrow">Authority secret</Label>
                   <Input id="authoritySecret" type="password" autoComplete="off" spellCheck={false} value={authoritySecret} onChange={(event) => setAuthoritySecret(event.target.value)} disabled={isSubmitting} className="mt-2 font-mono" placeholder="votex-auth-v1_… recovery key" />
                 </div>
               </div>

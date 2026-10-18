@@ -353,7 +353,7 @@ const WorldIDSignIn: React.FC = () => {
                     onClick={() => preparePasskey("existing")}
                     size="lg"
                     className="w-full justify-center text-base"
-                    variant="gradient"
+                    variant="default"
                   >
                     <KeyRound className="h-5 w-5" />
                     {hasKeyConflict
@@ -464,7 +464,7 @@ const WorldIDSignIn: React.FC = () => {
                   }}
                   size="lg"
                   className="w-full justify-center text-base"
-                  variant="gradient"
+                  variant="default"
                 >
                   <ShieldCheck className="h-5 w-5" />
                   {step === "error" ? "Retry World ID" : "Verify with World ID"}
@@ -474,7 +474,7 @@ const WorldIDSignIn: React.FC = () => {
                   disabled
                   size="lg"
                   className="w-full justify-center text-base"
-                  variant="gradient"
+                  variant="default"
                 >
                   <Loader2 className="h-5 w-5 animate-spin" />
                   Initializing...

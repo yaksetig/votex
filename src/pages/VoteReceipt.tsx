@@ -85,7 +85,7 @@ export default function VoteReceiptPage() {
           Back to elections
         </Link>
         <section className="mt-6 border-b border-outline-variant pb-6">
-          <p className="civic-label text-secondary">Public audit ledger</p>
+          <p className="ledger-eyebrow text-secondary">Public audit ledger</p>
           <h1 className="mt-3 font-headline text-3xl font-bold tracking-[-0.03em] text-primary">Verify ballot receipt</h1>
           <p className="mt-3 text-sm leading-relaxed text-on-surface-variant">
             This page confirms that a pseudonymous ballot is present in the public Votex ledger. It does not reveal or prove the voter’s real-world identity.

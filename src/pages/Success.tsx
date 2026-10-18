@@ -28,7 +28,7 @@ const Success: React.FC = () => {
   return (
     <div className="relative flex min-h-[calc(100vh-64px)] items-center justify-center overflow-hidden px-4 py-10 sm:px-6">
       <div className="ledger-grid-glow absolute inset-0 opacity-50" />
-      <div className="civic-card relative z-10 w-full max-w-md p-8 text-center sm:p-10">
+      <div className="ledger-panel relative z-10 w-full max-w-md p-8 text-center sm:p-10">
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-secondary-container text-on-secondary-container">
           <CheckCircle2 className="h-8 w-8" />
         </div>

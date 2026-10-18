@@ -36,27 +36,43 @@
 
     --radius: 0.5rem;
 
-    --sidebar-background: 210 33% 98%;
-    --sidebar-foreground: 200 9% 11%;
-    --sidebar-primary: 217 100% 11%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 14% 93%;
-    --sidebar-accent-foreground: 217 100% 11%;
-    --sidebar-border: 220 8% 78%;
-    --sidebar-ring: 212 100% 38%;
   }
 
   * {
     @apply border-border;
   }
 
+  :root {
+    /* Light-only product: keeps native controls (selects, date pickers,
+       scrollbars) from rendering dark on a light page. */
+    color-scheme: light;
+    /* Height of the fixed mobile navigation; 0 at md and up. */
+    --bottom-nav-h: 4.5rem;
+  }
+
+  @media (min-width: 768px) {
+    :root {
+      --bottom-nav-h: 0px;
+    }
+  }
+
   html {
-    @apply scroll-smooth;
+    @apply motion-safe:scroll-smooth;
   }
 
   body {
     @apply min-h-screen bg-background font-body text-foreground antialiased;
-    background: #f8f9ff;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 
   a {
@@ -67,7 +83,6 @@
 @layer components {
   .ledger-shell {
     @apply min-h-screen bg-background text-foreground;
-    background: #f8f9ff;
   }
 
   .ledger-topbar {
@@ -80,11 +95,6 @@
 
   .ledger-subpanel {
     @apply rounded-lg border border-outline-variant bg-surface-container-low p-5;
-  }
-
-  .ledger-glass {
-    background: rgba(255, 255, 255, 0.82);
-    backdrop-filter: blur(24px);
   }
 
   .ledger-grid-glow {
@@ -101,27 +111,19 @@
     @apply text-xs font-semibold uppercase tracking-[0.05em] text-on-surface-variant;
   }
 
-  .ledger-divider {
-    @apply h-px w-full bg-outline-variant;
-  }
-
   .ledger-button-primary {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-secondary px-5 py-3 text-sm font-semibold text-on-secondary shadow-sm transition-all hover:bg-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-secondary px-5 py-3 text-sm font-semibold text-on-secondary shadow-sm transition-all hover:bg-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 aria-busy:cursor-progress;
   }
 
   .ledger-button-secondary {
     @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-outline-variant bg-surface-container-lowest px-5 py-3 text-sm font-semibold text-on-surface transition-all hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50;
   }
 
-  .ledger-input {
-    @apply rounded-lg border border-outline-variant bg-surface-container-lowest px-4 py-3 text-sm text-on-surface placeholder:text-on-surface-variant focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20;
-  }
-
   .civic-container {
     @apply mx-auto w-full max-w-[1200px] px-4 sm:px-6 lg:px-10;
   }
 
-  .civic-card {
+  .ledger-panel {
     @apply rounded-xl border border-outline-variant bg-surface-container-lowest shadow-sm;
   }
 
@@ -133,7 +135,7 @@
     @apply font-mono text-[13px] font-medium tracking-[0.02em];
   }
 
-  .civic-label {
+  .ledger-eyebrow {
     @apply text-xs font-semibold uppercase tracking-[0.05em] text-on-surface-variant;
   }
 }
