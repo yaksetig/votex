@@ -27,7 +27,7 @@ import { DEFAULT_K } from "@/services/kAnonymityNullificationService";
 import { Election } from "@/types/election";
 import type { KAnonymityProgress } from "@/services/kAnonymityNullificationService";
 import { useDeriveKeypair } from "@/hooks/useDeriveKeypair";
-import VoteReceiptCard from "@/components/VoteReceiptCard";
+import VoteReceiptCard, { type ReceiptVerification } from "@/components/VoteReceiptCard";
 import ElectionPublicAudit from "@/components/ElectionPublicAudit";
 import { VotexApiError, type VoteReceipt } from "@/types/api";
 import { abbreviateIdentifier, formatDateTime, pluralize } from "@/lib/format";
@@ -79,6 +79,7 @@ const ElectionDetail = () => {
   const [voteReceipt, setVoteReceipt] = useState<VoteReceipt | null>(null);
   const [votedChoice, setVotedChoice] = useState<string | null>(null);
   const [statusError, setStatusError] = useState(false);
+  const [receiptVerification, setReceiptVerification] = useState<ReceiptVerification>("unverified");
   const [submitting, setSubmitting] = useState(false);
   const [confirmCast, setConfirmCast] = useState(false);
   const [nullifying, setNullifying] = useState(false);
@@ -211,6 +212,7 @@ const ElectionDetail = () => {
 
       const voteExists = !!data;
       let signatureVerified = false;
+      let keyFound = false;
       if (voteExists && data.signature && data.choice && data.signed_at) {
         const { data: participant } = await supabase
           .from("public_participants")
@@ -219,6 +221,7 @@ const ElectionDetail = () => {
           .eq("voter_pseudonym", userId)
           .maybeSingle();
         if (participant?.public_key_x && participant.public_key_y) {
+          keyFound = true;
           const { verifyVoteSignature } = await import("@/services/signatureService");
           signatureVerified = await verifyVoteSignature(
             data.signature,
@@ -246,6 +249,7 @@ const ElectionDetail = () => {
           : null
       );
       setVotedChoice(voteExists ? data.choice : null);
+      setReceiptVerification(signatureVerified ? "verified" : keyFound ? "invalid" : "unverified");
       setStatusError(false);
     } catch {
       setStatusError(true);
@@ -565,7 +569,7 @@ const ElectionDetail = () => {
                 </div>
               </div>
             )}
-            {voteReceipt && <VoteReceiptCard receipt={voteReceipt} />}
+            {voteReceipt && <VoteReceiptCard receipt={voteReceipt} verification={receiptVerification} />}
           </section>
 
           <section className="grid gap-6 lg:grid-cols-12">
@@ -764,7 +768,7 @@ const ElectionDetail = () => {
               </div>
             </aside>
           </section>
-          <ElectionPublicAudit electionId={election.id} />
+          <ElectionPublicAudit electionId={election.id} viewerPseudonym={userId} />
         </div>
       </div>
 

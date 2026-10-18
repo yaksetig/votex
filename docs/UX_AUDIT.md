@@ -79,6 +79,7 @@ _What the voter is told about what their action does and who can see it._
 - **Where:** VoteReceiptCard.tsx:113; VoteReceipt.tsx:91
 - **Evidence:** A receipt can show “Signature Verified” for a ballot that was later nullified. Nothing says what a receipt does and does not prove.
 - **Change:** Add “A receipt proves the ballot was accepted. Whether it counts is decided at tally and may change if the voter nullifies.”
+- **Status:** Resolved in Phase G (receipts and public records)
 
 ### UX-008 · Medium · Voter pseudonym is only visible after voting
 
@@ -92,6 +93,7 @@ _What the voter is told about what their action does and who can see it._
 - **Where:** AuditProtocol.tsx:10-11 promises it; ElectionPublicAudit.tsx has only ballots, participants, audit-trail tabs
 - **Evidence:** The audit page says auditors can inspect delegation ciphertexts and proofs, but no tab exposes them.
 - **Change:** Add tabs (or downloads) for delegation records and nullification proofs, or remove the claim.
+- **Status:** Resolved in Phase G (receipts and public records)
 
 ### UX-010 · Medium · “{n} verified votes” where nothing is verified
 
@@ -112,6 +114,7 @@ _What the voter is told about what their action does and who can see it._
 - **Where:** VoteReceipt.tsx:61-71 includes signatureVerified: true computed client-side
 - **Evidence:** A third party receiving the file sees a verification flag the file cannot vouch for.
 - **Change:** Strip the flag from the export; include the public key and the message so others can verify.
+- **Status:** Resolved in Phase G (receipts and public records)
 
 ### UX-013 · Low · “Verified Human” header pill looks like a badge but is a link
 
@@ -521,36 +524,42 @@ _Receipt card, receipt page, and the public tables under each election._
 - **Where:** VoteReceiptCard.tsx:99 links to /receipts/:id, which renders the same card with the same precomputed badge (screenshot 30)
 - **Evidence:** The button promises a check and performs none the user can see.
 - **Change:** Explain what was checked (“the signature matches the key registered for this pseudonym”) and offer offline verification by pasting a receipt; hide the button on the receipt page.
+- **Status:** Resolved in Phase G (receipts and public records)
 
 ### UX-068 · High · “Signature Not Verified” in error red for a missing key as well as an invalid one
 
 - **Where:** VoteReceiptCard.tsx:39-42; VoteReceipt.tsx:45-58
 - **Evidence:** Alarms users when the participant key simply has not loaded.
 - **Change:** Distinguish “Could not verify yet” from “Invalid signature”.
+- **Status:** Resolved in Phase G (receipts and public records)
 
 ### UX-069 · Medium · Raw serialised signature JSON shown to voters
 
 - **Where:** VoteReceiptCard.tsx:88 (screenshot 29)
 - **Evidence:** A 400-digit blob under “Ledger data”.
 - **Change:** Collapse behind “Show technical details”.
+- **Status:** Resolved in Phase G (receipts and public records)
 
 ### UX-070 · Medium · Truncated identifiers in the ledger tables cannot be read or copied
 
 - **Where:** ElectionPublicAudit.tsx:168,176,177,184 (“e2e-vote…seudonym”, screenshot 36/37)
 - **Evidence:** The tables exist so people can verify identifiers.
 - **Change:** Show full values on hover/expand with a copy control; truncate in the middle only with a title attribute.
+- **Status:** Resolved in Phase G (receipts and public records)
 
 ### UX-071 · Medium · Hand-rolled tabs without tab semantics or keyboard support
 
 - **Where:** ElectionPublicAudit.tsx:122-140
 - **Evidence:** role=tab with no aria-controls, no tabpanel, no arrow keys; ~30 px tall.
 - **Change:** Use the Radix Tabs already in the project.
+- **Status:** Resolved in Phase G (receipts and public records)
 
 ### UX-072 · Medium · Audit trail shows raw action strings and an unexplained “Record” column
 
 - **Where:** ElectionPublicAudit.tsx:87-93,180-186 (screenshot 37)
 - **Evidence:** “Nullification proof accepted” rows with a bare hash; no legend.
 - **Change:** Human labels, a legend row, and a one-sentence explanation per tab.
+- **Status:** Resolved in Phase G (receipts and public records)
 
 ### UX-073 · Medium · Receipt timestamps lack timezone and  markup
 
@@ -564,30 +573,35 @@ _Receipt card, receipt page, and the public tables under each election._
 - **Where:** ElectionPublicAudit.tsx:192-194
 - **Evidence:** Keyboard focus drops to body on every page load.
 - **Change:** Keep mounted, set aria-busy.
+- **Status:** Resolved in Phase G (receipts and public records)
 
 ### UX-075 · Medium · Receipt page reports any fetch error as “No public ballot matches this receipt ID”
 
 - **Where:** VoteReceipt.tsx:26-30,100-104 (screenshot 9)
 - **Evidence:** Network failures look like a bad receipt.
 - **Change:** Separate error from not-found; add Retry.
+- **Status:** Resolved in Phase G (receipts and public records)
 
 ### UX-076 · Low · Copy icon copies the whole JSON while sitting next to the fingerprint
 
 - **Where:** VoteReceiptCard.tsx:48-53
 - **Evidence:** Mismatch between the visual target and what is copied.
 - **Change:** Copy the fingerprint there; keep “Copy Receipt JSON” in Actions.
+- **Status:** Resolved in Phase G (receipts and public records)
 
 ### UX-077 · Low · External-link icon on an internal link
 
 - **Where:** VoteReceiptCard.tsx:61
 - **Evidence:** Wrong affordance.
 - **Change:** Remove the icon.
+- **Status:** Resolved in Phase G (receipts and public records)
 
 ### UX-078 · Low · Receipt card can show “Election” as the title
 
 - **Where:** ElectionDetail.tsx:244 fallback when election has not loaded
 - **Evidence:** Placeholder leaks.
 - **Change:** Wait for the election or hide the field.
+- **Status:** Resolved in Phase G (receipts and public records)
 
 
 ## Authority console (18)
@@ -908,6 +922,7 @@ _Semantics, keyboard, focus, contrast, motion, targets._
 - **Where:** ElectionPublicAudit.tsx:155-162; AuthorityElectionsList.tsx:146-153; TallyResultsDisplay.tsx:289-321; axe scrollable-region-focusable
 - **Evidence:** Column headers are not announced; horizontal scroll is mouse-only.
 - **Change:** th scope=col, caption, tabIndex=0 on the scroll container.
+- **Status:** Resolved in Phase G (receipts and public records)
 
 ### UX-125 · Medium · Footer aria-labels override visible link text
 

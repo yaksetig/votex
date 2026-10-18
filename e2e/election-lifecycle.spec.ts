@@ -41,7 +41,7 @@ test("verified voter creates, delegates, signs, audits, nullifies, closes, and t
 
   await expect(page.getByRole("heading", { name: "Public ballot receipt" })).toBeVisible();
   await expect(page.getByText("Ballot recorded", { exact: true })).toBeVisible();
-  await page.getByRole("link", { name: "Verify" }).click();
+  await page.getByRole("link", { name: "Open receipt page" }).click();
   await expect(page.getByRole("heading", { name: "Verify ballot receipt" })).toBeVisible();
   await expect(page.getByText("Verified", { exact: true })).toBeVisible();
 
