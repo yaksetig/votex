@@ -47,7 +47,7 @@ interface NullificationBatchItem {
 }
 
 export interface KAnonymityProgress {
-  step: "preparing" | "encrypting" | "proving" | "complete";
+  step: "preparing" | "encrypting" | "proving" | "submitting" | "complete";
   completed: number;
   total: number;
   message: string;
@@ -78,8 +78,16 @@ export async function generateKAnonymousNullifications(
   authorityPublicKey: { x: string; y: string },
   isActualNullification: boolean,
   k: number = DEFAULT_K,
-  onProgress?: (progress: KAnonymityProgress) => void
+  onProgress?: (progress: KAnonymityProgress) => void,
+  signal?: AbortSignal
 ): Promise<NullificationBatchItem[]> {
+  const throwIfAborted = () => {
+    if (signal?.aborted) {
+      throw typeof DOMException !== "undefined"
+        ? new DOMException("Nullification was cancelled", "AbortError")
+        : Object.assign(new Error("Nullification was cancelled"), { name: "AbortError" });
+    }
+  };
   logger.debug(
     `Generating k-anonymous XOR nullifications with k=${k}, actual=${isActualNullification}`
   );
@@ -93,6 +101,7 @@ export async function generateKAnonymousNullifications(
   });
 
   const participants = await getElectionParticipants(electionId);
+  throwIfAborted();
   const participantCount = participants.length;
   const numNullifications = Math.min(k, participantCount);
 
@@ -228,6 +237,7 @@ export async function generateKAnonymousNullifications(
     message: `Generating ${numNullifications} zero-knowledge proofs in parallel...`,
   });
 
+  throwIfAborted();
   const proofResults = await generateProofsInParallel(
     proofInputs,
     (completed, total) => {
@@ -237,8 +247,10 @@ export async function generateKAnonymousNullifications(
         total,
         message: `Generated ${completed} of ${total} proofs...`,
       });
-    }
+    },
+    signal
   );
+  throwIfAborted();
 
   // Step 5: Attach proofs to items
   const itemsByTarget = new Map(nullificationItems.map((item) => [item.targetUserId, item]));

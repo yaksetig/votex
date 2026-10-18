@@ -1,11 +1,8 @@
 import React from "react";
-import { ShieldCheck, Ghost, TriangleAlert } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Link } from "react-router-dom";
+import { ShieldCheck } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { howItWorksSection } from "@/lib/routes";
 
 interface NullificationDialogProps {
   open: boolean;
@@ -15,6 +12,11 @@ interface NullificationDialogProps {
   isProcessing: boolean;
 }
 
+/**
+ * The two choices are rendered identically on purpose: same icon, same
+ * styling, same weight. Anyone looking at the screen must not be able to
+ * tell which one the voter is about to pick, and nothing here is recorded.
+ */
 const NullificationDialog: React.FC<NullificationDialogProps> = ({
   open,
   onOpenChange,
@@ -22,66 +24,58 @@ const NullificationDialog: React.FC<NullificationDialogProps> = ({
   onDummyNullification,
   isProcessing,
 }) => {
+  const choices = [
+    {
+      key: "real",
+      title: "Nullify my ballot",
+      body: "Removes your ballot from the count at the tally. You will not be able to cast a new ballot in this election.",
+      onSelect: onActualNullification,
+    },
+    {
+      key: "decoy",
+      title: "Send a decoy",
+      body: "Changes nothing about your ballot. Decoys are what keep real nullifications hidden, so sending one helps every voter.",
+      onSelect: onDummyNullification,
+    },
+  ];
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl border-none bg-transparent p-0 shadow-none sm:h-auto sm:max-h-[90vh]">
-        <DialogTitle className="sr-only">Nullification Options</DialogTitle>
-        <DialogDescription className="sr-only">
-          Choose between an actual nullification and a dummy nullification. Both
-          flows look the same to outside observers.
-        </DialogDescription>
-        <div className="flex min-h-full flex-col justify-center rounded-none border-none bg-surface-container-lowest p-5 sm:min-h-0 sm:rounded-xl sm:border sm:border-outline-variant/12 sm:p-8 sm:shadow-[0_30px_90px_rgba(0,20,54,0.18)]">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-full bg-error-container px-3 py-1 text-xs font-semibold uppercase tracking-[0.05em] text-on-error-container">
-                <TriangleAlert className="h-4 w-4" />
-                Nullification privacy
-              </div>
-              <h2 className="mt-3 font-headline text-2xl font-extrabold text-primary sm:mt-4 sm:text-3xl">Nullification Options</h2>
-              <p className="mt-2 text-sm leading-relaxed text-on-surface-variant sm:mt-3">
-                Both actions generate the same observable workflow. Choose the real nullification if you need to invalidate your ballot, or the dummy path if you need plausible deniability.
-              </p>
-            </div>
-          </div>
+    <Dialog open={open} onOpenChange={(next) => !isProcessing && onOpenChange(next)}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="font-headline text-2xl font-bold text-primary">Submit a nullification request</DialogTitle>
+          <DialogDescription className="text-sm leading-relaxed text-on-surface-variant">
+            Both requests look identical to Votex, to observers and to anyone watching this screen. Only the Election
+            Authority learns the outcome, at the tally. Nothing you choose here is recorded; only the encrypted request is
+            published. You can send as many requests as you like until the election closes.
+          </DialogDescription>
+        </DialogHeader>
 
-          <div className="mt-6 grid gap-3 sm:mt-8 sm:gap-4 md:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2" role="group" aria-label="Request type">
+          {choices.map((choice) => (
             <button
+              key={choice.key}
               type="button"
-              onClick={onActualNullification}
-              disabled={isProcessing}
-              className="group rounded-lg border border-outline-variant/16 bg-surface-container-low p-5 text-left transition-all hover:border-surface-tint/35 sm:rounded-xl sm:p-8"
+              onClick={choice.onSelect}
+              aria-disabled={isProcessing || undefined}
+              className="group flex min-h-44 flex-col rounded-xl border border-outline-variant bg-surface-container-low p-5 text-left transition-colors hover:border-surface-tint/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 aria-disabled:cursor-progress"
             >
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-white sm:h-16 sm:w-16">
-                <ShieldCheck className="h-6 w-6 sm:h-8 sm:w-8" />
-              </div>
-              <h3 className="mt-4 font-headline text-xl font-bold text-primary sm:mt-5 sm:text-2xl">Actual Nullification</h3>
-              <p className="mt-2 text-sm leading-relaxed text-on-surface-variant sm:mt-3">
-                Encrypts a real nullification value and proves you hold the correct private key for this ballot.
-              </p>
-              <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.05em] text-outline sm:mt-4">
-                Type-0 protocol
-              </p>
+              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-white" aria-hidden="true">
+                <ShieldCheck className="h-6 w-6" />
+              </span>
+              <span className="mt-4 font-headline text-xl font-bold text-primary">{choice.title}</span>
+              <span className="mt-2 text-sm leading-relaxed text-on-surface-variant">{choice.body}</span>
             </button>
-
-            <button
-              type="button"
-              onClick={onDummyNullification}
-              disabled={isProcessing}
-              className="group rounded-lg border border-outline-variant/16 bg-surface-container-low p-5 text-left transition-all hover:border-surface-tint/35 sm:rounded-xl sm:p-8"
-            >
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-white sm:h-16 sm:w-16">
-                <Ghost className="h-6 w-6 sm:h-8 sm:w-8" />
-              </div>
-              <h3 className="mt-4 font-headline text-xl font-bold text-primary sm:mt-5 sm:text-2xl">Dummy Nullification</h3>
-              <p className="mt-2 text-sm leading-relaxed text-on-surface-variant sm:mt-3">
-                Runs the same encrypted and zero-knowledge flow, but submits a harmless decoy value instead of invalidating the ballot.
-              </p>
-              <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.05em] text-outline sm:mt-4">
-                Type-0 protocol
-              </p>
-            </button>
-          </div>
+          ))}
         </div>
+
+        <p className="text-xs leading-relaxed text-on-surface-variant">
+          If you were pressured to vote a certain way, read{" "}
+          <Link to={howItWorksSection("pressure")} className="font-semibold text-secondary underline-offset-4 hover:underline">
+            what to do
+          </Link>{" "}
+          first.
+        </p>
       </DialogContent>
     </Dialog>
   );

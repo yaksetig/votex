@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, CheckCircle2, Copy, Fingerprint, Loader2, ShieldCheck, Users, Vote as VoteIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -36,6 +36,28 @@ import { Skeleton } from "@/components/Skeleton";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { ROUTES, howItWorksSection, signInPath } from "@/lib/routes";
 import { describeError } from "@/lib/errorMessages";
+import { NullificationFlowError } from "@/services/nullificationFlow";
+import { NullificationPanel } from "@/components/election/NullificationPanel";
+
+const NULLIFICATION_DURATION_KEY = "votex:nullification:lastDurationSeconds";
+
+function readNullificationDuration(): number | null {
+  try {
+    const raw = window.localStorage.getItem(NULLIFICATION_DURATION_KEY);
+    const value = raw ? Number(raw) : NaN;
+    return Number.isFinite(value) && value > 0 ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function rememberNullificationDuration(seconds: number) {
+  try {
+    window.localStorage.setItem(NULLIFICATION_DURATION_KEY, String(seconds));
+  } catch {
+    // Storage may be unavailable; the estimate is a convenience only.
+  }
+}
 
 type LoadState = "loading" | "ready" | "not-found" | "error";
 
@@ -71,6 +93,9 @@ const ElectionDetail = () => {
   const [isDelegating, setIsDelegating] = useState(false);
   const [confirmRevoke, setConfirmRevoke] = useState(false);
   const [isRevoking, setIsRevoking] = useState(false);
+  const [lastNullificationAt, setLastNullificationAt] = useState<string | null>(null);
+  const [expectedNullificationSeconds, setExpectedNullificationSeconds] = useState<number | null>(() => readNullificationDuration());
+  const nullificationAbort = useRef<AbortController | null>(null);
 
   /** One place for failed actions: expired sessions sign the voter out, everything else becomes a sentence. */
   const reportActionError = useCallback(
@@ -363,6 +388,9 @@ const ElectionDetail = () => {
     if (!userId || !election || !id || !keypair) return;
     if (electionClosed || !hasVoted) return;
 
+    const controller = new AbortController();
+    nullificationAbort.current = controller;
+    const startedAt = performance.now();
     try {
       setNullifying(true);
       setShowNullificationDialog(false);
@@ -388,7 +416,8 @@ const ElectionDetail = () => {
       }
 
       const { slotCount } = await submitNullificationWithRetry({
-        generate: (onProgress) =>
+        signal: controller.signal,
+        generate: (onProgress, signal) =>
           generateKAnonymousNullifications(
             id,
             userId,
@@ -396,7 +425,8 @@ const ElectionDetail = () => {
             { x: authority.public_key_x, y: authority.public_key_y },
             isActual,
             DEFAULT_K,
-            onProgress
+            onProgress,
+            signal
           ).then((batch) => ({
             slotCount: batch.length,
             items: batch.map((item) => ({
@@ -411,6 +441,11 @@ const ElectionDetail = () => {
         onProgress: setNullificationProgress,
       });
 
+      const seconds = Math.max(1, Math.round((performance.now() - startedAt) / 1000));
+      rememberNullificationDuration(seconds);
+      setExpectedNullificationSeconds(seconds);
+      setLastNullificationAt(new Date().toISOString());
+
       // Deliberately neutral: the UI must not disclose whether the request
       // was a real or a decoy nullification to anyone watching the screen.
       toast({
@@ -422,8 +457,13 @@ const ElectionDetail = () => {
             : "No other participants have registered yet, so this request is not hidden among others.",
       });
     } catch (error) {
+      if (error instanceof NullificationFlowError && error.code === "CANCELLED") {
+        toast({ key: "nullification", title: "Request cancelled", description: "Nothing was sent." });
+        return;
+      }
       reportActionError("nullification", "Nullification request not submitted", error, "The request could not be submitted. Try again.");
     } finally {
+      nullificationAbort.current = null;
       setNullifying(false);
       setShowProgressDialog(false);
       setNullificationProgress(null);
@@ -567,7 +607,14 @@ const ElectionDetail = () => {
               )}
 
               {electionClosed ? (
-                <ElectionResults options={options} outcome={outcome} talliedAt={talliedAt} />
+                <>
+                  <ElectionResults options={options} outcome={outcome} talliedAt={talliedAt} />
+                  {hasVoted && (
+                    <p className="text-sm text-on-surface-variant" role="status">
+                      Nullification closed with the election on <Time value={election.closed_manually_at ?? election.end_date} />.
+                    </p>
+                  )}
+                </>
               ) : !hasVoted ? (
                 <div className="ledger-panel p-5 sm:p-8">
                   <div className="flex flex-col gap-2">
@@ -663,40 +710,13 @@ const ElectionDetail = () => {
                   )}
                 </div>
               ) : (
-                <div className="space-y-8">
-                  <div className="ledger-panel p-5 sm:p-6 md:p-8">
-                    <div className="flex flex-col gap-2">
-                      <h2 className="font-headline text-xl font-bold text-primary sm:text-2xl">Submit a Nullification</h2>
-                      <div className="h-1 w-12 rounded-full bg-surface-tint" aria-hidden="true" />
-                    </div>
-                    <p className="mt-5 leading-relaxed text-on-surface-variant">
-                      If you were coerced, use <strong className="text-primary">Actual Nullification</strong> to invalidate your vote. Use{" "}
-                      <strong className="text-primary">Dummy Nullification</strong> to simulate the same sequence and preserve plausible deniability.
-                    </p>
-
-                    <div className="mt-8">
-                      <button
-                        type="button"
-                        onClick={() => setShowNullificationDialog(true)}
-                        className="group flex w-full items-center gap-4 rounded-lg border border-outline-variant bg-surface-container-lowest p-5 transition-colors hover:border-surface-tint/40 sm:gap-5 sm:rounded-xl sm:p-8"
-                      >
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-surface-container-high transition-colors group-hover:bg-primary sm:h-16 sm:w-16">
-                          <ShieldCheck className="h-6 w-6 text-on-surface-variant transition-colors group-hover:text-white sm:h-8 sm:w-8" aria-hidden="true" />
-                        </div>
-                        <div className="text-left">
-                          <h3 className="font-headline text-lg font-bold text-primary sm:text-xl">Nullify Vote</h3>
-                          <p className="mt-1 text-sm text-on-surface-variant">Invalidate your ballot or submit a decoy for plausible deniability</p>
-                        </div>
-                      </button>
-                    </div>
-
-                    <div className="mt-8 rounded-lg bg-tertiary-fixed/25 p-4">
-                      <p className="text-sm leading-relaxed text-on-surface-variant">
-                        <strong className="text-primary">Note:</strong> To external observers, actual and dummy nullifications look exactly the same.
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                <NullificationPanel
+                  electionEndDate={election.end_date}
+                  lastSubmittedAt={lastNullificationAt}
+                  expectedSeconds={expectedNullificationSeconds}
+                  busy={nullifying}
+                  onOpen={() => setShowNullificationDialog(true)}
+                />
               )}
             </div>
 
@@ -782,7 +802,11 @@ const ElectionDetail = () => {
         onDummyNullification={() => void performNullification(false)}
         isProcessing={nullifying}
       />
-      <KAnonymityProgressDialog open={showProgressDialog} progress={nullificationProgress} />
+      <KAnonymityProgressDialog
+        open={showProgressDialog}
+        progress={nullificationProgress}
+        onCancel={() => nullificationAbort.current?.abort()}
+      />
       <DelegationDialog
         open={showDelegationDialog}
         onOpenChange={setShowDelegationDialog}

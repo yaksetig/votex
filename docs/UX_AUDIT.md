@@ -130,66 +130,77 @@ _The coercion-resistance flow is the product's reason to exist; its UI currently
 - **Where:** ElectionDetail.tsx:737-759; NullificationDialog.tsx:48-82 (screenshot 32)
 - **Evidence:** Two cards with different icons (shield vs ghost) and the labels “Actual” and “Dummy”. The privacy guarantee covers the network, not someone looking at the phone. Panel copy even instructs: “If you were coerced, use Actual Nullification”.
 - **Change:** One button, “Submit nullification request”. Inside, two visually identical cards with neutral labels and identical icons, plus “Nothing on this screen is recorded; only the encrypted request is published.”
+- **Status:** Resolved in Phase F (nullification)
 
 ### UX-015 · Critical · No reason is ever given to send a decoy
 
 - **Where:** NullificationDialog.tsx:73-82; HowItWorks.tsx:66
 - **Evidence:** Decoys only protect coerced voters if honest voters send them. No copy asks anyone to.
 - **Change:** Add: “Anyone can send decoys at any time. Doing so protects voters who need the real thing.” Consider prompting every voter to send one after casting.
+- **Status:** Resolved in Phase F (nullification)
 
 ### UX-016 · High · Irreversibility and no re-vote are not stated at the point of action
 
 - **Where:** ElectionDetail.tsx:733-759; FAQ.tsx:8 is the only hint
 - **Evidence:** A voter learns after the fact that a nullified ballot cannot be replaced.
 - **Change:** State it in the dialog: “After nullifying you cannot cast a new ballot in this election.”
+- **Status:** Resolved in Phase F (nullification)
 
 ### UX-017 · High · Duration and CPU cost are not disclosed before starting; the progress dialog cannot be dismissed
 
 - **Where:** KAnonymityProgressDialog.tsx:24-27 (no onOpenChange, Escape not blocked, inherited close button does nothing); :71 “Do not close this window” appears only after start
 - **Evidence:** Six Groth16 proofs can take long on a phone. The user is trapped in a modal with a non-functional close control and no cancel.
 - **Change:** Pre-flight line “This takes about N seconds and keeps this tab busy”; hide the close button for this dialog; provide Cancel via AbortSignal or a timeout message.
+- **Status:** Resolved in Phase F (nullification)
 
 ### UX-018 · High · Progress strings are developer messages
 
 - **Where:** kAnonymityNullificationService.ts:133,219,228,238 rendered by KAnonymityProgressDialog.tsx:52; nullificationFlow.ts:77 “Another participant updated a slot; regenerating proofs…”
 - **Evidence:** “Computing XOR gate outputs…”, “Generating 6 zero-knowledge proofs in parallel…”, “All proofs generated successfully!”
 - **Change:** Map to voter language: “Preparing your request (3 of 6)”, “Someone else submitted at the same time, retrying”.
+- **Status:** Resolved in Phase F (nullification)
 
 ### UX-019 · High · Nothing on the page changes after a request, and nothing explains why
 
 - **Where:** ElectionDetail.tsx after submit (screenshot 34); toast only
 - **Evidence:** The deliberate neutrality looks like a failed action. Repeated submissions are allowed but never mentioned.
 - **Change:** Neutral confirmation panel: “Your request was submitted. This page will not change, by design. You may submit as many requests as you like until the election closes.”
+- **Status:** Resolved in Phase F (nullification)
 
 ### UX-020 · High · Coerced-voter guidance is absent
 
 - **Where:** No page says when (before close), where (a device the coercer cannot see) or what happens next
 - **Evidence:** The flow assumes the voter already understands the threat model.
 - **Change:** Add a short “If you were pressured” section on the election page and in How Votex works.
+- **Status:** Resolved in Phase F (nullification)
 
 ### UX-021 · Medium · Nullification window closes silently
 
 - **Where:** ElectionDetail.tsx:588 hides the panel on close
 - **Evidence:** A voter returning after close sees no explanation.
 - **Change:** Show “Nullification closed with the election on ”.
+- **Status:** Resolved in Phase F (nullification)
 
 ### UX-022 · Medium · “Type-0 protocol” caption on both cards
 
 - **Where:** NullificationDialog.tsx:62,80
 - **Evidence:** Meaningless to voters and identical on both options.
 - **Change:** Delete.
+- **Status:** Resolved in Phase F (nullification)
 
 ### UX-023 · Medium · Jargon in the sidebar: “Adaptive k-anonymity (up to k=6)”, “Zero-Knowledge Proofs”
 
 - **Where:** ElectionDetail.tsx:768-781; the 6 is hard-coded while DEFAULT_K exists
 - **Evidence:** Voters do not know what k is; the number can drift from the constant.
 - **Change:** “Your request is hidden among up to {DEFAULT_K} participants”; move cryptographic detail to the audit page.
+- **Status:** Resolved in Phase F (nullification)
 
 ### UX-024 · Medium · Toast reports “hidden across 1 participant slots” for tiny elections
 
 - **Where:** ElectionDetail.tsx:460
 - **Evidence:** Plural error and a false privacy claim when k=1 (the progress dialog already handles this honestly).
 - **Change:** Pluralise and say “no other participants yet; this request is not hidden” when the count is 1.
+- **Status:** Resolved in Phase F (nullification)
 
 
 ## Voting and delegation (13)
@@ -883,12 +894,14 @@ _Semantics, keyboard, focus, contrast, motion, targets._
 - **Where:** KAnonymityProgressDialog.tsx:20,52-60
 - **Evidence:** Long operation is silent to assistive tech.
 - **Change:** role=progressbar with aria-valuenow; throttled aria-live message; guard the division.
+- **Status:** Resolved in Phase F (nullification)
 
 ### UX-123 · Medium · Dialog titles are duplicated for screen readers
 
 - **Where:** NullificationDialog.tsx:28-32,40-43; KAnonymityProgressDialog.tsx:29-31,38
 - **Evidence:** sr-only DialogTitle plus a visible h2 with the same text.
 - **Change:** Make the visible heading the DialogTitle.
+- **Status:** Resolved in Phase F (nullification)
 
 ### UX-124 · Medium · Tables lack scope and captions; scrollable regions not keyboard-focusable on phones
 

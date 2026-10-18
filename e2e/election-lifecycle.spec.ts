@@ -48,9 +48,9 @@ test("verified voter creates, delegates, signs, audits, nullifies, closes, and t
   if (testInfo.project.name === "chromium") {
     const electionId = String(backend.elections[0].id);
     await page.goto(`/elections/${electionId}`);
-    await expect(page.getByRole("heading", { name: "Submit a Nullification" })).toBeVisible();
-    await page.getByRole("button", { name: /Nullify Vote/ }).click();
-    await page.getByRole("button", { name: /Dummy Nullification/ }).click();
+    await expect(page.getByRole("heading", { name: "Nullification" })).toBeVisible();
+    await page.getByRole("button", { name: "Submit nullification request" }).click();
+    await page.getByRole("button", { name: /Send a decoy/ }).click();
     await expect(page.getByText("Nullification request submitted", { exact: true })).toBeVisible({
       timeout: 90_000,
     });

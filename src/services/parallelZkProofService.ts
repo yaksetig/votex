@@ -40,15 +40,38 @@ const BASE_URL = getCircuitFilesBaseUrl();
 const WASM_PATH = `${BASE_URL}nullification_xor.wasm`;
 const ZKEY_PATH = `${BASE_URL}nullification_xor_final.zkey`;
 
-// Generate multiple proofs in parallel using Web Workers
+function abortError(): Error {
+  return typeof DOMException !== "undefined"
+    ? new DOMException("Proof generation was cancelled", "AbortError")
+    : Object.assign(new Error("Proof generation was cancelled"), { name: "AbortError" });
+}
+
+// Generate multiple proofs in parallel using Web Workers. Aborting `signal`
+// terminates every worker immediately and rejects with an AbortError.
 export async function generateProofsInParallel(
   proofInputs: ProofInput[],
-  onProgress?: (completed: number, total: number) => void
+  onProgress?: (completed: number, total: number) => void,
+  signal?: AbortSignal
 ): Promise<ProofResult[]> {
   const total = proofInputs.length;
   let completed = 0;
 
+  if (signal?.aborted) {
+    throw abortError();
+  }
+
   logger.debug(`Starting parallel proof generation for ${total} proofs...`);
+
+  const workers: Worker[] = [];
+  let rejectAll: ((error: Error) => void) | undefined;
+  const aborted = new Promise<never>((_, reject) => {
+    rejectAll = reject;
+  });
+  const onAbort = () => {
+    workers.forEach((worker) => worker.terminate());
+    rejectAll?.(abortError());
+  };
+  signal?.addEventListener("abort", onAbort, { once: true });
 
   const workerPromises: Promise<ProofResult>[] = proofInputs.map(
     (proofInput) => {
@@ -57,6 +80,7 @@ export async function generateProofsInParallel(
           new URL("../workers/zkProofWorker.ts", import.meta.url),
           { type: "module" }
         );
+        workers.push(worker);
 
         worker.onmessage = (event: MessageEvent) => {
           const result = event.data as ProofResult;
@@ -92,8 +116,11 @@ export async function generateProofsInParallel(
     }
   );
 
-  const allResults = await Promise.all(workerPromises);
-
-  logger.debug(`All ${total} proofs completed`);
-  return allResults;
+  try {
+    const allResults = await Promise.race([Promise.all(workerPromises), aborted]);
+    logger.debug(`All ${total} proofs completed`);
+    return allResults;
+  } finally {
+    signal?.removeEventListener("abort", onAbort);
+  }
 }
