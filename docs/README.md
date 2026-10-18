@@ -9,6 +9,7 @@
 | [RELEASE_RUNBOOK.md](RELEASE_RUNBOOK.md) | You are deploying: workflow triggers, required secrets, live verification, GitHub settings the workflow cannot enforce. |
 | [TRUSTED_SETUP_RUNBOOK.md](TRUSTED_SETUP_RUNBOOK.md) | You are preparing the production Groth16 ceremony. |
 | [UX_AUDIT.md](UX_AUDIT.md) | You are working on the interface: the prioritized list of UI/UX, accessibility, copy and visual-consistency issues found in the October 2026 audit, with locations and recommended changes. |
+| [UX_REMEDIATION_PLAN.md](UX_REMEDIATION_PLAN.md) | You are fixing audit findings: the phased plan (A–J) that closes every UX id, the e2e strings that must change in lockstep, and the verification steps. |
 | [DEPENDENCY_RISK_ACCEPTANCE.md](DEPENDENCY_RISK_ACCEPTANCE.md) | You are reviewing `npm audit` output or the accepted-advisory policy. |
 | [../circuits/README.md](../circuits/README.md) | You are touching the Circom circuit or its artifacts. |
 | [../e2e/README.md](../e2e/README.md) | You are changing the browser lifecycle test or its stubs. |
