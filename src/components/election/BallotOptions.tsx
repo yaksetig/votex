@@ -19,7 +19,7 @@ interface BallotOptionsProps {
 export function BallotOptions({ options, value, onChange, disabled, labelledBy }: BallotOptionsProps) {
   return (
     <RadioGroupPrimitive.Root
-      value={value || undefined}
+      value={value}
       onValueChange={onChange}
       disabled={disabled}
       aria-labelledby={labelledBy}

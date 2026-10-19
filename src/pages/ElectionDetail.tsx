@@ -36,6 +36,7 @@ import { Skeleton } from "@/components/Skeleton";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { ROUTES, howItWorksSection, signInPath } from "@/lib/routes";
 import { describeError } from "@/lib/errorMessages";
+import { focusById } from "@/lib/focus";
 import { NullificationFlowError } from "@/services/nullificationFlow";
 import { NullificationPanel } from "@/components/election/NullificationPanel";
 
@@ -323,6 +324,7 @@ const ElectionDetail = () => {
       await createDelegation(id, participantIndex, authorityPk, keypair);
       setHasDelegated(true);
       setShowDelegationDialog(false);
+      focusById("delegation-status");
     } catch (error) {
       reportActionError("delegation", "Ballot not delegated", error, "Your delegation could not be stored. Try again.");
     } finally {
@@ -337,6 +339,7 @@ const ElectionDetail = () => {
       await revokeDelegation(id, keypair);
       setHasDelegated(false);
       setConfirmRevoke(false);
+      focusById("delegate-button");
     } catch (error) {
       reportActionError("delegation", "Delegation not revoked", error, "The delegation could not be revoked. Try again.");
     } finally {
@@ -375,6 +378,7 @@ const ElectionDetail = () => {
       setConfirmCast(false);
       await checkIfUserVoted();
       await fetchElectionData();
+      focusById("vote-receipt-title");
       toast({
         key: "vote",
         title: "Ballot recorded",
@@ -449,6 +453,7 @@ const ElectionDetail = () => {
       rememberNullificationDuration(seconds);
       setExpectedNullificationSeconds(seconds);
       setLastNullificationAt(new Date().toISOString());
+      focusById("nullification-status");
 
       // Deliberately neutral: the UI must not disclose whether the request
       // was a real or a decoy nullification to anyone watching the screen.
@@ -665,7 +670,7 @@ const ElectionDetail = () => {
                   )}
 
                   {hasDelegated ? (
-                    <div className="mt-6 rounded-xl border border-outline-variant bg-surface-container-low p-4" role="status">
+                    <div id="delegation-status" className="mt-6 rounded-xl border border-outline-variant bg-surface-container-low p-4 outline-none" role="status">
                       <p className="text-sm text-on-surface-variant">
                         <strong className="text-primary">You have delegated your ballot.</strong> Your ballot will count as your
                         delegate&apos;s choice at the tally. Everyone can see that you delegated; only the Election Authority can
@@ -685,6 +690,7 @@ const ElectionDetail = () => {
                               {submitting ? "Recording ballot…" : "Cast vote"}
                             </Button>
                             <Button
+                              id="delegate-button"
                               variant="outline"
                               onClick={() => {
                                 if (needsKeypair || !keypair) {
@@ -779,7 +785,7 @@ const ElectionDetail = () => {
               Selected: <span className="font-semibold text-primary">{selectedOption}</span>
             </p>
             <Button type="button" size="sm" onClick={requestCastVote} busy={submitting} className="shrink-0">
-              Cast vote
+              Vote now
             </Button>
           </div>
         </div>

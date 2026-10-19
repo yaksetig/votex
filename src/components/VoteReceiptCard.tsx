@@ -73,7 +73,7 @@ export default function VoteReceiptCard({ receipt, verification, standalone = fa
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="ledger-eyebrow text-secondary">Receipt</p>
-          <h2 id="vote-receipt-title" className="mt-1 font-headline text-2xl font-semibold text-primary">
+          <h2 id="vote-receipt-title" tabIndex={-1} className="mt-1 font-headline text-2xl font-semibold text-primary outline-none">
             Public ballot receipt
           </h2>
         </div>

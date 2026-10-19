@@ -64,7 +64,7 @@ export function NullificationPanel({ electionEndDate, lastSubmittedAt, expectedS
       </div>
 
       {lastSubmittedAt && (
-        <div className="mt-4 rounded-lg bg-primary-fixed p-4 text-sm leading-relaxed text-primary" role="status">
+        <div id="nullification-status" className="mt-4 rounded-lg bg-primary-fixed p-4 text-sm leading-relaxed text-primary outline-none" role="status">
           <p className="font-semibold">
             Request submitted at <Time value={lastSubmittedAt} />.
           </p>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   IDKitRequestWidget,
   orbLegacy,
@@ -100,6 +100,7 @@ const WorldIDSignIn: React.FC = () => {
   const [rpContext, setRpContext] = useState<RpContext | null>(null);
   const [rpState, setRpState] = useState<"loading" | "ready" | "failed">("loading");
   const [returningIdentity, setReturningIdentity] = useState(false);
+  const completeRef = useRef<HTMLDivElement>(null);
   const { setDerivedPublicKey, setIsWorldIDVerified, setUserId } = useWallet();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -135,6 +136,13 @@ const WorldIDSignIn: React.FC = () => {
   useEffect(() => {
     void fetchRpSignature();
   }, [fetchRpSignature]);
+
+  // The button the voter pressed is gone once sign-in completes; land on the confirmation.
+  useEffect(() => {
+    if (step === "complete") {
+      completeRef.current?.focus();
+    }
+  }, [step]);
 
   const completeSession = async (
     nullifierHash: string,
@@ -473,7 +481,7 @@ const WorldIDSignIn: React.FC = () => {
             )}
 
             {step === "complete" && (
-              <div className="rounded-xl bg-primary-fixed p-6 text-center" role="status" aria-live="polite">
+              <div ref={completeRef} tabIndex={-1} className="rounded-xl bg-primary-fixed p-6 text-center outline-none" role="status" aria-live="polite">
                 <CheckCircle2 className="mx-auto h-8 w-8 text-primary" aria-hidden="true" />
                 <h2 className="mt-3 font-headline text-2xl font-bold text-primary">Identity confirmed</h2>
                 <p className="mt-2 text-sm leading-relaxed text-on-surface-variant">
