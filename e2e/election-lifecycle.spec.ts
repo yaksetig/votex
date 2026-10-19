@@ -59,17 +59,18 @@ test("verified voter creates, delegates, signs, audits, nullifies, closes, and t
   await page.goto("/authority");
   await page.getByLabel("Email").fill("authority@votex.world");
   await page.getByLabel("Password").fill("correct horse battery staple");
-  await page.getByRole("button", { name: "Secure Sign In" }).click();
-  await expect(page.getByRole("heading", { name: "Election Authority Admin Panel" })).toBeVisible();
-  await expect(page.getByText("E2E Community Proposal", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Manage Dashboard" }).click();
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page.getByRole("heading", { name: "Elections", exact: true })).toBeVisible();
+  // The list renders cards on narrow screens and a table otherwise; one is visible.
+  await expect(page.getByText("E2E Community Proposal", { exact: true }).first()).toBeVisible();
+  await page.getByRole("button", { name: "Open E2E Community Proposal" }).click();
 
-  page.once("dialog", (dialog) => void dialog.accept());
-  await page.getByRole("button", { name: "Close Election Early" }).click();
+  await page.getByRole("button", { name: "Close election early" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Close election now" }).click();
   await expect(page.getByText("Election closed", { exact: true })).toBeVisible();
-  await page.getByRole("tab", { name: "Process Tally" }).click();
+  await page.getByRole("tab", { name: "Run tally" }).click();
   await page.getByLabel("Authority secret").fill(`votex-auth-v1_${"2".repeat(64)}`);
-  await page.getByRole("button", { name: "Begin Tally Processing" }).click();
+  await page.getByRole("button", { name: "Run tally" }).click();
   await expect(page.getByText("Tally processed", { exact: true })).toBeVisible();
 
   const electionId = String(backend.elections[0].id);

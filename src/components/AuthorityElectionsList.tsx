@@ -1,17 +1,13 @@
-import React, { useEffect, useMemo } from "react";
-import {
-  AlertTriangle,
-  BarChart3,
-  CheckCircle2,
-  Clock3,
-  Vote,
-} from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import React, { useMemo } from "react";
+import { AlertTriangle, ArrowRight } from "lucide-react";
 import { useAuthorityElections } from "@/hooks/queries/useAuthorityElections";
-import type { AuthorityElection } from "@/services/electionDataService";
-import { cn } from "@/lib/utils";
 import { pluralize } from "@/lib/format";
+import { getElectionLifecycle } from "@/lib/electionLifecycle";
+import { getElectionStatus } from "@/lib/electionStatus";
+import { StatusPill } from "@/components/StatusPill";
 import { Skeleton } from "@/components/Skeleton";
+import { Time } from "@/components/Time";
+import { Button } from "@/components/ui/button";
 
 interface AuthorityElectionsListProps {
   authorityId: string;
@@ -19,58 +15,25 @@ interface AuthorityElectionsListProps {
   onElectionSelect: (electionId: string) => void;
 }
 
-const AuthorityElectionsList: React.FC<AuthorityElectionsListProps> = ({
-  authorityId,
-  authorityName,
-  onElectionSelect,
-}) => {
-  const { toast } = useToast();
-  const {
-    data: elections = [],
-    isLoading: loading,
-    isError,
-    error: queryError,
-  } = useAuthorityElections(authorityId);
-  const error = isError
-    ? queryError instanceof Error
-      ? queryError.message
-      : "Failed to load elections"
-    : null;
+const AuthorityElectionsList: React.FC<AuthorityElectionsListProps> = ({ authorityId, authorityName, onElectionSelect }) => {
+  const { data: elections = [], isLoading, isError, refetch, isFetching } = useAuthorityElections(authorityId);
 
-  useEffect(() => {
-    if (isError) {
-      toast({
-        variant: "destructive",
-        title: "Error loading elections",
-        description: error ?? "Failed to load elections",
-      });
-    }
-  }, [isError, error, toast]);
+  const stats = useMemo(
+    () =>
+      elections.reduce(
+        (acc, election) => {
+          const open = getElectionStatus(election) === "active";
+          acc.open += open ? 1 : 0;
+          acc.awaitingTally += !open && !election.tally_processed ? 1 : 0;
+          acc.tallied += election.tally_processed ? 1 : 0;
+          return acc;
+        },
+        { open: 0, awaitingTally: 0, tallied: 0 }
+      ),
+    [elections]
+  );
 
-  const stats = useMemo(() => {
-    return elections.reduce(
-      (accumulator, election) => {
-        accumulator.total += 1;
-        accumulator.active += election.status === "active" ? 1 : 0;
-        accumulator.pendingTally += election.tally_processed ? 0 : 1;
-        accumulator.completed += election.tally_processed ? 1 : 0;
-        return accumulator;
-      },
-      { total: 0, active: 0, pendingTally: 0, completed: 0 }
-    );
-  }, [elections]);
-
-  const getStatusPill = (election: AuthorityElection) => {
-    if (election.status === "active") {
-      return "bg-surface-tint/10 text-surface-tint";
-    }
-    if (election.status === "closed_manually") {
-      return "bg-error-container text-on-error-container";
-    }
-    return "bg-surface-container-high text-on-surface-variant";
-  };
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-36" label="Loading elections" />
@@ -79,14 +42,17 @@ const AuthorityElectionsList: React.FC<AuthorityElectionsListProps> = ({
     );
   }
 
-  if (error) {
+  if (isError) {
     return (
-      <div className="ledger-panel p-8">
-        <div className="flex items-start gap-4 rounded-xl bg-error-container/60 p-5 text-on-error-container">
-          <AlertTriangle className="mt-1 h-5 w-5 shrink-0 text-error" />
+      <div className="ledger-panel p-8" role="alert">
+        <div className="flex items-start gap-4 rounded-xl bg-error-container p-5 text-on-error-container">
+          <AlertTriangle className="mt-1 h-5 w-5 shrink-0 text-error" aria-hidden="true" />
           <div>
-            <h2 className="font-headline text-xl font-bold text-primary">Election data unavailable</h2>
-            <p className="mt-2 text-sm">{error}</p>
+            <h2 className="font-headline text-xl font-bold">Elections could not be loaded</h2>
+            <p className="mt-2 text-sm">Check your connection and try again.</p>
+            <Button variant="outline" className="mt-4" onClick={() => void refetch()} busy={isFetching}>
+              Retry
+            </Button>
           </div>
         </div>
       </div>
@@ -95,112 +61,112 @@ const AuthorityElectionsList: React.FC<AuthorityElectionsListProps> = ({
 
   return (
     <div className="space-y-8">
-      <header className="flex flex-col gap-6 border-b border-outline-variant pb-8 md:flex-row md:items-end md:justify-between">
-        <div className="max-w-3xl">
-          <p className="ledger-eyebrow">Authority command surface</p>
-          <h1 className="mt-3 font-headline text-3xl font-bold tracking-[-0.03em] text-primary">
-            Election Authority Admin Panel
-          </h1>
-          <p className="mt-3 text-sm leading-relaxed text-on-surface-variant">
-            Secure session active for <span className="font-semibold text-primary">{authorityName}</span>. Review live elections, inspect tally status, and open a management dashboard for any election under your control.
-          </p>
-        </div>
+      <header className="border-b border-outline-variant pb-8">
+        <p className="ledger-eyebrow">{authorityName}</p>
+        <h1 className="mt-3 font-headline text-3xl font-bold tracking-[-0.03em] text-primary">Elections</h1>
+        <p className="mt-3 max-w-3xl text-sm leading-relaxed text-on-surface-variant">
+          Every election is bound to this authority. Open one to close it early, edit it before the first ballot, or run
+          the tally once it has closed.
+        </p>
       </header>
 
-      <section className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+      <dl className="grid gap-4 sm:grid-cols-3">
         {[
-          { label: "Total Elections", value: stats.total, icon: Vote, tone: "text-primary border-b-primary" },
-          { label: "Active", value: stats.active, icon: CheckCircle2, tone: "text-surface-tint" },
-          { label: "Pending Tally", value: stats.pendingTally, icon: Clock3, tone: "text-tertiary-container" },
-          { label: "Completed", value: stats.completed, icon: BarChart3, tone: "text-secondary" },
-        ].map(({ label, value, icon: Icon, tone }) => (
-          <div key={label} className={cn("rounded-xl border border-outline-variant/12 bg-surface-container-lowest p-6 shadow-sm", tone.includes("border-b") && "border-b-4")}>
-            <div className="mb-5 flex items-center justify-between">
-              <Icon className={cn("h-6 w-6", tone.split(" ")[0])} />
-            </div>
-            <div className={cn("font-headline text-4xl font-bold", tone.split(" ")[0])}>{value}</div>
-            <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.05em] text-on-surface-variant">{label}</p>
+          { label: "Open", value: stats.open },
+          { label: "Awaiting tally", value: stats.awaitingTally },
+          { label: "Tallied", value: stats.tallied },
+        ].map(({ label, value }) => (
+          <div key={label} className="ledger-panel p-5">
+            <dt className="ledger-eyebrow">{label}</dt>
+            <dd className="mt-2 font-headline text-3xl font-bold tabular-nums text-primary">{value}</dd>
           </div>
         ))}
-      </section>
+      </dl>
 
-      <section className="rounded-xl bg-surface-container-low p-1">
-        <div className="overflow-hidden rounded-xl border border-outline-variant/10 bg-surface-container-lowest">
-          <div className="flex flex-col gap-4 border-b border-outline-variant/10 p-6 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h2 className="font-headline text-2xl font-bold text-primary">Live Election Ledger</h2>
-              <p className="mt-1 text-sm text-on-surface-variant">
-                {pluralize(elections.length, "election")} published through this authority
-              </p>
-            </div>
+      <section className="ledger-panel overflow-hidden" aria-labelledby="authority-elections-title">
+        <div className="flex flex-col gap-2 border-b border-outline-variant p-6 sm:flex-row sm:items-center sm:justify-between">
+          <h2 id="authority-elections-title" className="font-headline text-2xl font-bold text-primary">
+            All elections
+          </h2>
+          <p className="text-sm text-on-surface-variant">{pluralize(elections.length, "election")}</p>
+        </div>
+
+        {elections.length === 0 ? (
+          <div className="p-10 text-center">
+            <h3 className="font-headline text-2xl font-bold text-primary">No elections yet</h3>
+            <p className="mt-3 text-sm text-on-surface-variant">
+              Elections are created by verified voters from the public site; they appear here as soon as one is published.
+            </p>
           </div>
-
-          {elections.length === 0 ? (
-            <div className="p-10 text-center">
-              <h3 className="font-headline text-2xl font-bold text-primary">No elections found</h3>
-              <p className="mt-3 text-sm text-on-surface-variant">
-                This authority has not published any elections yet.
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
+        ) : (
+          <>
+            {/* Narrow screens: one card per election, so the action is never off-screen. */}
+            <ul className="divide-y divide-outline-variant md:hidden" aria-label="Elections">
+              {elections.map((election) => (
+                <li key={election.id} className="space-y-3 p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="font-semibold text-on-surface">{election.title}</p>
+                    <StatusPill lifecycle={getElectionLifecycle(election, { tallied: election.tally_processed })} />
+                  </div>
+                  <p className="line-clamp-2 text-xs text-on-surface-variant">{election.description}</p>
+                  <dl className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-on-surface-variant">
+                    <div>
+                      <dt className="inline">Closes </dt>
+                      <dd className="inline"><Time value={election.closed_manually_at ?? election.end_date} /></dd>
+                    </div>
+                    <div>
+                      <dt className="inline">Ballots </dt>
+                      <dd className="inline font-semibold tabular-nums text-primary">{election.vote_count || 0}</dd>
+                    </div>
+                  </dl>
+                  <Button variant="outline" size="sm" className="w-full" onClick={() => onElectionSelect(election.id)} aria-label={`Open ${election.title}`}>
+                    Open <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                </li>
+              ))}
+            </ul>
+            <div className="hidden overflow-x-auto md:block" tabIndex={0} role="region" aria-label="Elections table">
               <table className="min-w-full text-left">
-                <thead className="border-b border-outline-variant/8 bg-surface-container-lowest text-[11px] font-bold uppercase tracking-[0.05em] text-outline">
+                <caption className="sr-only">Elections bound to {authorityName}</caption>
+                <thead className="border-b border-outline-variant bg-surface-container-lowest text-xs font-semibold text-on-surface-variant">
                   <tr>
-                    <th className="px-8 py-4">Election Title</th>
-                    <th className="px-6 py-4 text-center">Status</th>
-                    <th className="px-6 py-4">Tally Status</th>
-                    <th className="px-6 py-4">Vote Count</th>
-                    <th className="px-8 py-4 text-right">Actions</th>
+                    <th scope="col" className="px-6 py-4">Election</th>
+                    <th scope="col" className="px-6 py-4">Status</th>
+                    <th scope="col" className="px-6 py-4">Closes</th>
+                    <th scope="col" className="px-6 py-4 text-right">Ballots</th>
+                    <th scope="col" className="px-6 py-4 text-right">
+                      <span className="sr-only">Open</span>
+                    </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-outline-variant/8">
+                <tbody className="divide-y divide-outline-variant">
                   {elections.map((election) => (
                     <tr key={election.id} className="transition-colors hover:bg-surface-container-low">
-                      <td className="px-8 py-6">
-                        <div>
-                          <p className="font-semibold text-on-surface">{election.title}</p>
-                          <p className="mt-1 text-xs text-on-surface-variant">
-                            {election.description}
-                          </p>
-                        </div>
+                      <td className="px-6 py-5">
+                        <p className="font-semibold text-on-surface">{election.title}</p>
+                        <p className="mt-1 line-clamp-2 max-w-md text-xs text-on-surface-variant">{election.description}</p>
                       </td>
-                      <td className="px-6 py-6 text-center">
-                        <span className={cn("inline-flex rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.05em]", getStatusPill(election))}>
-                          {election.status === "closed_manually"
-                            ? "Manually Closed"
-                            : election.status === "active"
-                              ? "Active"
-                              : "Expired"}
-                        </span>
+                      <td className="px-6 py-5">
+                        <StatusPill lifecycle={getElectionLifecycle(election, { tallied: election.tally_processed })} />
                       </td>
-                      <td className="px-6 py-6">
-                        <div className="flex items-center gap-2 text-sm font-medium">
-                          <span className={cn("h-2 w-2 rounded-full", election.tally_processed ? "bg-surface-tint" : "bg-error")} />
-                          <span className={election.tally_processed ? "text-surface-tint" : "text-error"}>
-                            {election.tally_processed ? "Tallied" : "Pending Tally"}
-                          </span>
-                        </div>
+                      <td className="whitespace-nowrap px-6 py-5 text-sm text-on-surface-variant">
+                        <Time value={election.closed_manually_at ?? election.end_date} />
                       </td>
-                      <td className="px-6 py-6">
-                        <p className="font-headline text-xl font-extrabold text-primary">{election.vote_count || 0}</p>
+                      <td className="px-6 py-5 text-right font-headline text-xl font-extrabold tabular-nums text-primary">
+                        {election.vote_count || 0}
                       </td>
-                      <td className="px-8 py-6 text-right">
-                        <button
-                          type="button"
-                          onClick={() => onElectionSelect(election.id)}
-                          className="rounded-xl bg-surface-container-high px-5 py-2 text-sm font-bold text-primary transition-all hover:bg-primary hover:text-white"
-                        >
-                          Manage Dashboard
-                        </button>
+                      <td className="px-6 py-5 text-right">
+                        <Button variant="outline" size="sm" onClick={() => onElectionSelect(election.id)} aria-label={`Open ${election.title}`}>
+                          Open <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                        </Button>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          )}
-        </div>
+          </>
+        )}
       </section>
     </div>
   );

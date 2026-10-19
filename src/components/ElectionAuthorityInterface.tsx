@@ -1,304 +1,143 @@
-import React, { useMemo, useState } from "react";
-import {
-  AlertTriangle,
-  Calculator,
-  CheckCircle2,
-  Lock,
-  RotateCcw,
-  ShieldCheck,
-} from "lucide-react";
+import React, { useState } from "react";
+import { Calculator, Eye, EyeOff, Loader2, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { ElectionTallyResult, processElectionTally } from "@/services/tallyService";
-import { pluralize } from "@/lib/format";
-import { Time } from "@/components/Time";
+import { describeTallyError } from "@/lib/tallyErrors";
 
 interface ElectionAuthorityInterfaceProps {
   electionId: string;
   electionTitle: string;
-  onTallyComplete?: (results: ElectionTallyResult) => void;
+  /** Recorded as processed_by on the tally rows. */
+  operatorName: string;
+  /** True when a tally already exists and this run replaces it. */
+  replaceExisting?: boolean;
+  onTallyComplete: (results: ElectionTallyResult) => void;
 }
 
+/**
+ * The tally form only. The result of a run is shown by the dashboard, which
+ * keeps it mounted after completion; this component owns nothing but the
+ * secret field, the busy state and the error.
+ */
 const ElectionAuthorityInterface: React.FC<ElectionAuthorityInterfaceProps> = ({
   electionId,
   electionTitle,
-  onTallyComplete = () => {},
+  operatorName,
+  replaceExisting = false,
+  onTallyComplete,
 }) => {
   const [authoritySecret, setAuthoritySecret] = useState("");
+  const [showSecret, setShowSecret] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [tallyResults, setTallyResults] = useState<ElectionTallyResult | null>(null);
-  const [replaceExisting, setReplaceExisting] = useState(false);
   const { toast } = useToast();
-
-  const stats = useMemo(() => {
-    if (!tallyResults) {
-      return null;
-    }
-
-    const totalVoters = tallyResults.results.length;
-    const nullifiedVotes = tallyResults.results.filter(
-      (result) => result.voteNullified
-    ).length;
-    const totalNullifications = tallyResults.results.reduce(
-      (sum, result) => sum + result.nullificationCount,
-      0
-    );
-
-    return { nullifiedVotes, totalNullifications, totalVoters };
-  }, [tallyResults]);
 
   const handleProcessTally = async () => {
     if (!authoritySecret.trim()) {
-      setError("Enter the authority secret to process the tally.");
+      setError("Enter the authority secret to run the tally.");
       return;
     }
-
     try {
       setError(null);
       setIsProcessing(true);
-
-      const results = await processElectionTally(
-        electionId,
-        authoritySecret.trim(),
-        "Election Authority",
-        replaceExisting
-      );
-
-      setTallyResults(results);
+      const results = await processElectionTally(electionId, authoritySecret.trim(), operatorName, replaceExisting);
+      // Only a successful run clears the secret; a typo should not cost a retype.
+      setAuthoritySecret("");
+      toast({ key: "tally", title: "Tally processed", description: `${electionTitle}: ${results.results.length} voter records resolved.` });
       onTallyComplete(results);
-      toast({
-        title: "Tally processed",
-        description: `Resolved ${results.results.length} voter records for ${electionTitle}.`,
-      });
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Unknown tally processing error";
-      setError(message);
-      toast({
-        variant: "destructive",
-        title: "Tally processing failed",
-        description: message,
-      });
+      const failure = describeTallyError(err);
+      setError(failure.message);
+      if (!failure.keepSecret) setAuthoritySecret("");
     } finally {
       setIsProcessing(false);
-      setAuthoritySecret("");
     }
   };
 
-  if (tallyResults && stats) {
-    return (
-      <div className="space-y-8">
-        <section className="rounded-xl bg-primary p-8 text-on-primary">
-          <div className="flex items-start gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white/10 text-primary-fixed-dim">
-              <CheckCircle2 className="h-7 w-7" />
-            </div>
-            <div>
-              <p className="ledger-eyebrow text-on-primary-container">Tally complete</p>
-              <h2 className="mt-2 font-headline text-3xl font-extrabold text-white">
-                Final decryption finished successfully
-              </h2>
-              <p className="mt-3 text-sm leading-relaxed text-white/76">
-                The authority key resolved the nullification accumulators and persisted the final tally ledger on{" "}
-                <Time value={tallyResults.processedAt} />.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {tallyResults.invalidDelegations.length > 0 && (
-          <section className="rounded-xl border border-tertiary-container/40 bg-surface-container p-6">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="mt-0.5 h-5 w-5 text-tertiary-container" />
-              <div>
-                <h3 className="font-headline text-lg font-bold text-primary">
-                  {pluralize(tallyResults.invalidDelegations.length, "delegation")} could not be decoded and{" "}
-                  {tallyResults.invalidDelegations.length === 1 ? "was" : "were"} ignored
-                </h3>
-                <p className="mt-2 text-sm text-on-surface-variant">
-                  The authority key was verified against the registered key before decryption, so these records are
-                  malformed input from the delegator. Each delegator below kept their own direct ballot.
-                </p>
-                <ul className="mt-3 space-y-1 font-mono text-xs text-on-surface-variant">
-                  {tallyResults.invalidDelegations.map((item) => (
-                    <li key={item.delegationId}>
-                      {item.delegationId} · delegator {item.delegatorId} · {item.reason}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </section>
-        )}
-
-        <section className="grid gap-4 md:grid-cols-3">
-          <div className="ledger-subpanel">
-            <ShieldCheck className="h-6 w-6 text-primary" />
-            <div className="mt-5 font-headline text-4xl font-extrabold text-primary">
-              {stats.totalVoters}
-            </div>
-            <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.05em] text-on-surface-variant">
-              Total Voters
-            </p>
-          </div>
-          <div className="ledger-subpanel">
-            <AlertTriangle className="h-6 w-6 text-tertiary-container" />
-            <div className="mt-5 font-headline text-4xl font-extrabold text-tertiary-container">
-              {stats.nullifiedVotes}
-            </div>
-            <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.05em] text-on-surface-variant">
-              Nullified Votes
-            </p>
-          </div>
-          <div className="ledger-subpanel">
-            <Calculator className="h-6 w-6 text-secondary" />
-            <div className="mt-5 font-headline text-4xl font-extrabold text-secondary">
-              {stats.totalNullifications}
-            </div>
-            <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.05em] text-on-surface-variant">
-              Total Nullifications
-            </p>
-          </div>
-        </section>
-
-        <Button
-          variant="outline"
-          className="w-full"
-          onClick={() => {
-            if (window.confirm("Start an explicit replacement tally run? The previous persisted result set will be replaced atomically.")) {
-              setError(null);
-              setReplaceExisting(true);
-              setTallyResults(null);
-            }
-          }}
-        >
-          <RotateCcw className="h-4 w-4" />
-          Start Replacement Tally
-        </Button>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-8">
-      <section className="rounded-xl bg-primary p-8 text-on-primary">
+    <div className="space-y-6">
+      <section className="rounded-xl bg-primary p-6 text-on-primary sm:p-8">
         <div className="flex items-start gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white/10 text-primary-fixed-dim">
-            <Lock className="h-7 w-7" />
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/10 text-primary-fixed-dim">
+            <Lock className="h-6 w-6" aria-hidden="true" />
           </div>
           <div>
-            <p className="ledger-eyebrow text-on-primary-container">Authority-only operation</p>
+            <p className="ledger-eyebrow text-white/70">{replaceExisting ? "Replacement run" : "Election Authority only"}</p>
             <h2 className="mt-2 font-headline text-2xl font-semibold text-white">
-              Process the final tally for {electionTitle}
+              {replaceExisting ? `Run the tally again for ${electionTitle}` : `Run the tally for ${electionTitle}`}
             </h2>
-            <p className="mt-3 max-w-3xl text-sm leading-relaxed text-white/76">
-              Enter the authority secret to derive the election key locally, decrypt the nullification accumulators, resolve final ballot validity, and write the official result set.
+            <p className="mt-3 max-w-3xl text-sm leading-relaxed text-white/85">
+              The secret derives the authority key in this browser, decrypts each voter&apos;s nullification state,
+              resolves delegations, and publishes the result. The key is never sent to Votex or stored.
+              {replaceExisting ? " This run replaces the published result; the previous run stays in the audit record." : ""}
             </p>
           </div>
         </div>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_360px]">
+      <section className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_320px]">
         <div className="ledger-subpanel">
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-white">
-              <Calculator className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="ledger-eyebrow">Step 1</p>
-              <h3 className="mt-1 font-headline text-2xl font-bold text-primary">
-                Decrypt authority accumulators
-              </h3>
-            </div>
-          </div>
-
-          <p className="mt-6 text-sm leading-relaxed text-on-surface-variant">
-            The authority secret is used locally to derive the BabyJubJub key and decrypt per-voter XOR accumulators. The browser clears the entered value immediately after processing completes or fails.
-          </p>
-
-          <label htmlFor="authoritySecret" className="ledger-eyebrow mt-8 block">
+          <label htmlFor="authoritySecret" className="ledger-eyebrow block">
             Authority secret
           </label>
-          <Input
-            id="authoritySecret"
-            type="password"
-            autoComplete="off"
-            spellCheck={false}
-            value={authoritySecret}
-            onChange={(event) => setAuthoritySecret(event.target.value)}
-            placeholder="Enter the votex-auth-v1_… recovery key"
-            className="mt-3"
-            disabled={isProcessing}
-          />
+          <div className="relative mt-3">
+            <Input
+              id="authoritySecret"
+              type={showSecret ? "text" : "password"}
+              autoComplete="off"
+              spellCheck={false}
+              value={authoritySecret}
+              onChange={(event) => setAuthoritySecret(event.target.value)}
+              placeholder="votex-auth-v1_…"
+              className="pr-12 font-mono"
+              disabled={isProcessing}
+              aria-invalid={error ? true : undefined}
+              aria-describedby={error ? "tally-error" : "tally-hint"}
+            />
+            <button
+              type="button"
+              onClick={() => setShowSecret((current) => !current)}
+              aria-label={showSecret ? "Hide secret" : "Show secret"}
+              aria-pressed={showSecret}
+              className="absolute right-1 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-md text-on-surface-variant hover:bg-surface-container hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary"
+            >
+              {showSecret ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
+            </button>
+          </div>
+          <p id="tally-hint" className="mt-2 text-xs text-on-surface-variant">
+            The recovery key from the authority set-up. It is cleared from this field once the tally succeeds.
+          </p>
 
           {error && (
-            <div className="mt-5 rounded-lg border border-error/20 bg-error-container/70 p-4 text-sm text-on-error-container">
+            <div id="tally-error" role="alert" className="mt-5 rounded-lg border border-error/20 bg-error-container p-4 text-sm text-on-error-container">
               {error}
             </div>
           )}
 
-          <Button
-            onClick={handleProcessTally}
-            disabled={isProcessing || !authoritySecret.trim()}
-            className="mt-6 w-full"
-            size="lg"
-          >
-            {isProcessing ? (
-              <>
-                <Calculator className="h-4 w-4 animate-spin" />
-                Processing Tally...
-              </>
-            ) : (
-              <>
-                <Calculator className="h-4 w-4" />
-                Begin Tally Processing
-              </>
-            )}
+          <Button onClick={() => void handleProcessTally()} busy={isProcessing} className="mt-6 w-full" size="lg" aria-disabled={!authoritySecret.trim() || undefined}>
+            {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Calculator className="h-4 w-4" aria-hidden="true" />}
+            {isProcessing ? "Running tally…" : "Run tally"}
           </Button>
+          <p className="mt-3 min-h-5 text-sm text-on-surface-variant" role="status" aria-live="polite">
+            {isProcessing ? "Decrypting nullification states and resolving delegations. This can take a minute; keep this tab open." : ""}
+          </p>
         </div>
 
-        <div className="space-y-6">
-          <div className="ledger-subpanel">
-            <p className="ledger-eyebrow">Security note</p>
-            <h3 className="mt-3 font-headline text-2xl font-bold text-primary">
-              Private key use is local-only
-            </h3>
-            <p className="mt-3 text-sm leading-relaxed text-on-surface-variant">
-              The authority key is not stored in the browser or sent to the server. Only the resulting tally rows are persisted through the authenticated write path.
-            </p>
-          </div>
-
-          <div className="ledger-subpanel">
-            <p className="ledger-eyebrow">Processing sequence</p>
-            <div className="mt-4 space-y-4">
-              <div className="rounded-lg bg-surface-container-high p-4">
-                <p className="text-xs font-bold uppercase tracking-[0.05em] text-primary">
-                  Step 1
-                </p>
-                <p className="mt-1 text-sm text-on-surface-variant">
-                  Decrypt XOR accumulators.
-                </p>
-              </div>
-              <div className="rounded-lg bg-surface-container-high p-4 opacity-80">
-                <p className="text-xs font-bold uppercase tracking-[0.05em] text-primary">
-                  Step 2
-                </p>
-                <p className="mt-1 text-sm text-on-surface-variant">
-                  Resolve final ballot validity.
-                </p>
-              </div>
-              <div className="rounded-lg bg-surface-container-high p-4 opacity-70">
-                <p className="text-xs font-bold uppercase tracking-[0.05em] text-primary">
-                  Step 3
-                </p>
-                <p className="mt-1 text-sm text-on-surface-variant">
-                  Persist the tally results.
-                </p>
-              </div>
-            </div>
-          </div>
+        <div className="ledger-subpanel">
+          <p className="ledger-eyebrow">What happens</p>
+          <ol className="mt-4 space-y-3 text-sm text-on-surface-variant">
+            <li className="rounded-lg bg-surface-container-high p-3">
+              <span className="font-semibold text-primary">1.</span> The authority key is derived and checked against the key registered for this election.
+            </li>
+            <li className="rounded-lg bg-surface-container-high p-3">
+              <span className="font-semibold text-primary">2.</span> Each voter&apos;s nullification state is decrypted; nullified ballots are dropped.
+            </li>
+            <li className="rounded-lg bg-surface-container-high p-3">
+              <span className="font-semibold text-primary">3.</span> Delegations are opened and weights applied; the result is published.
+            </li>
+          </ol>
         </div>
       </section>
     </div>

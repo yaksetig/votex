@@ -73,6 +73,7 @@ _What the voter is told about what their action does and who can see it._
 - **Where:** ElectionAuthorityInterface.tsx:99-102,176,195
 - **Evidence:** The copy declares finality while offering to redo the tally.
 - **Change:** “Tally run completed” plus the run timestamp; describe replacement as a new run that supersedes this one.
+- **Status:** Resolved in Phase H (authority console)
 
 ### UX-007 · High · Receipts never mention nullification
 
@@ -613,30 +614,35 @@ _Operator sign-in, election list, dashboard, close, tally and results._
 - **Where:** ElectionAuthorityDashboard.tsx:162-164,305-312; ElectionAuthorityInterface.tsx:88-179 (screenshot 46 shows the Overview tab instead)
 - **Evidence:** onTallyComplete bumps refreshKey, the Process Tally tab becomes “already processed”, and the results summary with the invalid-delegation warning unmounts before the operator can read it.
 - **Change:** Keep the result panel mounted; move replacement into the dashboard.
+- **Status:** Resolved in Phase H (authority console)
 
 ### UX-080 · High · Close Election Early is a destructive action styled as primary and confirmed by window.confirm
 
 - **Where:** ElectionAuthorityDashboard.tsx:131,224
 - **Evidence:** The confirm does not mention that voters lose the nullification window.
 - **Change:** Destructive variant plus an accessible AlertDialog naming the consequence.
+- **Status:** Resolved in Phase H (authority console)
 
 ### UX-081 · High · Tally errors swallow the secret; no progress during processing
 
 - **Where:** ElectionAuthorityInterface.tsx:84 clears the field in finally; :240-257 no status
 - **Evidence:** A typo means retyping a 256-bit key; long runs show only a spinning calculator icon.
 - **Change:** Keep the value on recoverable errors; show live status text.
+- **Status:** Resolved in Phase H (authority console)
 
 ### UX-082 · High · Chart has no legend, no text alternative and low-contrast ticks
 
 - **Where:** TallyResultsChart.tsx; Y ticks #74777d on #eff4ff (4.07:1); screenshot 42
 - **Evidence:** Two bar series are indistinguishable without the hover tooltip.
 - **Change:** Add Legend and accessibilityLayer, darken ticks, aria-label the chart (the numbers already appear beside it).
+- **Status:** Resolved in Phase H (authority console)
 
 ### UX-083 · High · Results tab shows “Final” series and “0 tracked ballots were removed from the final outcome” before any tally
 
 - **Where:** TallyResultsDisplay.tsx:109,148,256 (screenshot 42 with “Vote Tracking Active”)
 - **Evidence:** Final and preliminary are presented as both available at once.
 - **Change:** Hide the Final series until a tally run exists.
+- **Status:** Resolved in Phase H (authority console)
 
 ### UX-084 · Medium · Deep link /elections/:id/authority ignores the id
 
@@ -650,42 +656,49 @@ _Operator sign-in, election list, dashboard, close, tally and results._
 - **Where:** ElectionAuthorityLogin.tsx (screenshot 39: “Use only the generated 256-bit recovery key…” under email/password)
 - **Evidence:** Operator jargon (“BabyJubJub key”) and a hint for a different mode.
 - **Change:** Show the hint only in link mode; plain language.
+- **Status:** Resolved in Phase H (authority console)
 
 ### UX-086 · Medium · Stat tiles are mostly constants before tally
 
 - **Where:** ElectionAuthorityDashboard.tsx:231-258 (“2 Voting options”, “0 Tallied voters”, “Live”)
 - **Evidence:** Four large numbers that carry almost no information; “Secure session active” occupies the slot where election status belongs.
 - **Change:** Show votes, participants, delegations, nullification requests; move session state to the sidebar.
+- **Status:** Resolved in Phase H (authority console)
 
 ### UX-087 · Medium · “Pending Tally” rendered in error red for every active election
 
 - **Where:** AuthorityElectionsList.tsx:177-179 (screenshot 41)
 - **Evidence:** Tallying an active election is impossible, so the alarm is permanent.
 - **Change:** Neutral “Not yet tallied” for active, red only when closed and untallied.
+- **Status:** Resolved in Phase H (authority console)
 
 ### UX-088 · Medium · “Nullification Events” counts decoys
 
 - **Where:** TallyResultsDisplay.tsx:178 (screenshot 46: 6 events, 0 nullified)
 - **Evidence:** Reads as six real nullifications.
 - **Change:** Label “Nullification requests (incl. decoys)” and show it next to the resolved count with a one-line explanation.
+- **Status:** Resolved in Phase H (authority console)
 
 ### UX-089 · Medium · Processed-voter table truncates silently
 
 - **Where:** TallyResultsDisplay.tsx:284,298 (slice(0,12), “Showing the latest processed tally entries”)
 - **Evidence:** No “12 of N” and no way to see the rest.
 - **Change:** Paginate or export; show the total.
+- **Status:** Resolved in Phase H (authority console)
 
 ### UX-090 · Medium · Secret and password fields have no show/hide and incomplete autocomplete attributes
 
 - **Where:** ElectionAuthorityLogin.tsx:176,184,196; ElectionAuthorityInterface.tsx:222-232
 - **Evidence:** Typing a 64-hex key blind is error-prone; email lacks autoComplete and inputMode.
 - **Change:** Add reveal toggles; autoComplete email/current-password/new-password.
+- **Status:** Resolved in Phase H (authority console)
 
 ### UX-091 · Medium · Login error is both toasted and inline, without alert semantics
 
 - **Where:** ElectionAuthorityLogin.tsx:125-132,201-208
 - **Evidence:** Duplicate announcement for screen readers, none for the inline block.
 - **Change:** Inline role=alert only; aria-invalid on fields.
+- **Status:** Resolved in Phase H (authority console)
 
 ### UX-092 · Medium · No way back to the public site from the console
 
@@ -699,24 +712,28 @@ _Operator sign-in, election list, dashboard, close, tally and results._
 - **Where:** AuthorityAuditLog.tsx:69-70
 - **Evidence:** Not readable by a human reviewer.
 - **Change:** Map actions to labels; show the operator's display name.
+- **Status:** Resolved in Phase H (authority console)
 
 ### UX-094 · Low · Odd spinners
 
 - **Where:** ElectionAuthorityDashboard.tsx:225 (TrendingUp spins), ElectionAuthorityInterface.tsx:248 (Calculator spins), ElectionEditForm.tsx:252 (Save spins)
 - **Evidence:** Rotating semantic icons look broken.
 - **Change:** Use Loader2 everywhere.
+- **Status:** Resolved in Phase H (authority console)
 
 ### UX-095 · Low · “Completed on … by Election Authority” is a literal string
 
 - **Where:** ElectionAuthorityInterface.tsx:63
 - **Evidence:** Not the operator's identity.
 - **Change:** Use the signed-in account.
+- **Status:** Resolved in Phase H (authority console)
 
 ### UX-096 · Low · “by Manage Dashboard” buttons lack per-row context
 
 - **Where:** AuthorityElectionsList.tsx:188-194
 - **Evidence:** Identical names for screen readers.
 - **Change:** aria-label with the election title; relabel “Open”.
+- **Status:** Resolved in Phase H (authority console)
 
 
 ## Navigation and information architecture (9)
@@ -902,6 +919,7 @@ _Semantics, keyboard, focus, contrast, motion, targets._
 - **Where:** ElectionAuthority.tsx:115 (main inside App's main), :67 (brand h1) plus each pane's h1; axe moderate on 9 steps; sidebar nav lacks aria-label and aria-current
 - **Evidence:** Landmark navigation is broken for screen-reader users.
 - **Change:** Render the console outside App's main or as divs; brand as p; aria-current on nav items.
+- **Status:** Resolved in Phase H (authority console)
 
 ### UX-122 · Medium · Progress dialog has no progressbar role, no live region, and shows NaN% when total is 0
 
@@ -992,12 +1010,14 @@ _Phone-width behaviour observed on the Pixel 7 profile._
 - **Where:** ElectionAuthorityDashboard.tsx tabs (screenshot 42 mobile: “Process Tally” drops to a second line)
 - **Evidence:** Looks broken.
 - **Change:** Scrollable tab strip or stacked segmented control.
+- **Status:** Resolved in Phase H (authority console)
 
 ### UX-135 · Medium · Stat tiles stack into a full screen of single numbers
 
 - **Where:** ElectionAuthorityDashboard.tsx:231-258 on narrow widths
 - **Evidence:** Four large tiles push the actual controls below the fold.
 - **Change:** Two-column compact tiles or a single summary row.
+- **Status:** Resolved in Phase H (authority console)
 
 ### UX-136 · Medium · No search on phones and tablets
 

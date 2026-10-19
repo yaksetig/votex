@@ -1,13 +1,6 @@
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
-import {
-  BarChart3,
-  CheckCircle2,
-  RefreshCw,
-  ShieldCheck,
-  Users,
-} from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import type { TallyResult } from "@/services/tallyService";
 import { getNullificationsForElection } from "@/services/nullificationService";
 import { getElectionTallyResults } from "@/services/tallyService";
@@ -16,6 +9,8 @@ import { getElectionVoteData } from "@/services/voteTrackingService";
 import type { TallyChartDatum } from "@/components/TallyResultsChart";
 import { Time } from "@/components/Time";
 import { Skeleton } from "@/components/Skeleton";
+import { StatusPill } from "@/components/StatusPill";
+import { abbreviateIdentifier, pluralize } from "@/lib/format";
 
 const TallyResultsChart = lazy(() => import("@/components/TallyResultsChart"));
 
@@ -24,51 +19,40 @@ interface TallyResultsDisplayProps {
   electionTitle: string;
   option1Name: string;
   option2Name: string;
+  electionClosed: boolean;
 }
 
-const EmptyChartState = () => (
-  <div className="flex h-full items-center justify-center rounded-xl border border-outline-variant/12 bg-surface-container-low text-center">
-    <div>
-      <h4 className="font-headline text-2xl font-bold text-primary">
-        No vote data yet
-      </h4>
-      <p className="mt-2 text-sm text-on-surface-variant">
-        This election has not accumulated trackable vote totals yet.
-      </p>
-    </div>
-  </div>
-);
+const TABLE_PAGE = 12;
 
-const ChartLoadingState = () => (
-  <Skeleton className="h-full" />
-);
-
-const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({
-  electionId,
-  electionTitle,
-  option1Name,
-  option2Name,
-}) => {
+/**
+ * The operator's overview: ballots as cast, and (only once a tally ran) the
+ * tallied result with nullified ballots removed and weights applied. Before
+ * a tally there is no "final" series to show, so none is drawn.
+ */
+const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({ electionId, electionTitle, option1Name, option2Name, electionClosed }) => {
   const [loading, setLoading] = useState(true);
-  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const [error, setError] = useState(false);
+  const [refreshedAt, setRefreshedAt] = useState<Date>(new Date());
   const [tallyResults, setTallyResults] = useState<TallyResult[]>([]);
   const [voteData, setVoteData] = useState<VoteData | null>(null);
-  const [totalNullifications, setTotalNullifications] = useState(0);
+  const [requestCount, setRequestCount] = useState(0);
+  const [tableLimit, setTableLimit] = useState(TABLE_PAGE);
 
   const fetchTallyData = useCallback(async () => {
     try {
       setLoading(true);
-
+      setError(false);
       const [tallyData, voteTrackingData, nullificationData] = await Promise.all([
         getElectionTallyResults(electionId),
         getElectionVoteData(electionId),
         getNullificationsForElection(electionId),
       ]);
-
       setTallyResults(tallyData);
       setVoteData(voteTrackingData);
-      setTotalNullifications(nullificationData.length);
-      setLastUpdated(new Date());
+      setRequestCount(nullificationData.length);
+      setRefreshedAt(new Date());
+    } catch {
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -78,243 +62,181 @@ const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({
     void fetchTallyData();
   }, [fetchTallyData]);
 
-  const stats = useMemo(() => {
-    if (!voteData) {
-      return {
-        totalVotes: 0,
-        validVotes: 0,
-        nullifiedVotes: 0,
-        totalNullifications: totalNullifications,
-      };
-    }
+  const tallied = tallyResults.length > 0;
+  const talliedAt = tallyResults.find((row) => row.processedAt)?.processedAt ?? null;
 
-    return {
-      totalVotes: voteData.totalYesVotes + voteData.totalNoVotes,
-      validVotes: voteData.validYesVotes + voteData.validNoVotes,
-      nullifiedVotes: voteData.nullifiedYesVotes + voteData.nullifiedNoVotes,
-      totalNullifications,
-    };
-  }, [totalNullifications, voteData]);
+  const stats = useMemo(() => {
+    const totalBallots = voteData ? voteData.totalYesVotes + voteData.totalNoVotes : 0;
+    const nullifiedBallots = tallyResults.filter((row) => row.voteNullified).length;
+    return { totalBallots, nullifiedBallots, requestCount };
+  }, [requestCount, tallyResults, voteData]);
 
   const chartData = useMemo<TallyChartDatum[]>(() => {
-    if (!voteData) {
-      return [];
-    }
-
-    return [
-      {
-        name: "Preliminary",
-        [option1Name]: voteData.totalYesVotes,
-        [option2Name]: voteData.totalNoVotes,
-      },
-      {
-        name: "Final",
-        [option1Name]: voteData.validYesVotes,
-        [option2Name]: voteData.validNoVotes,
-      },
+    if (!voteData) return [];
+    const series: TallyChartDatum[] = [
+      { name: "Ballots as cast", [option1Name]: voteData.totalYesVotes, [option2Name]: voteData.totalNoVotes },
     ];
-  }, [option1Name, option2Name, voteData]);
+    if (tallied) {
+      series.push({ name: "Tallied result", [option1Name]: voteData.validYesVotes, [option2Name]: voteData.validNoVotes });
+    }
+    return series;
+  }, [option1Name, option2Name, tallied, voteData]);
 
-  if (loading) {
+  if (loading && !voteData) {
     return (
       <div className="space-y-6">
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-3">
           <Skeleton className="h-28" label="Loading results" />
           <Skeleton className="h-28" />
           <Skeleton className="h-28" />
-          <Skeleton className="h-28" />
         </div>
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_360px]">
-          <Skeleton className="h-[24rem]" />
-          <Skeleton className="h-[24rem]" />
-        </div>
+        <Skeleton className="h-[24rem]" />
       </div>
     );
   }
+
+  if (error) {
+    return (
+      <div className="rounded-xl border border-error/30 bg-error-container p-6 text-on-error-container" role="alert">
+        <p className="font-semibold">The results could not be loaded.</p>
+        <Button variant="outline" className="mt-3" onClick={() => void fetchTallyData()}>
+          Retry
+        </Button>
+      </div>
+    );
+  }
+
+  const chartDescription = tallied
+    ? `${electionTitle}: as cast, ${option1Name} ${voteData?.totalYesVotes ?? 0} and ${option2Name} ${voteData?.totalNoVotes ?? 0}; tallied, ${option1Name} ${voteData?.validYesVotes ?? 0} and ${option2Name} ${voteData?.validNoVotes ?? 0}.`
+    : `${electionTitle}: ballots as cast, ${option1Name} ${voteData?.totalYesVotes ?? 0} and ${option2Name} ${voteData?.totalNoVotes ?? 0}.`;
 
   return (
     <div className="space-y-8">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="ledger-eyebrow">Overview & results</p>
-          <h2 className="mt-2 font-headline text-3xl font-extrabold text-primary">
-            {electionTitle}
-          </h2>
-          <p className="mt-3 text-sm leading-relaxed text-on-surface-variant">
-            Compare preliminary totals with post-nullification results and inspect the voter-level tally ledger when available.
+          <p className="ledger-eyebrow">Overview</p>
+          <h2 className="mt-2 font-headline text-2xl font-bold text-primary">Results</h2>
+          <p className="mt-2 text-sm leading-relaxed text-on-surface-variant">
+            {tallied ? (
+              <>
+                Tallied on <Time value={talliedAt ?? refreshedAt} />. Nullified ballots were removed and delegated weights applied.
+              </>
+            ) : electionClosed ? (
+              "Ballots as cast. Run the tally to resolve nullifications and delegations and publish the result."
+            ) : (
+              "Ballots as cast so far. The tally becomes available once the election closes."
+            )}
           </p>
         </div>
-
         <div className="flex flex-wrap items-center gap-3">
-          <Badge variant={tallyResults.length > 0 ? "default" : "secondary"}>
-            {tallyResults.length > 0 ? "Tally Processed" : "Vote Tracking Active"}
-          </Badge>
-          <Button onClick={fetchTallyData} variant="outline">
-            <RefreshCw className="h-4 w-4" />
+          <StatusPill lifecycle={!electionClosed ? "open" : tallied ? "tallied" : "tally_pending"} />
+          <Button onClick={() => void fetchTallyData()} variant="outline" busy={loading}>
+            <RefreshCw className="h-4 w-4" aria-hidden="true" />
             Refresh
           </Button>
         </div>
       </header>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {[
-          {
-            label: "Total Votes",
-            value: stats.totalVotes,
-            icon: Users,
-            tone: "text-primary",
-          },
-          {
-            label: "Valid Votes",
-            value: stats.validVotes,
-            icon: CheckCircle2,
-            tone: "text-surface-tint",
-          },
-          {
-            label: "Nullified Votes",
-            value: stats.nullifiedVotes,
-            icon: ShieldCheck,
-            tone: "text-tertiary-container",
-          },
-          {
-            label: "Nullification Events",
-            value: stats.totalNullifications,
-            icon: BarChart3,
-            tone: "text-secondary",
-          },
-        ].map(({ icon: Icon, label, tone, value }) => (
-          <div key={label} className="ledger-subpanel">
-            <Icon className={`h-6 w-6 ${tone}`} />
-            <div className={`mt-5 font-headline text-4xl font-extrabold ${tone}`}>
-              {value}
-            </div>
-            <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.05em] text-on-surface-variant">
-              {label}
-            </p>
-          </div>
-        ))}
-      </section>
+      <dl className="grid gap-4 md:grid-cols-3">
+        <div className="ledger-subpanel">
+          <dt className="ledger-eyebrow">Ballots cast</dt>
+          <dd className="mt-3 font-headline text-4xl font-extrabold tabular-nums text-primary">{stats.totalBallots}</dd>
+        </div>
+        <div className="ledger-subpanel">
+          <dt className="ledger-eyebrow">Nullification requests</dt>
+          <dd className="mt-3 font-headline text-4xl font-extrabold tabular-nums text-secondary">{stats.requestCount}</dd>
+          <p className="mt-2 text-xs leading-relaxed text-on-surface-variant">
+            Includes decoys. Real and decoy requests are indistinguishable until the tally.
+          </p>
+        </div>
+        <div className="ledger-subpanel">
+          <dt className="ledger-eyebrow">Ballots nullified</dt>
+          <dd className="mt-3 font-headline text-4xl font-extrabold tabular-nums text-primary">{tallied ? stats.nullifiedBallots : "—"}</dd>
+          <p className="mt-2 text-xs leading-relaxed text-on-surface-variant">{tallied ? "Resolved by the tally." : "Known after the tally."}</p>
+        </div>
+      </dl>
 
-      <section className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_360px]">
+      <section className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_320px]">
         <div className="ledger-subpanel min-h-[24rem]">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h3 className="font-headline text-2xl font-bold text-primary">
-                Live Distribution
-              </h3>
-              <p className="mt-2 text-sm text-on-surface-variant">
-                Preliminary vote totals vs final results after nullification processing.
-              </p>
-            </div>
-            <Badge variant="outline">Two-phase tally</Badge>
-          </div>
-
-          <div className="mt-8 h-[320px]">
-            {chartData.length > 0 ? (
-              <Suspense fallback={<ChartLoadingState />}>
-                <TallyResultsChart
-                  chartData={chartData}
-                  option1Name={option1Name}
-                  option2Name={option2Name}
-                />
+          <h3 className="font-headline text-xl font-bold text-primary">Distribution</h3>
+          <p className="mt-1 text-sm text-on-surface-variant">
+            {tallied ? "Ballots as cast next to the tallied result." : "Ballots as cast. The tallied series appears after the tally."}
+          </p>
+          <div className="mt-6 h-[320px]">
+            {chartData.length > 0 && stats.totalBallots > 0 ? (
+              <Suspense fallback={<Skeleton className="h-full" />}>
+                <TallyResultsChart chartData={chartData} option1Name={option1Name} option2Name={option2Name} description={chartDescription} />
               </Suspense>
             ) : (
-              <EmptyChartState />
+              <div className="flex h-full items-center justify-center rounded-xl border border-outline-variant bg-surface-container-low text-center">
+                <p className="text-sm text-on-surface-variant">No ballots yet.</p>
+              </div>
             )}
           </div>
         </div>
 
-        <div className="space-y-6">
-          <div className="rounded-xl bg-primary-container p-6 text-on-primary shadow-ledger-lg">
-            <p className="ledger-eyebrow text-on-primary-container">Result summary</p>
-            <div className="mt-5 space-y-5 text-sm">
-              <div>
+        <div className="rounded-xl bg-primary-container p-6 text-on-primary shadow-ledger-lg">
+          <p className="ledger-eyebrow text-white/70">{tallied ? "Tallied result" : "As cast"}</p>
+          <dl className="mt-5 space-y-5 text-sm">
+            {[
+              { name: option1Name, cast: voteData?.totalYesVotes ?? 0, tallied: voteData?.validYesVotes ?? 0 },
+              { name: option2Name, cast: voteData?.totalNoVotes ?? 0, tallied: voteData?.validNoVotes ?? 0 },
+            ].map((option) => (
+              <div key={option.name}>
                 <div className="flex items-center justify-between gap-4">
-                  <span className="font-semibold text-white">{option1Name}</span>
-                  <span className="font-headline text-2xl font-bold text-white">
-                    {voteData?.validYesVotes ?? 0}
-                  </span>
+                  <dt className="font-semibold text-white">{option.name}</dt>
+                  <dd className="font-headline text-2xl font-bold tabular-nums text-white">{tallied ? option.tallied : option.cast}</dd>
                 </div>
-                <p className="mt-1 text-white/70">
-                  Preliminary: {voteData?.totalYesVotes ?? 0}
-                </p>
+                {tallied && <p className="mt-1 text-white/80">As cast: {option.cast}</p>}
               </div>
-              <div>
-                <div className="flex items-center justify-between gap-4">
-                  <span className="font-semibold text-white">{option2Name}</span>
-                  <span className="font-headline text-2xl font-bold text-white">
-                    {voteData?.validNoVotes ?? 0}
-                  </span>
-                </div>
-                <p className="mt-1 text-white/70">
-                  Preliminary: {voteData?.totalNoVotes ?? 0}
-                </p>
-              </div>
-              <div className="rounded-xl bg-white/10 p-4">
-                <p className="ledger-eyebrow text-on-primary-container">
-                  Nullification effect
-                </p>
-                <p className="mt-2 text-sm text-white/80">
-                  {stats.nullifiedVotes} tracked ballots were removed from the final outcome.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="ledger-subpanel">
-            <p className="ledger-eyebrow">Ledger refresh</p>
-            <h3 className="mt-3 font-headline text-2xl font-bold text-primary">
-              Last updated
-            </h3>
-            <p className="mt-3 text-sm text-on-surface-variant">
-              <Time value={lastUpdated} />
-            </p>
-          </div>
+            ))}
+          </dl>
+          <p className="mt-5 text-xs text-white/80">
+            Last refreshed <Time value={refreshedAt} />
+          </p>
         </div>
       </section>
 
-      {tallyResults.length > 0 && (
-        <section className="ledger-subpanel overflow-hidden">
-          <div className="flex flex-col gap-2 border-b border-outline-variant/12 pb-5 sm:flex-row sm:items-end sm:justify-between">
+      {tallied && (
+        <section className="ledger-subpanel overflow-hidden" aria-labelledby="tally-table-title">
+          <div className="flex flex-col gap-2 border-b border-outline-variant pb-5 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="ledger-eyebrow">Processed voter ledger</p>
-              <h3 className="mt-2 font-headline text-2xl font-bold text-primary">
-                Nullification Resolution
+              <p className="ledger-eyebrow">Per voter</p>
+              <h3 id="tally-table-title" className="mt-2 font-headline text-xl font-bold text-primary">
+                Tally rows
               </h3>
             </div>
             <p className="text-sm text-on-surface-variant">
-              Showing the latest processed tally entries.
+              Showing {Math.min(tableLimit, tallyResults.length)} of {pluralize(tallyResults.length, "row")}
             </p>
           </div>
-
-          <div className="mt-6 overflow-x-auto">
+          <div className="mt-4 overflow-x-auto" tabIndex={0} role="region" aria-label="Tally rows table">
             <table className="min-w-full text-left">
-              <thead className="text-[11px] font-bold uppercase tracking-[0.05em] text-outline">
+              <caption className="sr-only">Per-voter tally outcome</caption>
+              <thead className="text-xs font-semibold text-on-surface-variant">
                 <tr>
-                  <th className="pb-4 pr-6">Voter</th>
-                  <th className="pb-4 pr-6">Nullification Count</th>
-                  <th className="pb-4">Status</th>
+                  <th scope="col" className="pb-3 pr-6">Pseudonym</th>
+                  <th scope="col" className="pb-3 pr-6">Requests</th>
+                  <th scope="col" className="pb-3 pr-6">Weight</th>
+                  <th scope="col" className="pb-3">Outcome</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-outline-variant/12">
-                {tallyResults.slice(0, 12).map((result) => (
+              <tbody className="divide-y divide-outline-variant">
+                {tallyResults.slice(0, tableLimit).map((result) => (
                   <tr key={result.userId}>
-                    <td className="py-4 pr-6 font-mono text-xs text-on-surface-variant">
-                      {result.userId}
+                    <td className="py-3 pr-6 font-mono text-xs text-on-surface-variant" title={result.userId}>
+                      {abbreviateIdentifier(result.userId, 10)}
                     </td>
-                    <td className="py-4 pr-6 font-semibold text-primary">
-                      {result.nullificationCount}
-                    </td>
-                    <td className="py-4">
+                    <td className="py-3 pr-6 tabular-nums text-primary">{result.nullificationCount}</td>
+                    <td className="py-3 pr-6 tabular-nums text-primary">{result.voteWeight}</td>
+                    <td className="py-3">
                       <span
                         className={[
-                          "inline-flex rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.05em]",
-                          result.voteNullified
-                            ? "bg-error-container text-on-error-container"
-                            : "bg-secondary-container text-on-secondary-container",
+                          "inline-flex rounded-full px-3 py-1 text-xs font-semibold",
+                          result.voteNullified ? "bg-error-container text-on-error-container" : "bg-secondary-container text-on-secondary-container",
                         ].join(" ")}
                       >
-                        {result.voteNullified ? "Nullified" : "Valid"}
+                        {result.voteNullified ? "Nullified" : "Counted"}
                       </span>
                     </td>
                   </tr>
@@ -322,6 +244,13 @@ const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({
               </tbody>
             </table>
           </div>
+          {tallyResults.length > tableLimit && (
+            <div className="mt-4 text-center">
+              <Button variant="outline" size="sm" onClick={() => setTableLimit((current) => current + TABLE_PAGE)}>
+                Show {Math.min(TABLE_PAGE, tallyResults.length - tableLimit)} more
+              </Button>
+            </div>
+          )}
         </section>
       )}
     </div>

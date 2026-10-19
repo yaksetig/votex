@@ -11,8 +11,6 @@ import { installDeterministicPasskey, installVotexBackend } from "./support/vote
  * Add to it only with a UX id and remove entries as soon as they pass.
  */
 const KNOWN: Record<string, string[]> = {
-  // UX-119: outline-toned submit button text (Phase H)
-  "authority sign-in": ["color-contrast"],
 };
 
 type Findings = string[];
@@ -88,8 +86,8 @@ test.describe("accessibility", () => {
 
     await page.getByLabel("Email").fill("authority@votex.world");
     await page.getByLabel("Password").fill("correct horse battery staple");
-    await page.getByRole("button", { name: "Secure Sign In" }).click();
-    await expect(page.getByRole("heading", { name: "Election Authority Admin Panel" })).toBeVisible();
+    await page.getByRole("button", { name: "Sign in" }).click();
+    await expect(page.getByRole("heading", { name: "Elections", exact: true })).toBeVisible();
     await scan(page, "authority elections", findings);
     expect(findings).toEqual([]);
   });
