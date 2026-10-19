@@ -28,7 +28,7 @@ export function NullificationPanel({ electionEndDate, lastSubmittedAt, expectedS
   return (
     <section className="ledger-panel p-5 sm:p-6 md:p-8" aria-labelledby="nullification-heading">
       <div className="flex flex-col gap-2">
-        <h2 id="nullification-heading" className="font-headline text-xl font-bold text-primary sm:text-2xl">
+        <h2 id="nullification-heading" tabIndex={-1} className="font-headline text-xl font-bold text-primary outline-none sm:text-2xl">
           Nullification
         </h2>
         <div className="h-1 w-12 rounded-full bg-surface-tint" aria-hidden="true" />

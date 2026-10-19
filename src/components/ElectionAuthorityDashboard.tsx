@@ -15,6 +15,7 @@ import { abbreviateIdentifier, pluralize } from "@/lib/format";
 import { Time } from "@/components/Time";
 import { Skeleton } from "@/components/Skeleton";
 import { usePageTitle } from "@/hooks/usePageTitle";
+import { focusById } from "@/lib/focus";
 
 const TallyResultsDisplay = lazy(() => import("@/components/TallyResultsDisplay"));
 const ElectionEditForm = lazy(() => import("@/components/ElectionEditForm"));
@@ -135,6 +136,7 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
       setConfirmClose(false);
       toast({ key: "election-close", title: "Election closed", description: "Voting and nullification have stopped. The tally can now be run." });
       setRefreshKey((value) => value + 1);
+      focusById("authority-election-title");
     } catch {
       toast({
         key: "election-close",
@@ -151,6 +153,7 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
     setLastRun(results);
     setReplaceMode(false);
     setRefreshKey((value) => value + 1);
+    focusById("tally-run-title");
   };
 
   if (loading && !election) {
@@ -205,7 +208,7 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
               {isElectionEnded ? "Closed" : "Closes"} <Time value={election.closed_manually_at ?? election.end_date} relative={!isElectionEnded} />
             </span>
           </div>
-          <h1 className="mt-4 font-headline text-3xl font-bold tracking-display text-primary">{election.title}</h1>
+          <h1 id="authority-election-title" tabIndex={-1} className="mt-4 font-headline text-3xl font-bold tracking-display text-primary outline-none">{election.title}</h1>
           <p className="mt-3 max-w-3xl text-sm leading-relaxed text-on-surface-variant">{election.description}</p>
         </div>
 
@@ -226,8 +229,10 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
         ].map(({ label, value, hint }) => (
           <div key={label} className="ledger-panel p-5">
             <dt className="ledger-eyebrow">{label}</dt>
-            <dd className="mt-2 font-headline text-3xl font-bold tabular-nums text-primary">{value ?? "—"}</dd>
-            {hint && <p className="mt-1 text-xs text-on-surface-variant">{hint}</p>}
+            <dd className="mt-2 font-headline text-3xl font-bold tabular-nums text-primary">
+              {value ?? "—"}
+              {hint && <span className="mt-1 block font-body text-xs font-normal text-on-surface-variant">{hint}</span>}
+            </dd>
           </div>
         ))}
       </dl>
@@ -283,7 +288,7 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
                 <div className="flex items-start gap-4">
                   <CheckCircle2 className="mt-1 h-6 w-6 shrink-0 text-primary" aria-hidden="true" />
                   <div className="min-w-0 flex-1">
-                    <h2 id="tally-run-title" className="font-headline text-2xl font-bold text-primary">
+                    <h2 id="tally-run-title" tabIndex={-1} className="font-headline text-2xl font-bold text-primary outline-none">
                       Tally run completed
                     </h2>
                     <p className="mt-2 text-sm leading-relaxed text-on-surface-variant">

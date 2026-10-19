@@ -130,6 +130,7 @@ const ElectionDetail = () => {
       setKeypair(result.storedKeypair);
       setNeedsKeypair(false);
       setSelectionHint(null);
+      focusById(hasVoted ? "nullification-heading" : "ballot-heading");
     }
   };
 
@@ -139,7 +140,8 @@ const ElectionDetail = () => {
       return;
     }
     try {
-      setLoadState("loading");
+      // Only the first load shows the skeleton; refetches after an action keep the page (and focus) in place.
+      setLoadState((current) => (current === "ready" ? current : "loading"));
 
       const { data: electionData, error: electionError } = await supabase
         .from("public_elections")
@@ -627,7 +629,7 @@ const ElectionDetail = () => {
               ) : !hasVoted ? (
                 <div className="ledger-panel p-5 sm:p-8">
                   <div className="flex flex-col gap-2">
-                    <h2 id="ballot-heading" className="font-headline text-xl font-bold text-primary sm:text-2xl">
+                    <h2 id="ballot-heading" tabIndex={-1} className="font-headline text-xl font-bold text-primary outline-none sm:text-2xl">
                       Cast your ballot
                     </h2>
                     <div className="h-1 w-12 rounded-full bg-surface-tint" aria-hidden="true" />

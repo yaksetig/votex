@@ -144,15 +144,19 @@ const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({ electionId, e
         </div>
         <div className="ledger-subpanel">
           <dt className="ledger-eyebrow">Nullification requests</dt>
-          <dd className="mt-3 font-headline text-4xl font-extrabold tabular-nums text-secondary">{stats.requestCount}</dd>
-          <p className="mt-2 text-xs leading-relaxed text-on-surface-variant">
-            Includes decoys. Real and decoy requests are indistinguishable until the tally.
-          </p>
+          <dd className="mt-3 font-headline text-4xl font-extrabold tabular-nums text-secondary">
+            {stats.requestCount}
+            <span className="mt-2 block font-body text-xs font-normal leading-relaxed text-on-surface-variant">
+              Includes decoys. Real and decoy requests are indistinguishable until the tally.
+            </span>
+          </dd>
         </div>
         <div className="ledger-subpanel">
           <dt className="ledger-eyebrow">Ballots nullified</dt>
-          <dd className="mt-3 font-headline text-4xl font-extrabold tabular-nums text-primary">{tallied ? stats.nullifiedBallots : "—"}</dd>
-          <p className="mt-2 text-xs leading-relaxed text-on-surface-variant">{tallied ? "Resolved by the tally." : "Known after the tally."}</p>
+          <dd className="mt-3 font-headline text-4xl font-extrabold tabular-nums text-primary">
+            {tallied ? stats.nullifiedBallots : "—"}
+            <span className="mt-2 block font-body text-xs font-normal leading-relaxed text-on-surface-variant">{tallied ? "Resolved by the tally." : "Known after the tally."}</span>
+          </dd>
         </div>
       </dl>
 
@@ -182,12 +186,12 @@ const TallyResultsDisplay: React.FC<TallyResultsDisplayProps> = ({ electionId, e
               { name: option1Name, cast: voteData?.totalYesVotes ?? 0, tallied: voteData?.validYesVotes ?? 0 },
               { name: option2Name, cast: voteData?.totalNoVotes ?? 0, tallied: voteData?.validNoVotes ?? 0 },
             ].map((option) => (
-              <div key={option.name}>
-                <div className="flex items-center justify-between gap-4">
-                  <dt className="font-semibold text-white">{option.name}</dt>
-                  <dd className="font-headline text-2xl font-bold tabular-nums text-white">{tallied ? option.tallied : option.cast}</dd>
-                </div>
-                {tallied && <p className="mt-1 text-white/80">As cast: {option.cast}</p>}
+              <div key={option.name} className="flex items-start justify-between gap-4">
+                <dt className="font-semibold text-white">{option.name}</dt>
+                <dd className="text-right">
+                  <span className="font-headline text-2xl font-bold tabular-nums text-white">{tallied ? option.tallied : option.cast}</span>
+                  {tallied && <span className="block text-white/80">As cast: {option.cast}</span>}
+                </dd>
               </div>
             ))}
           </dl>

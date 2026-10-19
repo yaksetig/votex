@@ -15,6 +15,12 @@ export interface TallyFailure {
 export function describeTallyError(error: unknown): TallyFailure {
   const raw = error instanceof Error ? error.message : "";
 
+  if (/recovery key/i.test(raw)) {
+    return {
+      message: "The authority secret must be the generated recovery key, which starts with votex-auth-v1_. Check the key and try again.",
+      keepSecret: true,
+    };
+  }
   if (/does not match/i.test(raw)) {
     return {
       message: "The authority secret does not match the key registered for this election. Check the key and try again.",

@@ -79,7 +79,23 @@ test.describe("accessibility", () => {
   });
 
   test("authority surfaces", async ({ page }) => {
-    await installVotexBackend(page);
+    const backend = await installVotexBackend(page);
+    backend.elections.push({
+      id: "22222222-2222-4222-8222-222222222222",
+      title: "Accessibility Check Election",
+      description: "Seeded directly so the authority dashboard has an election to open.",
+      option1: "Approve",
+      option2: "Decline",
+      end_date: "2030-07-13T12:00:00.000Z",
+      show_running_tally: true,
+      created_at: new Date().toISOString(),
+      creator: "e2e-voter-pseudonym",
+      authority_id: "11111111-1111-4111-8111-111111111111",
+      status: "active",
+      closed_manually_at: null,
+      last_modified_at: null,
+      last_modified_by: null,
+    });
     const findings: Findings = [];
     await page.goto("/authority");
     await scan(page, "authority sign-in", findings);
@@ -89,6 +105,12 @@ test.describe("accessibility", () => {
     await page.getByRole("button", { name: "Sign in" }).click();
     await expect(page.getByRole("heading", { name: "Elections", exact: true })).toBeVisible();
     await scan(page, "authority elections", findings);
+
+    await page.getByRole("button", { name: "Open Accessibility Check Election" }).click();
+    await expect(page.getByRole("heading", { name: "Accessibility Check Election" })).toBeVisible();
+    await scan(page, "authority dashboard", findings);
+    await page.getByRole("tab", { name: "Run tally" }).click();
+    await scan(page, "authority tally tab", findings);
     expect(findings).toEqual([]);
   });
 });

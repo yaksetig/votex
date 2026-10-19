@@ -3,6 +3,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { consumePendingFocus } from "@/lib/focus"
 
 /**
  * Remembers which element opened the dialog so focus can return to it on
@@ -65,10 +66,13 @@ const DialogContent = React.forwardRef<
       ref={ref}
       onCloseAutoFocus={(event) => {
         onCloseAutoFocus?.(event)
+        if (event.defaultPrevented) return
+        // A result requested by the action wins; otherwise return to the opener.
         const opener = openerRef?.current
-        if (!event.defaultPrevented && opener && opener.isConnected) {
+        const target = consumePendingFocus() ?? (opener && opener.isConnected ? opener : null)
+        if (target) {
           event.preventDefault()
-          opener.focus()
+          target.focus()
         }
       }}
       className={cn(
