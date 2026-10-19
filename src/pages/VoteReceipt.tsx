@@ -116,7 +116,7 @@ export default function VoteReceiptPage() {
         </Link>
         <section className="mt-6 border-b border-outline-variant pb-6">
           <p className="ledger-eyebrow text-secondary">Public record</p>
-          <h1 className="mt-3 font-headline text-3xl font-bold tracking-[-0.03em] text-primary">Verify ballot receipt</h1>
+          <h1 className="mt-3 font-headline text-3xl font-bold tracking-display text-primary">Verify ballot receipt</h1>
           <p className="mt-3 text-sm leading-relaxed text-on-surface-variant">
             This page looks up a ballot in the public record and checks its signature against the voting key registered
             for that pseudonym. It does not reveal or prove anyone&apos;s real-world identity.

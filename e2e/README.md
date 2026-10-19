@@ -3,13 +3,13 @@
 `election-lifecycle.spec.ts` runs the product through first-time World ID and
 passkey onboarding, election creation, encrypted delegation and revocation,
 participant registration, EdDSA vote signing, public receipt verification,
-six-slot dummy nullification orchestration, authority sign-in, early closure,
+six-slot decoy nullification orchestration, authority sign-in, early closure,
 and final tally persistence. The same critical path runs on desktop and mobile;
 the six-slot nullification branch runs once on desktop.
 
 The test keeps application cryptography in place for passkey key derivation,
 vote and delegation signing, delegation encryption, accumulator calculation,
-receipt verification on the `/receipt/:id` page, and authority key derivation
+receipt verification on the `/receipts/:receiptId` page, and authority key derivation
 (the stubbed `vote-tracking-write` reports `signatureVerified: true` without
 checking; the real check is covered by the Deno handler tests). World ID, WebAuthn hardware, Supabase, and proof
 verification are deterministic test boundaries. Circuit correctness and the

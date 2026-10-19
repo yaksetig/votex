@@ -205,7 +205,7 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
               {isElectionEnded ? "Closed" : "Closes"} <Time value={election.closed_manually_at ?? election.end_date} relative={!isElectionEnded} />
             </span>
           </div>
-          <h1 className="mt-4 font-headline text-3xl font-bold tracking-[-0.03em] text-primary">{election.title}</h1>
+          <h1 className="mt-4 font-headline text-3xl font-bold tracking-display text-primary">{election.title}</h1>
           <p className="mt-3 max-w-3xl text-sm leading-relaxed text-on-surface-variant">{election.description}</p>
         </div>
 

@@ -19,6 +19,7 @@ import { usePageTitle } from "@/hooks/usePageTitle";
 import { ROUTES, signInPath } from "@/lib/routes";
 import { describeError } from "@/lib/errorMessages";
 import { formatPercentPair, pluralize } from "@/lib/format";
+import { PageHeader } from "@/components/PageHeader";
 
 type ElectionFilter = "all" | "active" | "closed";
 type ElectionSort = "closing" | "participation";
@@ -141,16 +142,12 @@ const Elections = () => {
 
   return (
     <div className="civic-container pb-12 pt-10">
-      <header className="flex flex-col gap-6 border-b border-outline-variant pb-8 md:flex-row md:items-end md:justify-between">
-        <div className="max-w-3xl">
-          <p className="ledger-eyebrow text-secondary">Elections</p>
-          <h1 className="mt-3 font-headline text-3xl font-bold tracking-[-0.03em] text-primary sm:text-4xl">Elections</h1>
-          <p className="mt-4 max-w-2xl text-base leading-7 text-on-surface-variant">
-            Every ballot is public under the voter&apos;s pseudonym, so anyone can check the result. Sign in with World
-            ID to vote or to create an election.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
+      <PageHeader
+        eyebrow="Public"
+        title="Elections"
+        description="Every ballot is public under the voter's pseudonym, so anyone can check the result. Sign in with World ID to vote or to create an election."
+        actions={
+          <>
           <p className="rounded-lg border border-outline-variant bg-surface-container-low px-4 py-3 text-sm">
             <span className="font-bold text-secondary">{activeCount}</span>
             <span className="ml-2 text-on-surface-variant">open now</span>
@@ -165,15 +162,16 @@ const Elections = () => {
               className={showForm ? "ledger-button-secondary" : "ledger-button-primary"}
             >
               {showForm ? <X className="h-4 w-4" aria-hidden="true" /> : <Plus className="h-4 w-4" aria-hidden="true" />}
-              {showForm ? "Close composer" : "Create Election"}
+              {showForm ? "Close composer" : "Create election"}
             </button>
           ) : (
             <Link to={signInPath(ROUTES.elections)} className="ledger-button-secondary">
               <ShieldCheck className="h-4 w-4" aria-hidden="true" /> Sign in to create
             </Link>
           )}
-        </div>
-      </header>
+          </>
+        }
+      />
 
       {showForm && (
         <section id="election-composer" ref={composerRef} className="ledger-panel mt-8 p-5 sm:p-8">
@@ -263,7 +261,7 @@ const Elections = () => {
           {pageElections.length === 0 ? (
             elections.length === 0 ? (
               <section className="mt-6 flex min-h-72 flex-col items-center justify-center rounded-xl border border-dashed border-outline-variant bg-surface-container-low p-8 text-center">
-                <Users className="h-10 w-10 text-on-surface-variant" aria-hidden="true" />
+                <Users className="h-11 w-11 text-on-surface-variant" aria-hidden="true" />
                 <h3 className="mt-5 font-headline text-xl font-semibold text-primary">No elections yet</h3>
                 <p className="mt-2 max-w-md text-sm text-on-surface-variant">
                   {isWorldIDVerified ? "Create the first one with the button above." : "Sign in with World ID to create the first one."}
@@ -271,7 +269,7 @@ const Elections = () => {
               </section>
             ) : (
               <section className="mt-6 flex min-h-72 flex-col items-center justify-center rounded-xl border border-dashed border-outline-variant bg-surface-container-low p-8 text-center">
-                <Search className="h-10 w-10 text-on-surface-variant" aria-hidden="true" />
+                <Search className="h-11 w-11 text-on-surface-variant" aria-hidden="true" />
                 <h3 className="mt-5 font-headline text-xl font-semibold text-primary">No matches</h3>
                 <p className="mt-2 max-w-md text-sm text-on-surface-variant">Try another word or a different status.</p>
                 <button

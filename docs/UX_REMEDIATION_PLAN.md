@@ -2,6 +2,10 @@
 
 Closes all 165 findings in `docs/UX_AUDIT.md` (UX-001…UX-165) without changing protocol behaviour. Saved copy for the repo: this plan is committed as `docs/UX_REMEDIATION_PLAN.md` in the first phase so it can be referred to and ticked off.
 
+## Status
+
+All ten phases (A–J) landed on `main` between 2026-10-18 and 2026-10-19. Every UX id in `docs/UX_AUDIT.md` carries a `Status: Resolved in Phase …` line. The migration from Phase D is applied to the live project and `create-election` is redeployed.
+
 ## Context
 
 The 2026-10-17 interface audit found that Votex's flows work but mislead voters at the moment of acting (public-ballot disclosure, premature "Final Results"), leak the nullification choice on screen, drown users in toasts, drop keyboard focus after every major action, and carry a long tail of accessibility, copy and visual-consistency gaps. The user's decisions for this plan:

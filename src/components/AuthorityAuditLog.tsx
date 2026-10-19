@@ -64,7 +64,7 @@ export default function AuthorityAuditLog() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="ledger-eyebrow">Election Authority</p>
-          <h1 id="audit-log-title" className="mt-2 flex items-center gap-3 font-headline text-3xl font-bold tracking-[-0.03em] text-primary">
+          <h1 id="audit-log-title" className="mt-2 flex items-center gap-3 font-headline text-3xl font-bold tracking-display text-primary">
             <History className="h-7 w-7" aria-hidden="true" /> Audit log
           </h1>
           <p className="mt-2 text-sm text-on-surface-variant">Every operator action, newest first. Voters see the election-specific entries in each election&apos;s public records.</p>

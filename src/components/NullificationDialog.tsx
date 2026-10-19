@@ -61,7 +61,7 @@ const NullificationDialog: React.FC<NullificationDialogProps> = ({
               className="group flex min-h-44 flex-col rounded-xl border border-outline-variant bg-surface-container-low p-5 text-left transition-colors hover:border-surface-tint/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 aria-disabled:cursor-progress"
             >
               <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-white" aria-hidden="true">
-                <ShieldCheck className="h-6 w-6" />
+                <ShieldCheck className="h-6 w-6" aria-hidden="true" />
               </span>
               <span className="mt-4 font-headline text-xl font-bold text-primary">{choice.title}</span>
               <span className="mt-2 text-sm leading-relaxed text-on-surface-variant">{choice.body}</span>

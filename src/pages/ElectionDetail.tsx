@@ -548,7 +548,7 @@ const ElectionDetail = () => {
             <div className="mb-6 flex flex-wrap items-center gap-3">
               <StatusPill lifecycle={lifecycle} />
               {hasVoted && (
-                <span className="inline-flex items-center gap-2 rounded-full bg-primary-fixed px-3 py-1 text-xs font-semibold uppercase tracking-[0.05em] text-primary">
+                <span className="inline-flex items-center gap-2 rounded-full bg-primary-fixed px-3 py-1 text-xs font-semibold uppercase tracking-eyebrow text-primary">
                   <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
                   You voted
                 </span>
@@ -559,7 +559,7 @@ const ElectionDetail = () => {
                 </span>
               )}
             </div>
-            <h1 className="font-headline text-3xl font-bold tracking-[-0.03em] text-primary sm:text-4xl">{election.title}</h1>
+            <h1 className="font-headline text-3xl font-bold tracking-display text-primary sm:text-4xl">{election.title}</h1>
             <p className="mt-4 max-w-3xl text-base leading-relaxed text-on-surface-variant">{election.description}</p>
             {hasVoted && votedChoice && (
               <div className="mt-6 inline-flex items-center gap-4 rounded-lg bg-surface-container-low px-5 py-4">
@@ -771,6 +771,19 @@ const ElectionDetail = () => {
           <ElectionPublicAudit electionId={election.id} viewerPseudonym={userId} />
         </div>
       </div>
+
+      {!electionClosed && !hasVoted && isWorldIDVerified && !hasDelegated && selectedOption && (
+        <div className="fixed inset-x-0 bottom-[var(--bottom-nav-h)] z-30 border-t border-outline-variant bg-surface/95 p-3 shadow-[0_-4px_20px_rgba(9,20,38,0.06)] backdrop-blur-md md:hidden">
+          <div className="flex items-center justify-between gap-3">
+            <p className="min-w-0 text-sm text-on-surface-variant">
+              Selected: <span className="font-semibold text-primary">{selectedOption}</span>
+            </p>
+            <Button type="button" size="sm" onClick={requestCastVote} busy={submitting} className="shrink-0">
+              Cast vote
+            </Button>
+          </div>
+        </div>
+      )}
 
       <ConfirmDialog
         open={confirmCast}

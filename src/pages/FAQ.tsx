@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { ROUTES, howItWorksSection } from "@/lib/routes";
+import { PageHeader } from "@/components/PageHeader";
 
 const FAQ_ITEMS: Array<{ question: string; answer: string; more?: { label: string; to: string } }> = [
   {
@@ -55,17 +56,19 @@ const FAQ = () => {
   return (
     <div className="civic-container pb-12 pt-10">
       <div className="mx-auto max-w-4xl space-y-10">
-        <header className="border-b border-outline-variant pb-8">
-          <p className="ledger-eyebrow text-secondary">Frequently asked questions</p>
-          <h1 className="mt-3 font-headline text-3xl font-bold tracking-[-0.03em] text-primary sm:text-4xl">FAQ</h1>
-          <p className="mt-4 max-w-3xl text-lg leading-relaxed text-on-surface-variant">
-            Short answers to the practical questions. For the full picture, read{" "}
-            <Link to={ROUTES.howItWorks} className="font-semibold text-secondary underline-offset-4 hover:underline">
-              how Votex works
-            </Link>
-            .
-          </p>
-        </header>
+        <PageHeader
+          eyebrow="Frequently asked questions"
+          title="FAQ"
+          description={
+            <>
+              Short answers to the practical questions. For the full picture, read{" "}
+              <Link to={ROUTES.howItWorks} className="font-semibold text-secondary underline-offset-4 hover:underline">
+                how Votex works
+              </Link>
+              .
+            </>
+          }
+        />
 
         <section className="space-y-4" aria-label="Questions">
           {FAQ_ITEMS.map(({ question, answer, more }) => (

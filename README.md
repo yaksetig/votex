@@ -43,13 +43,21 @@ ID pseudonym, passkey-derived public key, and session verifier. Private key
 material is reconstructed locally and is never sent to the server.
 
 ### Step III
-Go to the Elections tab and click "Create Election". 
+Open **Elections** and choose **Create election**.
 
 ### Step IV
-Choose the title of the election. This should be short and catchy to ensure people can quickly understand what the election is about. For additional info, you can use the description field right below the title to add further context that users may want to see. 
+Give the election a short title, add context so voters know what is being
+decided, name the two options, set the closing date and time (shown in your
+local timezone), and decide whether voters see the running count while the
+election is open.
 
 ### Step V
-Click "Create Election". Your election is now live for everyone to see. 
+Choose **Publish election**. You land on the election page, where anyone can
+vote, delegate their ballot, and, after voting, submit nullification requests
+(real or decoy) until the election closes. The Election Authority runs the
+tally after close; until then the page shows a preliminary result.
+
+Vocabulary used across the interface is defined in `docs/GLOSSARY.md`.
 
 ## Local Development
 

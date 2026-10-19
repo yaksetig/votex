@@ -42,11 +42,11 @@ export function BallotOptions({ options, value, onChange, disabled, labelledBy }
             <span className="flex items-start justify-between gap-3">
               <span className="ledger-eyebrow">Option {letter}</span>
               <span className="shrink-0 text-surface-tint" aria-hidden="true">
-                {selected ? <CheckCircle2 className="h-6 w-6" /> : <Circle className="h-6 w-6 text-outline-variant" />}
+                {selected ? <CheckCircle2 className="h-6 w-6" aria-hidden="true" /> : <Circle className="h-6 w-6 text-outline-variant" aria-hidden="true" />}
               </span>
             </span>
             <span className="mt-3 block font-headline text-2xl font-bold text-primary">{option}</span>
-            <span className="mt-auto block pt-4 text-xs font-semibold uppercase tracking-[0.05em] text-on-surface-variant">
+            <span className="mt-auto block pt-4 text-xs font-semibold uppercase tracking-eyebrow text-on-surface-variant">
               {selected ? "Selected" : "Select"}
             </span>
           </RadioGroupPrimitive.Item>

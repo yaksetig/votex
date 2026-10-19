@@ -205,7 +205,7 @@ const ElectionForm: React.FC<ElectionFormProps> = ({ onSubmit, onCancel }) => {
           Cancel
         </Button>
         <Button type="submit" busy={isSubmitting}>
-          {isSubmitting ? "Publishing…" : "Publish Election"}
+          {isSubmitting ? "Publishing…" : "Publish election"}
         </Button>
       </div>
     </form>

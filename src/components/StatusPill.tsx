@@ -19,7 +19,7 @@ export function StatusPill({ lifecycle, className }: StatusPillProps) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.05em]",
+        "inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-eyebrow",
         TONES[lifecycle],
         className
       )}

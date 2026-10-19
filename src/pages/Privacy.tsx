@@ -11,7 +11,7 @@ export default function Privacy() {
     <div className="civic-container pb-12 pt-10">
       <section className="ledger-panel mx-auto max-w-4xl p-6 sm:p-10" aria-labelledby="privacy-title">
         <p className="ledger-eyebrow text-secondary">Votex disclosure</p>
-        <h1 id="privacy-title" className="mt-3 font-headline text-3xl font-bold tracking-[-0.03em] text-primary">
+        <h1 id="privacy-title" className="mt-3 font-headline text-3xl font-bold tracking-display text-primary">
           {section.title}
         </h1>
         <p className="mt-2 text-sm font-semibold text-secondary">{section.summary}</p>

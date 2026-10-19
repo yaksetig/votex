@@ -56,11 +56,11 @@ test.describe("accessibility", () => {
 
     await page.getByRole("button", { name: "I don't have a Votex passkey yet" }).click();
     await page.getByRole("button", { name: "Complete test World ID verification" }).click();
-    await expect(page.getByRole("heading", { name: "Identity Confirmed" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Identity confirmed" })).toBeVisible();
     await scan(page, "sign-in complete", findings);
 
     await page.goto("/elections");
-    await page.getByRole("button", { name: "Create Election" }).click();
+    await page.getByRole("button", { name: "Create election" }).click();
     await expect(page.getByRole("heading", { name: "Create an election" })).toBeVisible();
     await scan(page, "create election form", findings);
 
@@ -69,7 +69,7 @@ test.describe("accessibility", () => {
     await page.getByLabel("Option A").fill("Approve");
     await page.getByLabel("Option B").fill("Decline");
     await page.locator("#endDate").fill("2030-07-13T12:00");
-    await page.getByRole("button", { name: "Publish Election" }).click();
+    await page.getByRole("button", { name: "Publish election" }).click();
     await expect(page.getByRole("heading", { name: "Accessibility Check Election" })).toBeVisible();
 
     const electionId = String(backend.elections[0].id);

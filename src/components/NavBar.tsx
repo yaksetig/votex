@@ -45,7 +45,7 @@ const NavBar = () => {
       <header className="ledger-topbar">
         <div className="civic-container flex h-16 items-center justify-between gap-4">
           <div className="flex items-center gap-8">
-            <NavLink to={ROUTES.home} className="font-headline text-xl font-bold tracking-[-0.02em] text-primary" aria-label="Votex home">
+            <NavLink to={ROUTES.home} className="font-headline text-xl font-bold tracking-display text-primary" aria-label="Votex home">
               Votex
             </NavLink>
             <nav aria-label="Primary" className="hidden items-center gap-6 md:flex">

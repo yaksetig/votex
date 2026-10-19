@@ -26,11 +26,11 @@ interface ActivityRow {
 const PAGE = 25;
 
 const TABS: Array<{ id: AuditTab; label: string; legend: string }> = [
-  { id: "ballots", label: "Public Ballots", legend: "Every accepted ballot: who (by pseudonym), what they chose, and the receipt that proves it." },
+  { id: "ballots", label: "Public ballots", legend: "Every accepted ballot: who (by pseudonym), what they chose, and the receipt that proves it." },
   { id: "participants", label: "Participants", legend: "Pseudonyms that registered a voting key for this election, with the public half of that key." },
   { id: "delegations", label: "Delegations", legend: "Who delegated and when. The delegate is encrypted to the Election Authority and is not public." },
   { id: "nullifications", label: "Nullification proofs", legend: "Encrypted nullification requests. Real requests and decoys are indistinguishable here by design." },
-  { id: "activity", label: "Audit Trail", legend: "Everything that changed this election, in order, including Election Authority actions." },
+  { id: "activity", label: "Audit trail", legend: "Everything that changed this election, in order, including Election Authority actions." },
 ];
 
 /** Raw action identifiers from the activity view in plain words; the raw code stays visible for auditors. */

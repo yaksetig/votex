@@ -60,6 +60,7 @@ _What the voter is told about what their action does and who can see it._
 - **Where:** HowItWorks.tsx:64,96 (“coercion resistance”) vs Privacy.tsx:9 (“the receipt is not coercion-resistant”); HowItWorks.tsx:101 (“One person, one vote”) vs delegation; ElectionDetail.tsx:92,686 (“privately delegated”) vs Privacy.tsx:10
 - **Evidence:** Two pages one click apart make opposite statements.
 - **Change:** Use “coercion mitigation” consistently; say “everyone can see that you delegated, only the Election Authority can see to whom”; drop “one person, one vote” or qualify it.
+- **Status:** Resolved in Phase I (copy and terminology)
 
 ### UX-005 · High · “Local key never leaves this device” overstates what happens
 
@@ -862,12 +863,14 @@ _Toasts, loading, empty, error and offline behaviour._
 - **Where:** WalletContext.tsx:123-127 (“Retry from a trusted device before assuming copied sessions are invalid”)
 - **Evidence:** Threat-model language aimed at a voter.
 - **Change:** “We couldn't confirm sign-out with the server. Sign out again when you are back online.”
+- **Status:** Resolved in Phase I (copy and terminology)
 
 ### UX-114 · Medium · Offline banner promises “write actions will fail safely”; nothing announces reconnection
 
 - **Where:** ConnectivityBanner.tsx:23
 - **Evidence:** Unverifiable claim.
 - **Change:** “You can't vote or nullify while offline”; brief “Back online” status.
+- **Status:** Resolved in Phase I (copy and terminology)
 
 ### UX-115 · Medium · “Election published” keeps the user on the list
 
@@ -907,12 +910,14 @@ _Semantics, keyboard, focus, contrast, motion, targets._
 - **Where:** ui/input.tsx:12, ui/textarea.tsx:14 (placeholder 4.06:1); text-outline on white 4.48:1 and on surface-container-low 4.06:1 (NullificationDialog.tsx:61,79, WorldIDSignIn.tsx:366,406,529, TallyResultsDisplay.tsx:290, AuthorityElectionsList.tsx:146); axe color-contrast on 12 steps
 - **Evidence:** Below WCAG AA for body-size text.
 - **Change:** Use on-surface-variant for secondary text; darken ticks; audit every text-outline use.
+- **Status:** Resolved in Phase J (accessibility, mobile and visual sweep)
 
 ### UX-120 · High · Sub-12 px text in 24 places and roughly 15 touch targets under 44 px
 
 - **Where:** text-[10px]: NavBar.tsx:133, Elections.tsx:228, Dashboard.tsx:88, TallyResultsDisplay.tsx:309, AuthorityElectionsList.tsx:167, ElectionAuthority.tsx:58,126,133; text-[11px]: 14 sites; targets: NavBar sign-out/Sign In (40 px), mobile tabs (~40 px), dialog close (16 px), copy icons (16 px), filter and pagination buttons, audit tabs, size="sm" buttons
 - **Evidence:** Fails readability and mobile tap guidance.
 - **Change:** Floor at text-xs; min 44 px targets.
+- **Status:** Resolved in Phase J (accessibility, mobile and visual sweep)
 
 ### UX-121 · High · Authority console has nested main landmarks and two h1s per view
 
@@ -954,6 +959,7 @@ _Semantics, keyboard, focus, contrast, motion, targets._
 - **Where:** Roughly 60 lucide icons across WorldIDSignIn, ElectionDetail, Dashboard, NullificationDialog, HowItWorks, NotFound, authority components
 - **Evidence:** Icons are announced as empty images.
 - **Change:** aria-hidden on decorative icons; sr-only text on icon-only buttons.
+- **Status:** Resolved in Phase J (accessibility, mobile and visual sweep)
 
 ### UX-127 · Medium · Delegation radiogroup has no accessible label; stale selection survives reopen
 
@@ -967,12 +973,14 @@ _Semantics, keyboard, focus, contrast, motion, targets._
 - **Where:** ui/textarea.tsx:14 (text-sm), NavBar.tsx:89, Index.tsx:64, Elections.tsx sort select
 - **Evidence:** Font size under 16 px on mobile.
 - **Change:** text-base md:text-sm.
+- **Status:** Resolved in Phase J (accessibility, mobile and visual sweep)
 
 ### UX-129 · Medium · Manual numbers inside an ordered list
 
 - **Where:** AuditProtocol.tsx:7-13
 - **Evidence:** Screen readers read “1. 1. Election record”.
 - **Change:** Drop the manual numbers.
+- **Status:** Resolved in Phase J (accessibility, mobile and visual sweep)
 
 ### UX-130 · Low · Badge renders as a div with dead focus styles; AlertTitle is an h5
 
@@ -998,12 +1006,14 @@ _Phone-width behaviour observed on the Pixel 7 profile._
 - **Where:** NavBar.tsx:122-136; pages without bottom padding (Success, sign-in, authority); screenshots 1, 11, 42 mobile
 - **Evidence:** The “Find Elections” button and the step-2 panel sit under the bar on first paint; the authority console's own bottom bar overlaps stat tiles.
 - **Change:** Add safe-area bottom padding to the layout shell equal to the bar height.
+- **Status:** Resolved in Phase J (accessibility, mobile and visual sweep)
 
 ### UX-133 · High · Toast stack covers the page header on phones
 
 - **Where:** Toaster position top on small screens (screenshots 20, 23, 42 mobile)
 - **Evidence:** Up to three toasts hide the title and the first actions.
 - **Change:** Bottom placement on mobile, max two visible, swipe to dismiss.
+- **Status:** Resolved in Phase J (accessibility, mobile and visual sweep)
 
 ### UX-134 · Medium · Authority tabs wrap outside their pill group
 
@@ -1024,18 +1034,21 @@ _Phone-width behaviour observed on the Pixel 7 profile._
 - **Where:** NavBar.tsx:78 (hidden lg:flex); Elections.tsx:189 only echoes the query
 - **Evidence:** The elections browser cannot be searched below 1024 px.
 - **Change:** Render the search field inside the page below lg.
+- **Status:** Resolved in Phase J (accessibility, mobile and visual sweep)
 
 ### UX-137 · Medium · Option cards and ballot buttons are tall; Cast vote sits far from the options
 
 - **Where:** ElectionDetail.tsx mobile layout (screenshot 23 mobile)
 - **Evidence:** Long scroll between choosing and confirming.
 - **Change:** Sticky action bar with the selected option and the Cast button on phones.
+- **Status:** Resolved in Phase J (accessibility, mobile and visual sweep)
 
 ### UX-138 · Low · Footer link row wraps leaving “Operator Entrance” orphaned
 
 - **Where:** AppFooter.tsx (screenshot 1 mobile)
 - **Evidence:** Ragged footer.
 - **Change:** Stack links in two columns on narrow widths.
+- **Status:** Resolved in Phase J (accessibility, mobile and visual sweep)
 
 
 ## Copy and terminology (12)
@@ -1047,12 +1060,14 @@ _Vocabulary drift, jargon, claims, grammar._
 - **Where:** “Votex passkey”, “Voting Passkey”, “passkey”; “signing key”, “voting key”, “ballot key”, “keypair”, “BabyJubJub key”, “cryptographic identity”; “Unlock with Passkey”, “Re-derive with Passkey”, “Unlock Passkey”, “Derive your keypair” (Dashboard.tsx, WorldIDSignIn.tsx, ElectionDetail.tsx, useDeriveKeypair.ts, FAQ.tsx, HowItWorks.tsx)
 - **Evidence:** Users cannot tell whether these are one thing or several.
 - **Change:** Glossary: “passkey” (credential), “voting key” (derived key), verb “unlock”. Never “derive” or “keypair” in UI.
+- **Status:** Resolved in Phase I (copy and terminology)
 
 ### UX-140 · High · Vote vs ballot, actual/dummy vs real/decoy, nullify vs invalidate vs cancel
 
 - **Where:** ElectionDetail.tsx:641,709,370; NullificationDialog.tsx:42,57,75,77; Privacy.tsx:10; FAQ.tsx:8,28; README.md:26
 - **Evidence:** Core verbs change from screen to screen.
 - **Change:** “ballot” is the record, “vote” the act; “nullify” and “decoy” only; define “nullify” once.
+- **Status:** Resolved in Phase I (copy and terminology)
 
 ### UX-141 · High · Raw error.message and internal strings reach voters
 
@@ -1066,6 +1081,7 @@ _Vocabulary drift, jargon, claims, grammar._
 - **Where:** “Election Authority”, “Votex Election Authority”, “Operator Entrance”, “Election Authority Entrance”, “Authority Portal”, “Votex Authority”, “Election Authority Admin Panel”, “Authority command surface”
 - **Evidence:** Brand and role blur.
 - **Change:** “Election Authority” for the role, “operator” for the person, one console name.
+- **Status:** Resolved in Phase I (copy and terminology)
 
 ### UX-143 · Medium · Four status vocabularies
 
@@ -1079,18 +1095,21 @@ _Vocabulary drift, jargon, claims, grammar._
 - **Where:** “BabyJubJub” (Dashboard.tsx:141, HowItWorks.tsx:54, ElectionDetail.tsx:577), “XOR accumulator”, “Groth16” (AuditProtocol.tsx), “public coordinate”, “Public Key X/Y”, “Serialized signature”, “Sanitized public records”, “Election telemetry”, “Ledger composer”
 - **Evidence:** Reads as an engineer's console.
 - **Change:** Plain names; technical detail on the audit page only.
+- **Status:** Resolved in Phase I (copy and terminology)
 
 ### UX-145 · Medium · Title Case and sentence case mixed in buttons and headings
 
 - **Where:** Title Case: “Publish Election”, “Delegate Vote”, “Begin Tally Processing”; sentence case: “Cast vote”, “Back to elections”, “Continue on localhost”; mixed headings “Submit a Nullification”
 - **Evidence:** Inconsistent voice.
 - **Change:** Sentence case throughout; proper nouns only.
+- **Status:** Resolved in Phase I (copy and terminology)
 
 ### UX-146 · Medium · “Ledger” used for a database table
 
 - **Where:** NotFound.tsx:15, VoteReceiptCard.tsx:84, Elections.tsx:68, AuthorityElectionsList.tsx:129
 - **Evidence:** Implies an immutable chain that does not exist.
 - **Change:** “public record”.
+- **Status:** Resolved in Phase I (copy and terminology)
 
 ### UX-147 · Medium · Grammar and number agreement
 
@@ -1104,18 +1123,21 @@ _Vocabulary drift, jargon, claims, grammar._
 - **Where:** “…” in 6 files, “...” in 12
 - **Evidence:** Typographic inconsistency.
 - **Change:** Use “…”.
+- **Status:** Resolved in Phase I (copy and terminology)
 
 ### UX-149 · Low · Placeholder and empty-state copy that explains nothing
 
 - **Where:** ElectionForm.tsx:108 (“preserve signature clarity”), :38 (“consensus question”); AuthorityElectionsList.tsx:140 (“This authority has not published any elections”, but voters create them)
 - **Evidence:** Filler.
 - **Change:** Rewrite or remove.
+- **Status:** Resolved in Phase I (copy and terminology)
 
 ### UX-150 · Low · README product steps are stale
 
 - **Where:** README.md:46,52 (“click Create Election” twice; button is “Publish Election”); no mention of delegation or nullification UI
 - **Evidence:** Onboarding text disagrees with the screen.
 - **Change:** Update after the copy pass.
+- **Status:** Resolved in Phase I (copy and terminology)
 
 
 ## Visual system (9)
@@ -1134,6 +1156,7 @@ _Tokens, spacing, radius, type scale and component consistency._
 - **Where:** rounded-xl border border-outline-variant/12 bg-surface-container-lowest p-6 shadow-sm in ElectionAuthorityDashboard.tsx:232-251, AuthorityElectionsList.tsx:115, ElectionForm.tsx:49-90, ElectionEditForm.tsx:146-205, WorldIDSignIn.tsx:416,515, HowItWorks.tsx:105
 - **Evidence:** Drift waiting to happen.
 - **Change:** A Card or StatCard component.
+- **Status:** Resolved in Phase J (accessibility, mobile and visual sweep)
 
 ### UX-153 · Medium · Border-opacity zoo and radius mix
 
@@ -1147,36 +1170,42 @@ _Tokens, spacing, radius, type scale and component consistency._
 - **Where:** bg-blue-50/text-blue-800 (ElectionDetail.tsx:530,684), bg-green-100/text-green-800 (VoteReceiptCard.tsx:39), bg-white/80 (Index.tsx:149), nine white alphas, two literal shadow values, shadcn tokens in DelegationDialog.tsx:69,84
 - **Evidence:** Bypasses theming and the token system.
 - **Change:** Map to tokens.
+- **Status:** Resolved in Phase J (accessibility, mobile and visual sweep)
 
 ### UX-155 · Medium · Type scale drift for labels and headings
 
 - **Where:** text-[10px] ×8, text-[11px] ×14, text-xs; tracking-[0.05em] ×37, [0.08em], [-0.03em] ×14, [-0.035em]; font-extrabold h2s beside font-bold and font-semibold at the same level
 - **Evidence:** No single scale.
 - **Change:** Define label, eyebrow and display tokens in the Tailwind theme.
+- **Status:** Resolved in Phase J (accessibility, mobile and visual sweep)
 
 ### UX-156 · Medium · Container widths and page headers differ per page
 
 - **Where:** max-w-4xl, 5xl, 3xl, 6xl (skeleton only); pt-8 vs pt-10; min-h-[calc(100vh-64px)] vs 72px; three header patterns (eyebrow+h1, pill+h1, back-link+pills+h1)
 - **Evidence:** Pages feel assembled from different kits.
 - **Change:** One page-header component and one container.
+- **Status:** Resolved in Phase J (accessibility, mobile and visual sweep)
 
 ### UX-157 · Low · Public-ballot notice styled as an error
 
 - **Where:** Index.tsx (red warning triangle in a pink circle on a blue card, screenshot 1)
 - **Evidence:** Reads as a problem rather than a property of the system.
 - **Change:** Info icon and neutral tone.
+- **Status:** Resolved in Phase J (accessibility, mobile and visual sweep)
 
 ### UX-158 · Low · Button inconsistencies
 
 - **Where:** ledger-button-primary next to Button variant="outline" (ElectionDetail.tsx:702-718); icons with mr-2 on top of gap-2; bespoke rounded-xl “Manage Dashboard”
 - **Evidence:** Different heights and spacing in one row.
 - **Change:** Use the Button component everywhere.
+- **Status:** Resolved in Phase J (accessibility, mobile and visual sweep)
 
 ### UX-159 · Low · Icon sizes vary without a rule
 
 - **Where:** h-4, h-5, h-6, h-7, h-8, h-9, h-10 across feature cards
 - **Evidence:** Visual rhythm breaks.
 - **Change:** Three sizes: 16, 20, 32.
+- **Status:** Resolved in Phase J (accessibility, mobile and visual sweep)
 
 
 ## Platform hygiene (6)

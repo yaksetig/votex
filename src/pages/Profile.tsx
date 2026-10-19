@@ -20,6 +20,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { abbreviateIdentifier } from "@/lib/format";
 import { ROUTES, howItWorksSection } from "@/lib/routes";
+import { PageHeader } from "@/components/PageHeader";
 
 /**
  * The signed-in voter's profile: their pseudonym (how they appear in public
@@ -47,19 +48,16 @@ const Profile = () => {
 
   return (
     <div className="civic-container pb-12 pt-10">
-      <header className="flex flex-col gap-5 border-b border-outline-variant pb-8 md:flex-row md:items-end md:justify-between">
-        <div>
-          <p className="ledger-eyebrow text-secondary">Your profile</p>
-          <h1 className="mt-3 font-headline text-3xl font-bold tracking-[-0.03em] text-primary sm:text-4xl">Your voting identity</h1>
-          <p className="mt-3 max-w-2xl text-on-surface-variant">
-            World ID has confirmed you are a unique person. Your passkey derives your voting key in this browser whenever a
-            vote needs signing.
-          </p>
-        </div>
-        <Link to={ROUTES.elections} className="ledger-button-primary">
-          Browse elections <ArrowRight className="h-4 w-4" aria-hidden="true" />
-        </Link>
-      </header>
+      <PageHeader
+        eyebrow="Your profile"
+        title="Your voting identity"
+        description="World ID has confirmed you are a unique person. Your passkey derives your voting key in this browser whenever a vote needs signing."
+        actions={
+          <Link to={ROUTES.elections} className="ledger-button-primary">
+            Browse elections <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </Link>
+        }
+      />
 
       <div className="mt-8 grid gap-6 lg:grid-cols-12">
         <aside className="space-y-6 lg:col-span-5">
@@ -120,7 +118,7 @@ const Profile = () => {
                 </p>
                 {(["x", "y"] as const).map((coordinate) => (
                   <div key={coordinate}>
-                    <p className="text-xs font-semibold uppercase tracking-[0.05em] text-white/70">Public key {coordinate.toUpperCase()}</p>
+                    <p className="text-xs font-semibold uppercase tracking-eyebrow text-white/70">Public key {coordinate.toUpperCase()}</p>
                     <div className="mt-2 flex items-center gap-2 rounded-lg border border-white/10 bg-black/20 p-3">
                       <code className="civic-mono min-w-0 flex-1 truncate text-white" title={derivedPublicKey[coordinate]}>
                         {derivedPublicKey[coordinate]}

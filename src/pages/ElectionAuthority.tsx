@@ -65,7 +65,7 @@ const AuthorityShell: React.FC<AuthorityShellProps> = ({
 
       <aside className="fixed left-0 top-0 hidden h-screen w-64 border-r border-outline-variant bg-surface px-4 py-6 lg:flex lg:flex-col">
         <div className="mb-8 px-3 pt-2">
-          <p className="font-headline text-xl font-bold tracking-[-0.02em] text-primary">Votex</p>
+          <p className="font-headline text-xl font-bold tracking-display text-primary">Votex</p>
           <p className="mt-1 text-sm text-on-surface-variant">Election Authority console</p>
           <Link to={ROUTES.home} className="mt-3 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-secondary hover:text-primary">
             <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Back to Votex
@@ -98,12 +98,12 @@ const AuthorityShell: React.FC<AuthorityShellProps> = ({
           ))}
         </nav>
 
-        <div className="mt-auto space-y-3 border-t border-outline-variant/15 pt-4">
+        <div className="mt-auto space-y-3 border-t border-outline-variant pt-4">
           <a
             href="mailto:support@votex.world"
             className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-container-low"
           >
-            <HelpCircle className="h-4 w-4" />
+            <HelpCircle className="h-4 w-4" aria-hidden="true" />
             Support
           </a>
           <button

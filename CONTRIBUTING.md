@@ -99,3 +99,7 @@ trusted setup is recorded in `release.config.json`.
   `CRYPTOGRAPHY.md` section for protocol decisions.
 - Prefer one implementation: anything needed by both the browser and the edge
   functions belongs in `_shared/protocol.ts`, not in two copies.
+
+## Interface copy
+
+User-facing words follow `docs/GLOSSARY.md` (passkey, voting key, ballot, nullify, decoy, pseudonym, Election Authority, public records). Buttons and headings use sentence case. Several labels are asserted by the Playwright specs, so renaming one is a code change that updates `e2e/` in the same commit.

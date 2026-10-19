@@ -104,11 +104,11 @@
   }
 
   .ledger-badge {
-    @apply inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.05em];
+    @apply inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-eyebrow;
   }
 
   .ledger-eyebrow {
-    @apply text-xs font-semibold uppercase tracking-[0.05em] text-on-surface-variant;
+    @apply text-xs font-semibold uppercase tracking-eyebrow text-on-surface-variant;
   }
 
   .ledger-button-primary {
@@ -128,7 +128,7 @@
   }
 
   .civic-section-title {
-    @apply font-headline text-2xl font-bold tracking-[-0.02em] text-primary sm:text-3xl;
+    @apply font-headline text-2xl font-bold tracking-display text-primary sm:text-3xl;
   }
 
   .civic-mono {
@@ -136,6 +136,6 @@
   }
 
   .ledger-eyebrow {
-    @apply text-xs font-semibold uppercase tracking-[0.05em] text-on-surface-variant;
+    @apply text-xs font-semibold uppercase tracking-eyebrow text-on-surface-variant;
   }
 }

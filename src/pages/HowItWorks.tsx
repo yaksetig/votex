@@ -4,6 +4,7 @@ import { ArrowRight } from "lucide-react";
 import { EXPLAINER_SECTIONS } from "@/content/howItWorks";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { ROUTES } from "@/lib/routes";
+import { PageHeader } from "@/components/PageHeader";
 
 /**
  * The one explainer page. Every section has an anchor so other pages can
@@ -25,15 +26,11 @@ const HowItWorks = () => {
 
   return (
     <div className="civic-container pb-12 pt-10">
-      <header className="border-b border-outline-variant pb-8">
-        <p className="ledger-eyebrow text-secondary">Guide</p>
-        <h1 className="mt-3 font-headline text-3xl font-bold tracking-[-0.03em] text-primary sm:text-4xl">How Votex works</h1>
-        <p className="mt-4 max-w-3xl text-lg leading-relaxed text-on-surface-variant">
-          Votex runs public, verifiable elections. Each person proves they are unique with World ID, votes with a key
-          derived from their own passkey, and can later cancel that ballot with a request nobody can tell apart from a
-          decoy. This page explains each part and what it does and does not protect.
-        </p>
-      </header>
+      <PageHeader
+        eyebrow="Guide"
+        title="How Votex works"
+        description="Votex runs public, verifiable elections. Each person proves they are unique with World ID, votes with a key derived from their own passkey, and can later cancel that ballot with a request nobody can tell apart from a decoy. This page explains each part and what it does and does not protect."
+      />
 
       <div className="mt-8 grid gap-10 lg:grid-cols-[240px_minmax(0,1fr)]">
         <nav aria-label="On this page" className="lg:sticky lg:top-24 lg:self-start">

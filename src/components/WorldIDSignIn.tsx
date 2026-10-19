@@ -295,7 +295,7 @@ const WorldIDSignIn: React.FC = () => {
       <div className="relative z-10 w-full max-w-5xl">
         <div className="text-center">
           <p className="ledger-eyebrow text-secondary">Sign in</p>
-          <h1 className="mt-3 font-headline text-3xl font-bold tracking-[-0.03em] text-primary sm:text-4xl">
+          <h1 className="mt-3 font-headline text-3xl font-bold tracking-display text-primary sm:text-4xl">
             Sign in to Votex
           </h1>
           <p className="mx-auto mt-3 max-w-2xl text-base leading-7 text-on-surface-variant">
@@ -334,7 +334,7 @@ const WorldIDSignIn: React.FC = () => {
 
           <section className="ledger-panel relative overflow-hidden p-5 sm:p-8" aria-labelledby="step-1-title">
             <div className="pointer-events-none absolute -right-4 -top-4 hidden opacity-[0.05] lg:block" aria-hidden="true">
-              <Fingerprint className="h-32 w-32" />
+              <Fingerprint className="h-32 w-32" aria-hidden="true" />
             </div>
 
             <div className="relative z-10 lg:pr-24">
@@ -475,14 +475,14 @@ const WorldIDSignIn: React.FC = () => {
             {step === "complete" && (
               <div className="rounded-xl bg-primary-fixed p-6 text-center" role="status" aria-live="polite">
                 <CheckCircle2 className="mx-auto h-8 w-8 text-primary" aria-hidden="true" />
-                <h2 className="mt-3 font-headline text-2xl font-bold text-primary">Identity Confirmed</h2>
+                <h2 className="mt-3 font-headline text-2xl font-bold text-primary">Identity confirmed</h2>
                 <p className="mt-2 text-sm leading-relaxed text-on-surface-variant">
                   {returningIdentity
                     ? "Welcome back. Your passkey and World ID match an existing Votex identity."
                     : "Your Votex identity is ready. Your voting key is derived in this browser and is never sent to Votex."}
                 </p>
                 <Button type="button" className="mt-5 w-full" size="lg" onClick={() => navigate(nextPath, { replace: true })}>
-                  {nextPath === ROUTES.elections ? "Continue to Elections" : "Continue"}
+                  {nextPath === ROUTES.elections ? "Continue to elections" : "Continue"}
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </Button>
               </div>
@@ -514,8 +514,8 @@ const WorldIDSignIn: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 pt-2 text-sm font-semibold text-on-surface-variant">
-            <Link to={ROUTES.privacy} className="inline-flex min-h-11 items-center hover:text-primary">Privacy Policy</Link>
-            <Link to={ROUTES.auditProtocol} className="inline-flex min-h-11 items-center hover:text-primary">Audit Protocol</Link>
+            <Link to={ROUTES.privacy} className="inline-flex min-h-11 items-center hover:text-primary">Privacy</Link>
+            <Link to={ROUTES.auditProtocol} className="inline-flex min-h-11 items-center hover:text-primary">Audit protocol</Link>
             <a href={`mailto:${SUPPORT_EMAIL}`} className="inline-flex min-h-11 items-center gap-2 hover:text-primary">
               <HelpCircle className="h-4 w-4" aria-hidden="true" />
               Support

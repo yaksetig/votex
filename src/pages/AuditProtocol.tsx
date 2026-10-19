@@ -11,7 +11,7 @@ export default function AuditProtocol() {
     <div className="civic-container pb-12 pt-10">
       <section className="ledger-panel mx-auto max-w-4xl p-6 sm:p-10" aria-labelledby="audit-title">
         <p className="ledger-eyebrow text-secondary">Public verification</p>
-        <h1 id="audit-title" className="mt-3 font-headline text-3xl font-bold tracking-[-0.03em] text-primary">
+        <h1 id="audit-title" className="mt-3 font-headline text-3xl font-bold tracking-display text-primary">
           {section.title}
         </h1>
         <p className="mt-2 text-sm font-semibold text-secondary">{section.summary}</p>

@@ -173,13 +173,13 @@ const ElectionAuthorityLogin: React.FC<ElectionAuthorityLoginProps> = ({ onLogin
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-lg bg-primary text-on-primary shadow-sm">
             <ShieldCheck className="h-8 w-8" aria-hidden="true" />
           </div>
-          <h1 className="mt-4 font-headline text-3xl font-bold tracking-[-0.03em] text-primary">Election Authority</h1>
+          <h1 className="mt-4 font-headline text-3xl font-bold tracking-display text-primary">Election Authority</h1>
           <p className="mt-2 text-sm text-on-surface-variant">Operator sign-in for the Votex Election Authority console.</p>
         </header>
 
         <section className="ledger-panel p-6 sm:p-8" aria-labelledby="authority-login-title">
           <div className="flex items-center gap-3 border-b border-outline-variant pb-5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-container text-secondary">
+            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-surface-container text-secondary">
               <Lock className="h-5 w-5" aria-hidden="true" />
             </div>
             <div>

@@ -88,6 +88,10 @@ export default {
         "3xl": "1.25rem",
         "4xl": "1.5rem",
       },
+      letterSpacing: {
+        eyebrow: "0.05em",
+        display: "-0.03em",
+      },
       boxShadow: {
         ledger: "0 8px 24px rgba(9, 20, 38, 0.06)",
         "ledger-lg": "0 18px 48px rgba(9, 20, 38, 0.12)",

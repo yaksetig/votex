@@ -39,9 +39,9 @@ const KAnonymityProgressDialog: React.FC<KAnonymityProgressDialogProps> = ({ ope
           </div>
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-4 border-surface-container-high border-t-surface-tint" aria-hidden="true">
             {isComplete || isSubmitting ? (
-              <CheckCircle2 className="h-6 w-6 text-surface-tint" />
+              <CheckCircle2 className="h-6 w-6 text-surface-tint" aria-hidden="true" />
             ) : (
-              <Loader2 className="h-5 w-5 animate-spin text-surface-tint" />
+              <Loader2 className="h-5 w-5 animate-spin text-surface-tint" aria-hidden="true" />
             )}
           </div>
         </div>

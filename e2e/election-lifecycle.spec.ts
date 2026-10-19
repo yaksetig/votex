@@ -11,16 +11,16 @@ test("verified voter creates, delegates, signs, audits, nullifies, closes, and t
   await page.goto("/sign-in");
   await page.getByRole("button", { name: "I don't have a Votex passkey yet" }).click();
   await page.getByRole("button", { name: "Complete test World ID verification" }).click();
-  await expect(page.getByRole("heading", { name: "Identity Confirmed" })).toBeVisible();
-  await page.getByRole("button", { name: "Continue to Elections" }).click();
+  await expect(page.getByRole("heading", { name: "Identity confirmed" })).toBeVisible();
+  await page.getByRole("button", { name: "Continue to elections" }).click();
 
-  await page.getByRole("button", { name: "Create Election" }).click();
+  await page.getByRole("button", { name: "Create election" }).click();
   await page.getByLabel("Election title").fill("E2E Community Proposal");
   await page.getByLabel("Context").fill("A deterministic full-lifecycle election for release validation.");
   await page.getByLabel("Option A").fill("Approve");
   await page.getByLabel("Option B").fill("Reject");
   await page.locator("#endDate").fill("2030-07-13T12:00");
-  await page.getByRole("button", { name: "Publish Election" }).click();
+  await page.getByRole("button", { name: "Publish election" }).click();
   await expect(page.getByText("Election published", { exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "E2E Community Proposal" })).toBeVisible();
 
@@ -75,7 +75,7 @@ test("verified voter creates, delegates, signs, audits, nullifies, closes, and t
 
   const electionId = String(backend.elections[0].id);
   await page.goto(`/elections/${electionId}`);
-  await page.getByRole("tab", { name: "Audit Trail" }).click();
+  await page.getByRole("tab", { name: "Audit trail" }).click();
   await expect(page.getByText("CLOSE_ELECTION", { exact: true })).toBeVisible();
   await expect(page.getByText("Delegation revoked", { exact: true })).toBeVisible();
 

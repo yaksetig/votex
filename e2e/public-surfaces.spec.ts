@@ -28,7 +28,7 @@ test("World ID onboarding links to the disclosure and audit pages", async ({ pag
   await expect(page.getByRole("button", { name: "Continue with passkey" })).toBeVisible();
   await expect(page.getByRole("button", { name: "I don't have a Votex passkey yet" })).toBeVisible();
   await expect(page.getByText("A new passkey creates a new voting identity", { exact: false })).toBeVisible();
-  await expect(page.getByRole("main").getByRole("link", { name: "Privacy Policy" })).toHaveAttribute("href", "/privacy");
-  await expect(page.getByRole("main").getByRole("link", { name: "Audit Protocol" })).toHaveAttribute("href", "/audit-protocol");
+  await expect(page.getByRole("main").getByRole("link", { name: "Privacy" })).toHaveAttribute("href", "/privacy");
+  await expect(page.getByRole("main").getByRole("link", { name: "Audit protocol" })).toHaveAttribute("href", "/audit-protocol");
   await expect(page.getByRole("main").getByRole("link", { name: "Support" })).toHaveAttribute("href", "mailto:support@votex.world");
 });
