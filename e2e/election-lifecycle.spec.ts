@@ -62,7 +62,7 @@ test("verified voter creates, delegates, signs, audits, nullifies, closes, and t
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page.getByRole("heading", { name: "Elections", exact: true })).toBeVisible();
   // The list renders cards on narrow screens and a table otherwise; one is visible.
-  await expect(page.getByText("E2E Community Proposal", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("E2E Community Proposal", { exact: true }).filter({ visible: true })).toBeVisible();
   await page.getByRole("button", { name: "Open E2E Community Proposal" }).click();
 
   await page.getByRole("button", { name: "Close election early" }).click();
