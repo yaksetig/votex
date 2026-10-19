@@ -153,8 +153,12 @@ const ElectionAuthorityDashboard: React.FC<ElectionAuthorityDashboardProps> = ({
     setLastRun(results);
     setReplaceMode(false);
     setRefreshKey((value) => value + 1);
-    focusById("tally-run-title");
   };
+
+  // The result panel mounts after the form; focus it once it exists.
+  useEffect(() => {
+    if (lastRun) focusById("tally-run-title");
+  }, [lastRun]);
 
   if (loading && !election) {
     return (

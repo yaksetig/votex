@@ -63,7 +63,7 @@ const AuthorityElectionsList: React.FC<AuthorityElectionsListProps> = ({ authori
     <div className="space-y-8">
       <header className="border-b border-outline-variant pb-8">
         <p className="ledger-eyebrow">{authorityName}</p>
-        <h1 className="mt-3 font-headline text-3xl font-bold tracking-display text-primary">Elections</h1>
+        <h1 id="authority-list-title" tabIndex={-1} className="mt-3 font-headline text-3xl font-bold tracking-display text-primary outline-none">Elections</h1>
         <p className="mt-3 max-w-3xl text-sm leading-relaxed text-on-surface-variant">
           Every election is bound to this authority. Open one to close it early, edit it before the first ballot, or run
           the tally once it has closed.

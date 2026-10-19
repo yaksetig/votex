@@ -2,6 +2,7 @@ import React, { Suspense, lazy, useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ROUTES } from "@/lib/routes";
 import { usePageTitle } from "@/hooks/usePageTitle";
+import { focusById } from "@/lib/focus";
 import {
   ArrowLeft,
   HelpCircle,
@@ -198,6 +199,8 @@ const ElectionAuthority = () => {
   const handleLoginSuccess = (authId: string, authName: string) => {
     setAuthorityId(authId);
     setAuthorityName(authName);
+    // The sign-in form unmounts; start the console at its heading.
+    window.setTimeout(() => focusById("authority-list-title"), 0);
   };
 
   const handleLogout = async () => {

@@ -101,6 +101,7 @@ const WorldIDSignIn: React.FC = () => {
   const [rpState, setRpState] = useState<"loading" | "ready" | "failed">("loading");
   const [returningIdentity, setReturningIdentity] = useState(false);
   const completeRef = useRef<HTMLDivElement>(null);
+  const stepTwoRef = useRef<HTMLElement>(null);
   const { setDerivedPublicKey, setIsWorldIDVerified, setUserId } = useWallet();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -141,6 +142,9 @@ const WorldIDSignIn: React.FC = () => {
   useEffect(() => {
     if (step === "complete") {
       completeRef.current?.focus();
+    } else if (step === "awaiting-worldid") {
+      // The passkey button is gone; continue from step 2.
+      stepTwoRef.current?.focus();
     }
   }, [step]);
 
@@ -401,8 +405,11 @@ const WorldIDSignIn: React.FC = () => {
           </section>
 
           <section
+            ref={stepTwoRef}
+            tabIndex={-1}
             aria-labelledby="step-2-title"
             className={cn(
+              "outline-none",
               "rounded-xl border p-5 transition-colors sm:p-8",
               stepTwoEnabled
                 ? "border-outline-variant bg-surface-container-lowest shadow-ledger"
